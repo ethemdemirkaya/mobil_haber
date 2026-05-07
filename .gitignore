@@ -45,3 +45,6 @@ app.*.map.json
 /android/app/release
 
 YAPILACAKLAR.md
+
+# Claude Code harness state (local only)
+.claude/
