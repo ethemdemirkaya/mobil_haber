@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'app.dart';
@@ -9,22 +8,34 @@ import 'core/tts/audio_session_setup.dart';
 import 'core/tts/briefing_audio_handler.dart';
 import 'core/utils/date_formatter.dart';
 
+/// Tek bir init'in hang etmesi tüm app'i splash'a kilitliyor — her birini
+/// kısa bir timeout'la sarıyoruz. Bir tanesi yavaş veya çakılırsa
+/// uygulamaya devam edip user'ın haberlere erişmesine izin veriyoruz.
+Future<void> _safeInit(String name, Future<void> Function() op,
+    {Duration timeout = const Duration(seconds: 6)}) async {
+  try {
+    await op().timeout(timeout, onTimeout: () {
+      debugPrint('[Pusula][init] $name timeout (${timeout.inSeconds}s) — skip');
+    });
+  } catch (e) {
+    debugPrint('[Pusula][init] $name hata: $e');
+  }
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await DateFormatter.ensureInitialized();
-  // Sesli brifing arka planda da çalışsın diye iOS/Android audio session
-  // ayarı (speech preset). Bu olmadan iOS'ta ekran kilitlenince ses durur.
-  await AudioSessionSetup.configure();
-  // Lock screen + bildirim panel medya kontrolü için audio_service.
-  // Bootstrap başarısız olursa (desktop) sessizce skip eder.
-  await BriefingAudioHandler.bootstrap();
-  // Yerel bildirim servisi — zamanlanmış brifing tap callback'i için
-  // erken init şart.
-  await ScheduledBriefingService.init();
-  // Firebase Cloud Messaging — config dosyaları yoksa sessizce skip eder.
-  // Setup adımları için: docs/FIREBASE_SETUP.md
-  await PushNotificationService.init(
-    localNotifs: FlutterLocalNotificationsPlugin(),
-  );
+
+  // Tüm yan-servis init'leri timeout'lu — bir tanesi takılsa bile splash'tan
+  // çıkıp ana ekrana geçilir. Haber çekimi tamamen ayrı yolda çalışıyor.
+  await _safeInit('AudioSessionSetup', AudioSessionSetup.configure);
+  await _safeInit('BriefingAudioHandler', BriefingAudioHandler.bootstrap);
+  await _safeInit('ScheduledBriefingService', ScheduledBriefingService.init);
+  await _safeInit('PushNotificationService', () async {
+    await PushNotificationService.init(
+      localNotifs: FlutterLocalNotificationsPlugin(),
+    );
+  }, timeout: const Duration(seconds: 8));
+
   runApp(const MobilHaberApp());
 }

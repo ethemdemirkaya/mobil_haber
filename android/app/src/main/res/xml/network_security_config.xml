@@ -1,9 +1,65 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Cleartext (HTTP) yalnızca emülatör host loopback'i ve localhost için. -->
+    <!-- Default policy: HTTPS only — production güvenlik standardı. -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Cleartext HTTP exception listesi: Türk haber sitelerinin bazıları
+         hala HTTP'den feed/görsel sunuyor (özellikle Hürriyet anasayfa RSS
+         http:// ile başlar). Bu domain'lere izin veriyoruz; geri kalan
+         tüm trafik HTTPS olmaya devam ediyor. -->
     <domain-config cleartextTrafficPermitted="true">
+        <!-- Geliştirme: emülatör host loopback + localhost -->
         <domain includeSubdomains="false">10.0.2.2</domain>
         <domain includeSubdomains="false">localhost</domain>
         <domain includeSubdomains="false">127.0.0.1</domain>
+
+        <!-- TR haber siteleri (RSS + makale + görsel) -->
+        <domain includeSubdomains="true">hurriyet.com.tr</domain>
+        <domain includeSubdomains="true">milliyet.com.tr</domain>
+        <domain includeSubdomains="true">ntv.com.tr</domain>
+        <domain includeSubdomains="true">ntvspor.net</domain>
+        <domain includeSubdomains="true">cumhuriyet.com.tr</domain>
+        <domain includeSubdomains="true">aa.com.tr</domain>
+        <domain includeSubdomains="true">trthaber.com</domain>
+        <domain includeSubdomains="true">trt.com.tr</domain>
+        <domain includeSubdomains="true">sabah.com.tr</domain>
+        <domain includeSubdomains="true">sozcu.com.tr</domain>
+        <domain includeSubdomains="true">cnnturk.com</domain>
+        <domain includeSubdomains="true">haberturk.com</domain>
+        <domain includeSubdomains="true">yenisafak.com</domain>
+        <domain includeSubdomains="true">diken.com.tr</domain>
+        <domain includeSubdomains="true">indyturk.com</domain>
+        <domain includeSubdomains="true">gazeteduvar.com.tr</domain>
+        <domain includeSubdomains="true">artigercek.com</domain>
+        <domain includeSubdomains="true">webrazzi.com</domain>
+        <domain includeSubdomains="true">shiftdelete.net</domain>
+        <domain includeSubdomains="true">donanimhaber.com</domain>
+        <domain includeSubdomains="true">fotomac.com.tr</domain>
+        <domain includeSubdomains="true">posta.com.tr</domain>
+        <domain includeSubdomains="true">aksam.com.tr</domain>
+        <domain includeSubdomains="true">takvim.com.tr</domain>
+
+        <!-- Uluslararası (Türkçe yayın) -->
+        <domain includeSubdomains="true">bbci.co.uk</domain>
+        <domain includeSubdomains="true">bbc.co.uk</domain>
+        <domain includeSubdomains="true">bbc.com</domain>
+        <domain includeSubdomains="true">dw.com</domain>
+        <domain includeSubdomains="true">euronews.com</domain>
+
+        <!-- Görsel / favicon CDN'leri -->
+        <domain includeSubdomains="true">tmgrup.com.tr</domain>
+        <domain includeSubdomains="true">hurimg.com</domain>
+        <domain includeSubdomains="true">sozcucdn.com</domain>
+        <domain includeSubdomains="true">cdnuploads.aa.com.tr</domain>
+        <domain includeSubdomains="true">trtcdn.com</domain>
+
+        <!-- Google services (favicon API + Firebase + AI) -->
+        <domain includeSubdomains="true">google.com</domain>
+        <domain includeSubdomains="true">gstatic.com</domain>
+        <domain includeSubdomains="true">googleapis.com</domain>
     </domain-config>
 </network-security-config>

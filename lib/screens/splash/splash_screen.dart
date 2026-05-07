@@ -47,10 +47,12 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
     final onboarding = context.read<OnboardingProvider>();
     final prefs = context.read<PreferencesProvider>();
-    // Onboarding ve tercih state'inin yüklenmesini bekle (önce gelen kazanır
-    // ama her ikisinin de hazır olması gerekiyor — kaynak seçimleri haber
-    // çekiminden önce bilinmeli).
-    while (!onboarding.initialized || !prefs.initialized) {
+    // Onboarding ve tercih state'inin yüklenmesini bekle. Hard upper-bound
+    // 4 saniye — bu süreden sonra nasıl olursa devam et; aksi halde
+    // SharedPreferences çakılırsa app sonsuza kadar splash'ta kalır.
+    final deadline = DateTime.now().add(const Duration(seconds: 4));
+    while ((!onboarding.initialized || !prefs.initialized) &&
+        DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(const Duration(milliseconds: 50));
       if (!mounted) return;
     }

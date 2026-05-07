@@ -196,12 +196,12 @@ class NewsSourceCatalog {
       tagline: 'Türkiye gazeteciliğinin köklü ismi',
       domain: 'hurriyet.com.tr',
       brandColor: Color(0xFFE30613),
-      primaryFeed: 'http://www.hurriyet.com.tr/rss/anasayfa',
+      primaryFeed: 'https://www.hurriyet.com.tr/rss/anasayfa',
       categoryFeeds: {
-        'gundem': 'http://www.hurriyet.com.tr/rss/gundem',
-        'ekonomi': 'http://www.hurriyet.com.tr/rss/ekonomi',
-        'spor': 'http://www.hurriyet.com.tr/rss/spor',
-        'dunya': 'http://www.hurriyet.com.tr/rss/dunya',
+        'gundem': 'https://www.hurriyet.com.tr/rss/gundem',
+        'ekonomi': 'https://www.hurriyet.com.tr/rss/ekonomi',
+        'spor': 'https://www.hurriyet.com.tr/rss/spor',
+        'dunya': 'https://www.hurriyet.com.tr/rss/dunya',
       },
     ),
 
