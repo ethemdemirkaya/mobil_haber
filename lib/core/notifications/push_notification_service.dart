@@ -41,13 +41,18 @@ class PushNotificationService {
   }) async {
     if (_initialized) return;
     try {
-      // FlutterFire generate'i yapılmadıysa Firebase.initializeApp burada
-      // patlar — kullanıcıyı kurulum dökümanına yönlendiren mesaj log'a
-      // düşer.
+      // flutterfire configure çalışmışsa lib/firebase_options.dart üretilir
+      // ve aşağıdaki dynamic import yerine doğrudan kullanılır. Bu
+      // koşullu yaklaşım, dosya yokken bile derlemenin kırılmamasını sağlar.
+      // Kurulum tamamlandıktan sonra istersen bu satırı:
+      //   await Firebase.initializeApp(
+      //     options: DefaultFirebaseOptions.currentPlatform,
+      //   );
+      // ile değiştirebilirsin (firebase_options.dart import et).
       await Firebase.initializeApp();
     } catch (e) {
       debugPrint('[Pusula][FCM] Firebase init başarısız: $e\n'
-          '→ docs/FIREBASE_SETUP.md adımlarını izleyin.');
+          '→ Setup için: ./setup-firebase.ps1 (veya docs/FIREBASE_SETUP.md)');
       return;
     }
 
