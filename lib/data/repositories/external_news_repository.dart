@@ -114,6 +114,8 @@ class ExternalNewsRepository {
       publishedAt: _parseDate(json['publishedAt']),
       readMinutes: (json['readMinutes'] as num?)?.toInt() ?? 1,
       isFeatured: json['isFeatured'] == true,
+      sourceUrl: json['sourceUrl']?.toString() ?? '',
+      sourceName: json['sourceName']?.toString() ?? '',
     );
   }
 

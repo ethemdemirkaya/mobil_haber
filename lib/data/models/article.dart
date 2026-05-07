@@ -12,6 +12,8 @@ class Article {
     required this.publishedAt,
     required this.readMinutes,
     this.isFeatured = false,
+    this.sourceUrl = '',
+    this.sourceName = '',
   });
 
   final String id;
@@ -24,6 +26,15 @@ class Article {
   final DateTime publishedAt;
   final int readMinutes;
   final bool isFeatured;
+
+  /// Orijinal habere bağlanan URL (varsa). Aggregate'ten gelen makaleler bunu
+  /// taşır; mock seed makaleler boş bırakır.
+  final String sourceUrl;
+
+  /// İnsan-okuyabilir kaynak adı (ör. "TRT Haber", "Anadolu Ajansı").
+  final String sourceName;
+
+  bool get hasOriginalUrl => sourceUrl.isNotEmpty;
 
   NewsCategory get category => NewsCategory.byId(categoryId);
 

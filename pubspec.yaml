@@ -53,6 +53,9 @@ dependencies:
   # System share sheet integration (article share button)
   share_plus: ^10.1.2
 
+  # Open external links in system browser (orijinal kaynak)
+  url_launcher: ^6.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
