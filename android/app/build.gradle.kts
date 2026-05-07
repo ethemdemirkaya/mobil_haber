@@ -3,6 +3,10 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Firebase google-services.json'ı build'a inject eder.
+    // flutterfire configure çalıştırıldıktan sonra google-services.json
+    // bu klasöre düşer ve plugin onu kullanır.
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -11,6 +15,10 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // flutter_local_notifications Java 8 API'leri (java.time vs)
+        // kullandığı için core library desugaring şart. Bu olmadan
+        // "Dependency requires core library desugaring" hatası verir.
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -20,11 +28,11 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.ethemdemirkaya.pusula"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // flutter_local_notifications + firebase_messaging + audio_session
+        // Android API 24+ destekliyor. Flutter default minSdk (21) bazı
+        // plugin'lerin requirement'larıyla çakışıyor.
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -37,6 +45,12 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+}
+
+dependencies {
+    // Java 8+ API'lerinin (java.time, java.util.stream vb.) eski Android
+    // API seviyelerine derlenmesi için. flutter_local_notifications zorunlu.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 flutter {
