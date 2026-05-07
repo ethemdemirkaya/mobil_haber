@@ -33,6 +33,12 @@ final class ArticleController
         Response::ok($this->repo->featured($limit));
     }
 
+    public function trending(): void
+    {
+        $limit = $this->intParam('limit', 10, 1, 50);
+        Response::ok($this->repo->trending($limit));
+    }
+
     public function show(string $id): void
     {
         $row = $this->repo->find($id);

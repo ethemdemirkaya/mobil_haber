@@ -5,13 +5,16 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/bookmark_provider.dart';
 import '../../providers/reading_history_provider.dart';
+import '../../providers/reading_theme_provider.dart';
 import '../../providers/search_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../live/live_news_screen.dart';
 import 'about_screen.dart';
 import 'data_usage_screen.dart';
+import 'diagnostics_screen.dart';
 import 'notification_prefs_screen.dart';
 import 'reading_history_screen.dart';
+import 'source_preferences_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -27,6 +30,10 @@ class SettingsScreen extends StatelessWidget {
           _ThemeModeTile(),
           _Divider(),
           _FontScaleTile(),
+          _Divider(),
+          _DensityTile(),
+          _Divider(),
+          _ReadingModeTile(),
           SizedBox(height: 12),
           _SectionTitle('Canlı içerik'),
           _NavTile(
@@ -34,6 +41,13 @@ class SettingsScreen extends StatelessWidget {
             title: 'Canlı Haberler',
             subtitle: 'AA, TRT, NTV, Sözcü, BBC, Hacker News + dış API\'ler',
             page: LiveNewsScreen(),
+          ),
+          _Divider(),
+          _NavTile(
+            icon: Icons.tune_outlined,
+            title: 'Kaynak Tercihleri',
+            subtitle: 'Canlı ekranda hangi kaynaklar gösterilsin',
+            page: SourcePreferencesScreen(),
           ),
           SizedBox(height: 12),
           _SectionTitle('Tercihler'),
@@ -57,6 +71,14 @@ class SettingsScreen extends StatelessWidget {
           _ClearSearchTile(),
           _Divider(),
           _ClearBookmarksTile(),
+          SizedBox(height: 12),
+          _SectionTitle('Geliştirici'),
+          _NavTile(
+            icon: Icons.health_and_safety_outlined,
+            title: 'Tanılama',
+            subtitle: 'Servis durumu, kaynak sağlığı, sürüm bilgisi',
+            page: DiagnosticsScreen(),
+          ),
           SizedBox(height: 12),
           _SectionTitle('Hakkında'),
           _NavTile(
@@ -207,6 +229,70 @@ class _FontScaleTile extends StatelessWidget {
         selected: {theme.fontScale},
         onSelectionChanged: (set) =>
             context.read<ThemeProvider>().setFontScale(set.first),
+      ),
+    );
+  }
+}
+
+class _DensityTile extends StatelessWidget {
+  const _DensityTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.watch<ReadingThemeProvider>();
+    return ListTile(
+      leading: const Icon(Icons.view_agenda_outlined),
+      title: const Text('Liste yoğunluğu'),
+      subtitle: Text(t.density.label),
+      trailing: SegmentedButton<ListDensity>(
+        showSelectedIcon: false,
+        segments: const [
+          ButtonSegment(
+            value: ListDensity.comfortable,
+            icon: Icon(Icons.density_medium, size: 16),
+          ),
+          ButtonSegment(
+            value: ListDensity.compact,
+            icon: Icon(Icons.density_small, size: 16),
+          ),
+        ],
+        selected: {t.density},
+        onSelectionChanged: (set) =>
+            context.read<ReadingThemeProvider>().setDensity(set.first),
+      ),
+    );
+  }
+}
+
+class _ReadingModeTile extends StatelessWidget {
+  const _ReadingModeTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.watch<ReadingThemeProvider>();
+    return ListTile(
+      leading: const Icon(Icons.menu_book_outlined),
+      title: const Text('Okuma modu'),
+      subtitle: Text(
+        t.readingMode == ReadingMode.sepia
+            ? 'Sepya — kremrengi okuma teması'
+            : 'Standart',
+      ),
+      trailing: SegmentedButton<ReadingMode>(
+        showSelectedIcon: false,
+        segments: const [
+          ButtonSegment(
+            value: ReadingMode.normal,
+            icon: Icon(Icons.brightness_5, size: 16),
+          ),
+          ButtonSegment(
+            value: ReadingMode.sepia,
+            icon: Icon(Icons.menu_book_outlined, size: 16),
+          ),
+        ],
+        selected: {t.readingMode},
+        onSelectionChanged: (set) =>
+            context.read<ReadingThemeProvider>().setReadingMode(set.first),
       ),
     );
   }

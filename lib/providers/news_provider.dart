@@ -56,6 +56,22 @@ class NewsProvider extends ChangeNotifier {
     return sorted.take(take).toList(growable: false);
   }
 
+  /// View count en yüksek olanlar — backend trending endpoint'i bu mantıkla
+  /// aynı sıralamayı döner. View count yoksa featured + tarihe göre fallback.
+  List<Article> trending({int take = 6}) {
+    if (_all.isEmpty) return const [];
+    final sorted = List<Article>.of(_all)
+      ..sort((a, b) {
+        // Mock veri sınırlamaları: featured + güncellik kullanarak sirala.
+        final aw = (a.isFeatured ? 1000 : 0);
+        final bw = (b.isFeatured ? 1000 : 0);
+        final byWeight = (bw - aw);
+        if (byWeight != 0) return byWeight;
+        return b.publishedAt.compareTo(a.publishedAt);
+      });
+    return sorted.take(take).toList(growable: false);
+  }
+
   List<Article> related(Article article, {int take = 4}) {
     return _all
         .where((a) =>

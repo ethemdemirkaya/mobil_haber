@@ -10,6 +10,8 @@ import 'providers/news_provider.dart';
 import 'providers/onboarding_provider.dart';
 import 'providers/preferences_provider.dart';
 import 'providers/reading_history_provider.dart';
+import 'providers/reading_progress_provider.dart';
+import 'providers/reading_theme_provider.dart';
 import 'providers/search_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/splash/splash_screen.dart';
@@ -34,6 +36,8 @@ class MobilHaberApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ReadingHistoryProvider()),
         ChangeNotifierProvider(create: (_) => PreferencesProvider()),
         ChangeNotifierProvider(create: (_) => ExternalNewsProvider()),
+        ChangeNotifierProvider(create: (_) => ReadingProgressProvider()),
+        ChangeNotifierProvider(create: (_) => ReadingThemeProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, theme, _) {

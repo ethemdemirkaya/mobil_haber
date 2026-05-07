@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../core/utils/date_formatter.dart';
 import '../data/models/article.dart';
 import '../providers/bookmark_provider.dart';
+import '../providers/reading_history_provider.dart';
+import '../providers/reading_theme_provider.dart';
 import 'article_image.dart';
 
 class ArticleCard extends StatelessWidget {
@@ -24,95 +26,137 @@ class ArticleCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final cat = article.category;
 
+    final wasRead = context.select<ReadingHistoryProvider, bool>(
+      (h) => h.wasRead(article.id),
+    );
+    final compact = context.select<ReadingThemeProvider, bool>(
+      (t) => t.isCompact,
+    );
+
+    final imageSize = compact ? 78.0 : 110.0;
+    final imageHeight = compact ? 64.0 : 90.0;
+    final verticalPad = compact ? 8.0 : 10.0;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
-        child: Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Hero(
-                tag: 'article-img-${article.id}',
-                child: ArticleImage(
-                  url: article.imageUrl,
-                  width: 110,
-                  height: 90,
-                  borderRadius: 16,
+        child: Opacity(
+          opacity: wasRead ? 0.62 : 1.0,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+                horizontal: 16, vertical: verticalPad),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Hero(
+                  tag: 'article-img-${article.id}',
+                  child: ArticleImage(
+                    url: article.imageUrl,
+                    width: imageSize,
+                    height: imageHeight,
+                    borderRadius: 14,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color:
-                                cat.color.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            cat.name,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: cat.color,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: cat.color.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              cat.name,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: cat.color,
+                              ),
                             ),
                           ),
-                        ),
-                        const Spacer(),
-                        if (showBookmark)
-                          _BookmarkButton(article: article),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      article.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        height: 1.25,
+                          if (wasRead) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: cs.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.check_circle,
+                                      size: 11,
+                                      color: cs.onSurfaceVariant),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    'Okundu',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          const Spacer(),
+                          if (showBookmark)
+                            _BookmarkButton(article: article),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.schedule_outlined,
-                          size: 13,
-                          color: cs.onSurfaceVariant,
+                      const SizedBox(height: 6),
+                      Text(
+                        article.title,
+                        maxLines: compact ? 2 : 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          height: 1.25,
+                          fontSize: compact ? 14 : null,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          DateFormatter.relative(article.publishedAt),
-                          style: textTheme.bodySmall,
-                        ),
-                        const SizedBox(width: 10),
-                        Icon(
-                          Icons.menu_book_outlined,
-                          size: 13,
-                          color: cs.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${article.readMinutes} dk',
-                          style: textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ],
+                      ),
+                      SizedBox(height: compact ? 4 : 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule_outlined,
+                            size: 13,
+                            color: cs.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            DateFormatter.relative(article.publishedAt),
+                            style: textTheme.bodySmall,
+                          ),
+                          const SizedBox(width: 10),
+                          Icon(
+                            Icons.menu_book_outlined,
+                            size: 13,
+                            color: cs.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${article.readMinutes} dk',
+                            style: textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

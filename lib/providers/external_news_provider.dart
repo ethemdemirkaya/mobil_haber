@@ -25,6 +25,12 @@ class ExternalNewsProvider extends ChangeNotifier {
   List<ExternalSource> get availableSources =>
       _sources.where((s) => s.available).toList(growable: false);
 
+  /// Kullanıcının tercihiyle filtrelenmiş kaynak listesi.
+  List<ExternalSource> visibleSources(Set<String> disabled) =>
+      _sources
+          .where((s) => s.available && !disabled.contains(s.id))
+          .toList(growable: false);
+
   List<Article> get articles => _articles;
   String? get selectedSourceId => _selectedSourceId;
 

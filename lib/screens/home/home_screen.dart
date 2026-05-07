@@ -286,6 +286,35 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ],
+              if (news.trending(take: 6).isNotEmpty) ...[
+                const SliverToBoxAdapter(
+                  child: SectionHeader(
+                    title: 'Trend',
+                    subtitle: 'En çok okunanlar',
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 200,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: news.trending(take: 6).length,
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(width: 12),
+                      itemBuilder: (context, index) {
+                        final a = news.trending(take: 6)[index];
+                        return _TrendingCard(
+                          article: a,
+                          rank: index + 1,
+                          onTap: () => _openArticle(a),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
               const SliverToBoxAdapter(
                 child: SectionHeader(title: 'Kategoriler'),
               ),
@@ -441,6 +470,130 @@ class _FeaturedCarousel extends StatelessWidget {
           }),
         ),
       ],
+    );
+  }
+}
+
+class _TrendingCard extends StatelessWidget {
+  const _TrendingCard({
+    required this.article,
+    required this.rank,
+    required this.onTap,
+  });
+
+  final Article article;
+  final int rank;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final cat = article.category;
+    return SizedBox(
+      width: 280,
+      child: Material(
+        color: Colors.transparent,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ArticleImage(
+                url: article.imageUrl,
+                fit: BoxFit.cover,
+                borderRadius: 18,
+              ),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.transparent,
+                      Color(0xCC000000),
+                      Color(0xEE000000),
+                    ],
+                    stops: [0.0, 0.4, 0.8, 1.0],
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 10,
+                left: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: cs.primary,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.local_fire_department,
+                          size: 13, color: cs.onPrimary),
+                      const SizedBox(width: 4),
+                      Text(
+                        '#$rank',
+                        style: TextStyle(
+                          color: cs.onPrimary,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 12,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: cat.color,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        cat.name.toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      article.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

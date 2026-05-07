@@ -9,6 +9,8 @@ import '../../data/models/article.dart';
 import '../../providers/bookmark_provider.dart';
 import '../../providers/news_provider.dart';
 import '../../providers/reading_history_provider.dart';
+import '../../providers/reading_progress_provider.dart';
+import '../../providers/reading_theme_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../widgets/article_image.dart';
 import '../../widgets/author_profile_sheet.dart';
@@ -34,7 +36,31 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<ReadingHistoryProvider>().markRead(widget.article.id);
+      _restoreScrollPosition();
     });
+  }
+
+  void _restoreScrollPosition() {
+    if (!_scrollController.hasClients) return;
+    final saved = context
+        .read<ReadingProgressProvider>()
+        .get(widget.article.id);
+    if (saved <= 0.02 || saved >= 0.95) return;
+    final max = _scrollController.position.maxScrollExtent;
+    if (max <= 0) {
+      // Sayfa daha render olmamış, bir frame daha bekle.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_scrollController.hasClients) return;
+        final m2 = _scrollController.position.maxScrollExtent;
+        if (m2 > 0) {
+          _scrollController.jumpTo(m2 * saved);
+          setState(() => _progress = saved);
+        }
+      });
+      return;
+    }
+    _scrollController.jumpTo(max * saved);
+    setState(() => _progress = saved);
   }
 
   @override
@@ -51,6 +77,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     final next = max <= 0 ? 0.0 : (offset / max).clamp(0.0, 1.0);
     if ((next - _progress).abs() > 0.005) {
       setState(() => _progress = next);
+      // Scroll konumunu kalıcı kaydet.
+      context.read<ReadingProgressProvider>().set(widget.article.id, next);
     }
   }
 
@@ -97,8 +125,15 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     final related = context.select<NewsProvider, List<Article>>(
       (n) => n.related(article),
     );
+    final readingMode = context.watch<ReadingThemeProvider>();
+    final isSepia = readingMode.isSepia;
+
+    // Sepia palet — kremrengi arkaplan, sıcak ton metinler.
+    const sepiaBg = Color(0xFFF5ECD7);
+    const sepiaText = Color(0xFF3E2F1B);
 
     return Scaffold(
+      backgroundColor: isSepia ? sepiaBg : null,
       body: Stack(
         children: [
           CustomScrollView(
@@ -114,6 +149,20 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                     ? SystemUiOverlayStyle.light
                     : SystemUiOverlayStyle.dark,
                 actions: [
+                  IconButton(
+                    tooltip: isSepia ? 'Standart tema' : 'Sepya okuma modu',
+                    icon: Icon(
+                      isSepia
+                          ? Icons.brightness_5
+                          : Icons.menu_book_outlined,
+                    ),
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      context
+                          .read<ReadingThemeProvider>()
+                          .toggleReadingMode();
+                    },
+                  ),
                   IconButton(
                     tooltip: 'Yazı boyutu küçült',
                     icon: const Icon(Icons.text_decrease_outlined),
@@ -265,12 +314,52 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 22),
-                      Text(
-                        article.summary,
-                        style: textTheme.titleMedium?.copyWith(
-                          color: cs.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
-                          height: 1.45,
+                      // TL;DR — kısa özet rozetiyle vurgulu kart
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                        decoration: BoxDecoration(
+                          color: isSepia
+                              ? sepiaBg.withValues(alpha: 0.6)
+                              : cat.color.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border(
+                            left: BorderSide(
+                              color: cat.color,
+                              width: 4,
+                            ),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.bolt,
+                                    size: 14, color: cat.color),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'TL;DR',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.1,
+                                    color: cat.color,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              article.summary,
+                              style: textTheme.titleMedium?.copyWith(
+                                color: isSepia
+                                    ? sepiaText
+                                    : cs.onSurface,
+                                fontWeight: FontWeight.w600,
+                                height: 1.45,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 18),
@@ -281,8 +370,11 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                       const SizedBox(height: 18),
                       Text(
                         article.content,
-                        style:
-                            textTheme.bodyLarge?.copyWith(height: 1.6),
+                        style: textTheme.bodyLarge?.copyWith(
+                          color: isSepia ? sepiaText : null,
+                          height: isSepia ? 1.7 : 1.6,
+                          fontFamily: isSepia ? 'serif' : null,
+                        ),
                       ),
                     ],
                   ),

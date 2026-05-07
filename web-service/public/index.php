@@ -52,6 +52,7 @@ $router->get('/categories/{id}', static fn(array $p) => $categoryController->sho
 
 $router->get('/articles', $articleController->index(...));
 $router->get('/articles/featured', $articleController->featured(...));
+$router->get('/articles/trending', $articleController->trending(...));
 $router->get('/articles/search', $articleController->search(...));
 $router->get('/articles/{id}', static fn(array $p) => $articleController->show($p['id']));
 $router->get('/articles/{id}/related', static fn(array $p) => $articleController->related($p['id']));

@@ -15,11 +15,20 @@ class PreferencesProvider extends ChangeNotifier {
   bool _dataSaverImages = false;
   bool _dataSaverAutoplay = true;
 
+  /// Live ekranında devre dışı bırakılan kaynak id'leri.
+  /// Boş set = tüm available kaynaklar gösterilir.
+  final Set<String> _disabledSources = <String>{};
+  static const _prefsDisabledSources = 'pref_disabled_sources';
+
   bool get breakingNews => _breakingNews;
   bool get dailyDigest => _dailyDigest;
   bool isCategorySubscribed(String id) => _categoryNotifs.contains(id);
   bool get dataSaverImages => _dataSaverImages;
   bool get dataSaverAutoplay => _dataSaverAutoplay;
+
+  Set<String> get disabledSources => Set.unmodifiable(_disabledSources);
+  bool isSourceEnabled(String id) => !_disabledSources.contains(id);
+  int get disabledSourceCount => _disabledSources.length;
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -38,7 +47,29 @@ class PreferencesProvider extends ChangeNotifier {
           false;
       if (active) _categoryNotifs.add(c.id);
     }
+    _disabledSources
+      ..clear()
+      ..addAll(prefs.getStringList(_prefsDisabledSources) ?? const []);
     notifyListeners();
+  }
+
+  Future<void> toggleSource(String sourceId, bool enabled) async {
+    if (enabled) {
+      if (!_disabledSources.remove(sourceId)) return;
+    } else {
+      if (!_disabledSources.add(sourceId)) return;
+    }
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_prefsDisabledSources, _disabledSources.toList());
+  }
+
+  Future<void> resetSourcePreferences() async {
+    if (_disabledSources.isEmpty) return;
+    _disabledSources.clear();
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefsDisabledSources);
   }
 
   Future<void> setBreakingNews(bool value) async {

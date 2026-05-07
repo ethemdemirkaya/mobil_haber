@@ -59,6 +59,42 @@ final class ArticleRepository
     }
 
     /** @return list<array<string, mixed>> */
+    public function trending(int $limit = 10): array
+    {
+        $sql = "
+            SELECT a.id, a.title, a.summary, a.content, a.category_id, a.image_url,
+                   a.published_at, a.read_minutes, a.is_featured, a.view_count,
+                   au.name AS author_name
+            FROM articles a
+            INNER JOIN authors au ON au.id = a.author_id
+            WHERE a.view_count > 0
+            ORDER BY a.view_count DESC, a.published_at DESC
+            LIMIT :limit
+        ";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->bindValue('limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll();
+        // Henüz hiçbir makalenin görüntülenmemiş olabilir; bu durumda en yeni
+        // featured veya en yenileri döndür (boş liste yerine).
+        if (empty($rows)) {
+            $stmt = $this->pdo->prepare("
+                SELECT a.id, a.title, a.summary, a.content, a.category_id, a.image_url,
+                       a.published_at, a.read_minutes, a.is_featured, a.view_count,
+                       au.name AS author_name
+                FROM articles a
+                INNER JOIN authors au ON au.id = a.author_id
+                ORDER BY a.is_featured DESC, a.published_at DESC
+                LIMIT :limit
+            ");
+            $stmt->bindValue('limit', $limit, PDO::PARAM_INT);
+            $stmt->execute();
+            $rows = $stmt->fetchAll();
+        }
+        return array_map($this->hydrate(...), $rows);
+    }
+
+    /** @return list<array<string, mixed>> */
     public function featured(int $limit = 10): array
     {
         $sql = "

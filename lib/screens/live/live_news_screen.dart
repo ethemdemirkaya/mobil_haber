@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../data/models/article.dart';
 import '../../data/repositories/external_news_repository.dart';
 import '../../providers/external_news_provider.dart';
+import '../../providers/preferences_provider.dart';
 import '../../widgets/article_card.dart';
 import '../../widgets/error_banner.dart';
 import '../../widgets/illustrated_empty_state.dart';
@@ -66,6 +67,11 @@ class _LiveNewsScreenState extends State<LiveNewsScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final p = context.watch<ExternalNewsProvider>();
+    final disabledSources =
+        context.watch<PreferencesProvider>().disabledSources;
+    final visibleSources = p.sources
+        .where((s) => !disabledSources.contains(s.id))
+        .toList(growable: false);
 
     return Scaffold(
       appBar: AppBar(
@@ -98,7 +104,7 @@ class _LiveNewsScreenState extends State<LiveNewsScreen> {
             if (!_aggregateMode)
               SliverToBoxAdapter(
                 child: _SourceChipsRow(
-                  sources: p.sources,
+                  sources: visibleSources,
                   loading: p.loadingSources,
                   selectedId: p.selectedSourceId,
                   onSelect: (id) => context
