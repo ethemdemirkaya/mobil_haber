@@ -7,20 +7,28 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/ai/openrouter_client.dart';
+import '../../data/models/article.dart';
+import '../../data/models/category.dart';
 import '../../data/repositories/daily_briefing_service.dart';
 import '../../providers/ai_settings_provider.dart';
 import '../../providers/news_provider.dart';
 import '../settings/ai_settings_screen.dart';
 
-/// Bugünün haberlerinden AI ile yazılmış bir brifingi sesli okutan ekran.
+/// Bugünün haberlerinden AI ile yazılmış sesli brifingi okutan ekran.
 ///
-/// Yaşam döngüsü:
-///   1. Açılışta loading state hemen gösterilir (boş frame yok).
-///   2. Paralel olarak: TTS init + AI generate.
-///   3. AI dönerse, TTS hazır olduktan sonra otomatik oku.
-///   4. Cümle bazlı parçalama: her cümle ayrı `speak()` çağrısı, bir
-///      önceki bittiğinde sıradaki başlar (Android TTS uzun metinde
-///      kelime ortasında kesilebiliyor).
+/// Üç ana parça:
+///   1. Üst kategori şeridi: "Genel" + uygulamada haberi olan kategoriler
+///      (Spor, Ekonomi, Teknoloji vb). Tıklandığında o konuya odaklı
+///      brifing üretilir, in-memory cache ile geri dönüşler hızlı.
+///   2. Orta gövde: AI'ın hazırladığı brifing metni; konuşulan cümle
+///      vurgulanır.
+///   3. Alt player bar: play/pause/stop/restart + hız sürgüsü +
+///      ilerleme çubuğu.
+///
+/// TTS init "best-effort": her metot ayrı try/catch sarmalı; bir tanesi
+/// `MissingPluginException` fırlatsa bile diğerleri çalışmaya devam eder.
+/// Hot reload ile native plugin kaydolmadığında da ekran çökmek yerine
+/// kullanıcıya net bir mesaj verir.
 class DailyBriefingScreen extends StatefulWidget {
   const DailyBriefingScreen({super.key});
 
@@ -36,76 +44,113 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   bool _generating = true;
   String? _briefing;
   String? _error;
-  String? _ttsWarning; // TTS init uyarısı (Türkçe ses yok vb.)
+  String? _ttsWarning; // TTS init uyarısı (Türkçe ses yok / desteklenmiyor)
 
   // TTS state
   bool _ttsReady = false;
+  bool _ttsSupported = true; // false → bu platformda hiç çalıştırılamaz
   bool _speaking = false;
   bool _paused = false;
-  double _speechRate = 0.50; // 0.0-1.0; flutter_tts'te 0.5 ≈ normal hız.
+  double _speechRate = 0.50; // 0.0-1.0; flutter_tts'te 0.5 ≈ normal hız
   static const double _pitch = 1.0;
 
   // Cümle parçaları + ilerleme.
   List<String> _utterances = const [];
   int _utteranceIndex = 0;
-  Completer<void>? _utteranceCompleter; // her speak() bunu await eder.
+  Completer<void>? _utteranceCompleter;
+
+  // Kategori state + cache (in-memory; ekran kapanınca temizlenir).
+  late BriefingTopic _topic;
+  final Map<String, _CachedBriefing> _cache = <String, _CachedBriefing>{};
+
+  /// Kategori şeridinde gösterilecek konular: "Genel" + uygulamada bu an
+  /// haberi olan kategoriler. NewsCategory.values sırasını korur.
+  List<BriefingTopic> _availableTopics(NewsProvider news) {
+    final topics = <BriefingTopic>[const BriefingTopic()]; // Genel
+    for (final c in NewsCategory.values) {
+      if (c.id == NewsCategory.all.id) continue;
+      // O kategoride en az 1 makale varsa ekle.
+      final hasAny = news.articlesOf(c.id).isNotEmpty;
+      if (hasAny) topics.add(BriefingTopic(category: c));
+    }
+    return topics;
+  }
 
   @override
   void initState() {
     super.initState();
-    // initState async olamaz — ayrı yardımcıyla başlatıp sıraya koy.
+    _topic = const BriefingTopic(); // Genel
     _bootstrap();
   }
 
   Future<void> _bootstrap() async {
-    // TTS ve AI'yı paralel başlat — AI 5-10sn sürerken TTS init beklemesin.
+    // TTS init + AI generate paralel başlasın — 5-10sn AI beklerken
+    // TTS init harcanan süreyi tamamen örtebilir.
     final ttsFuture = _initTts();
     final genFuture = _generate();
     await Future.wait([ttsFuture, genFuture]);
     if (!mounted) return;
-    // Her ikisi de tamamlandı; brifing varsa otomatik çal.
     if (_briefing != null && _briefing!.isNotEmpty && _ttsReady) {
-      // Küçük bekleme — kullanıcı UI'ı görsün, sonra ses başlasın.
       await Future<void>.delayed(const Duration(milliseconds: 300));
       if (mounted) _play();
     }
   }
 
+  // ─────────────── TTS ───────────────
+
+  /// Resilient TTS init. Her metodu ayrı try/catch ile sarıyoruz çünkü:
+  ///  - `MissingPluginException`: pubspec güncellendi ama hot reload sonrası
+  ///    native registrar yenilenmedi → tam restart şart.
+  ///  - Bazı metodlar belirli platformlarda (Windows, Linux, Web) implement
+  ///    edilmemiş — birinin patlaması diğerlerini kırmasın.
   Future<void> _initTts() async {
-    try {
-      // iOS'ta arka planda da çalışsın diye shared instance + ses kategorisi
-      // ayarı şart.
-      if (defaultTargetPlatform == TargetPlatform.iOS) {
-        await _tts.setSharedInstance(true);
-        await _tts.setIosAudioCategory(
+    // iOS shared instance + audio session (opsiyonel).
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      await _safeCall('setSharedInstance',
+          () async => _tts.setSharedInstance(true));
+      await _safeCall(
+        'setIosAudioCategory',
+        () async => _tts.setIosAudioCategory(
           IosTextToSpeechAudioCategory.playback,
           [
             IosTextToSpeechAudioCategoryOptions.mixWithOthers,
             IosTextToSpeechAudioCategoryOptions.duckOthers,
           ],
           IosTextToSpeechAudioMode.spokenAudio,
-        );
-      }
+        ),
+      );
+    }
 
-      // Türkçe dil + tipik TTS parametreleri.
-      final langOk = await _tts.isLanguageAvailable('tr-TR');
-      if (langOk == true) {
-        await _tts.setLanguage('tr-TR');
-      } else {
-        // Cihazda TR yoksa default kalsın ama kullanıcıyı uyaralım.
-        debugPrint('[Pusula][TTS] tr-TR yok, default dile düşülüyor.');
-        _ttsWarning = 'Cihazınızda Türkçe TTS sesi yüklü değil. '
-            'Sistem ayarları > Erişilebilirlik > Konuşma Sentezi\'nden '
-            'Türkçe ses paketini yükleyin.';
-      }
-      await _tts.setSpeechRate(_speechRate);
-      await _tts.setPitch(_pitch);
-      await _tts.setVolume(1.0);
+    // Türkçe dil kontrolü — bazı platformlarda hiç implement edilmemiş.
+    // Sonuç ne olursa olsun setLanguage'i deniyoruz; çoğu cihazda
+    // setLanguage başarılı olur, sadece bu kontrol fonksiyonu eksik.
+    bool? langOk;
+    final supported = await _safeCallReturning<dynamic>(
+      'isLanguageAvailable',
+      () => _tts.isLanguageAvailable('tr-TR'),
+    );
+    if (supported is bool) langOk = supported;
 
-      // Her cümle bittiğinde sıradakini çal (chain). Bunun için
-      // `awaitSpeakCompletion` KAPALI — completion handler ile yönetiyoruz.
-      await _tts.awaitSpeakCompletion(false);
+    final setLangOk = await _safeCall(
+      'setLanguage',
+      () async => _tts.setLanguage('tr-TR'),
+    );
 
+    if (langOk == false || (setLangOk == false && langOk == null)) {
+      _ttsWarning = 'Cihazınızda Türkçe TTS sesi yüklü olmayabilir. '
+          'Sistem ayarları > Erişilebilirlik > Konuşma Sentezi\'nden '
+          'Türkçe ses paketini yüklemeyi deneyin.';
+    }
+
+    await _safeCall(
+        'setSpeechRate', () async => _tts.setSpeechRate(_speechRate));
+    await _safeCall('setPitch', () async => _tts.setPitch(_pitch));
+    await _safeCall('setVolume', () async => _tts.setVolume(1.0));
+    await _safeCall('awaitSpeakCompletion',
+        () async => _tts.awaitSpeakCompletion(false));
+
+    // Handler kayıtları sync — try/catch'e gerek yok ama güvenlik için.
+    try {
       _tts.setStartHandler(_onSpeechStart);
       _tts.setCompletionHandler(_onSpeechCompletion);
       _tts.setCancelHandler(_onSpeechCancel);
@@ -124,13 +169,49 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
           _paused = false;
         });
       });
+    } catch (e) {
+      debugPrint('[Pusula][TTS] handler kaydı hata: $e');
+    }
 
-      _ttsReady = true;
-      if (mounted) setState(() {});
-    } catch (e, st) {
-      debugPrint('[Pusula][TTS] init hatası: $e\n$st');
-      _ttsWarning = 'Sesli okuma motoru başlatılamadı: $e';
-      if (mounted) setState(() {});
+    _ttsReady = true;
+    if (mounted) setState(() {});
+  }
+
+  /// Tek bir TTS metodunu güvenli çağırır; başarı (true/false) döner.
+  /// `MissingPluginException` ya da PlatformException sessizce yutulur,
+  /// debugPrint'e log düşer.
+  Future<bool> _safeCall(String name, Future<dynamic> Function() op) async {
+    try {
+      await op();
+      return true;
+    } on MissingPluginException catch (e) {
+      debugPrint('[Pusula][TTS] $name: MissingPluginException → $e');
+      return false;
+    } on PlatformException catch (e) {
+      debugPrint('[Pusula][TTS] $name: PlatformException → ${e.code} ${e.message}');
+      return false;
+    } catch (e) {
+      debugPrint('[Pusula][TTS] $name: $e');
+      return false;
+    }
+  }
+
+  /// `_safeCall` gibi ama dönüş değeri ile.
+  Future<T?> _safeCallReturning<T>(
+    String name,
+    Future<T?> Function() op,
+  ) async {
+    try {
+      return await op();
+    } on MissingPluginException catch (e) {
+      debugPrint('[Pusula][TTS] $name: MissingPluginException → $e');
+      return null;
+    } on PlatformException catch (e) {
+      debugPrint('[Pusula][TTS] $name: PlatformException → ${e.code}');
+      return null;
+    } catch (e) {
+      debugPrint('[Pusula][TTS] $name: $e');
+      return null;
     }
   }
 
@@ -143,20 +224,15 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   }
 
   void _onSpeechCompletion() {
-    // Bir cümle bitti → sıradakine geç. Bittiyse durumu temizle.
     final completer = _utteranceCompleter;
     _utteranceCompleter = null;
-    if (completer != null && !completer.isCompleted) {
-      completer.complete();
-    }
+    if (completer != null && !completer.isCompleted) completer.complete();
   }
 
   void _onSpeechCancel() {
     final completer = _utteranceCompleter;
     _utteranceCompleter = null;
-    if (completer != null && !completer.isCompleted) {
-      completer.complete();
-    }
+    if (completer != null && !completer.isCompleted) completer.complete();
     if (!mounted) return;
     setState(() {
       _speaking = false;
@@ -168,29 +244,26 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     debugPrint('[Pusula][TTS] error: $msg');
     final completer = _utteranceCompleter;
     _utteranceCompleter = null;
-    if (completer != null && !completer.isCompleted) {
-      completer.complete();
-    }
+    if (completer != null && !completer.isCompleted) completer.complete();
     if (!mounted) return;
     setState(() {
       _speaking = false;
       _paused = false;
-      // Hata gösterelim — auto-restart döngüsünden kaçın.
-      _ttsWarning = 'Sesli okuma sırasında hata oluştu: $msg';
+      _ttsWarning = 'Sesli okuma sırasında hata: $msg';
     });
   }
 
   @override
   void dispose() {
     _tts.stop();
-    _tts.setStartHandler(() {});
-    _tts.setCompletionHandler(() {});
-    _tts.setCancelHandler(() {});
-    _tts.setErrorHandler((_) {});
     super.dispose();
   }
 
-  Future<void> _generate() async {
+  // ─────────────── AI generation ───────────────
+
+  /// Seçili kategori için brifing üretir. Cache'te varsa onu yükler;
+  /// yoksa OpenRouter çağrısı yapar.
+  Future<void> _generate({bool forceRefresh = false}) async {
     final ai = context.read<AiSettingsProvider>();
     if (!ai.isReady()) {
       if (!mounted) return;
@@ -201,17 +274,38 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
       });
       return;
     }
+
     final news = context.read<NewsProvider>();
-    final articles = news.latest(take: 6);
+    final articles = _filterArticles(news);
     if (articles.isEmpty) {
       if (!mounted) return;
       setState(() {
         _generating = false;
-        _error = 'Henüz haber yüklenmedi. Ana sayfada birkaç saniye '
-            'bekleyip tekrar deneyin.';
+        _error = _topic.isGeneral
+            ? 'Henüz haber yüklenmedi. Ana sayfada birkaç saniye '
+                'bekleyip tekrar deneyin.'
+            : '${_topic.displayName} kapsamında henüz haber bulunamadı. '
+                'Bu kategoriden bir kaynak seçtiğinden emin ol.';
       });
       return;
     }
+
+    // Cache hit?
+    if (!forceRefresh) {
+      final cached = _cache[_topic.cacheKey];
+      if (cached != null) {
+        if (!mounted) return;
+        setState(() {
+          _briefing = cached.text;
+          _utterances = cached.utterances;
+          _utteranceIndex = 0;
+          _generating = false;
+          _error = null;
+        });
+        return;
+      }
+    }
+
     if (!mounted) return;
     setState(() {
       _generating = true;
@@ -220,12 +314,14 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
       _utterances = const [];
       _utteranceIndex = 0;
     });
+
     try {
       final raw = await ai.generate(
-        systemPrompt: DailyBriefingService.systemPrompt,
+        systemPrompt: DailyBriefingService.systemPromptFor(_topic),
         userPrompt: _service.buildUserPrompt(
           articles: articles,
           now: DateTime.now(),
+          topic: _topic,
         ),
         maxTokens: 700,
       );
@@ -236,6 +332,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
         );
       }
       final parts = _service.splitIntoUtterances(cleaned);
+      _cache[_topic.cacheKey] = _CachedBriefing(cleaned, parts);
       if (!mounted) return;
       setState(() {
         _briefing = cleaned;
@@ -258,13 +355,22 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     }
   }
 
+  List<Article> _filterArticles(NewsProvider news) {
+    if (_topic.isGeneral) return news.latest(take: 6);
+    final cat = _topic.category!;
+    final list = news.articlesOf(cat.id);
+    if (list.isEmpty) return const [];
+    final sorted = List<Article>.of(list)
+      ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+    return sorted.take(6).toList(growable: false);
+  }
+
+  // ─────────────── Playback ───────────────
+
   /// Sırayla tüm cümleleri çalar. Her cümle için speak() çağrılır,
-  /// completion handler future'ını çözer, döngü sıradaki cümleye geçer.
+  /// completion handler future'ını çözer, sıradaki cümleye geçilir.
   Future<void> _playFromIndex(int startIndex) async {
-    if (!_ttsReady) {
-      debugPrint('[Pusula][TTS] not ready, skip play');
-      return;
-    }
+    if (!_ttsReady) return;
     if (_utterances.isEmpty) return;
     setState(() {
       _utteranceIndex = startIndex;
@@ -272,44 +378,51 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     });
     for (var i = startIndex; i < _utterances.length; i++) {
       if (!mounted) return;
-      // Pause ya da stop çağrılırsa loop kırılır.
       if (_paused) break;
       _utteranceIndex = i;
       final completer = Completer<void>();
       _utteranceCompleter = completer;
       try {
         final result = await _tts.speak(_utterances[i]);
-        // result == 1 başarı, 0 hata (Android quirky)
         if (result == 0) {
-          debugPrint('[Pusula][TTS] speak returned 0 (failure) for chunk $i');
-          completer.complete();
+          debugPrint('[Pusula][TTS] speak failed at chunk $i');
+          if (!completer.isCompleted) completer.complete();
+          if (!mounted) return;
+          setState(() {
+            _ttsSupported = false;
+            _ttsWarning = 'Bu platformda sesli okuma çalışmıyor olabilir. '
+                'Mobil cihazda denemenizi öneririz.';
+            _speaking = false;
+          });
           break;
         }
+      } on MissingPluginException catch (e) {
+        debugPrint('[Pusula][TTS] speak missing: $e');
+        if (!completer.isCompleted) completer.complete();
+        if (!mounted) return;
+        setState(() {
+          _ttsSupported = false;
+          _ttsWarning = 'Sesli okuma motoru bu cihazda kullanılamıyor. '
+              'Uygulamayı tamamen kapatıp yeniden açın (hot reload yetmez).';
+        });
+        break;
       } catch (e) {
         debugPrint('[Pusula][TTS] speak threw: $e');
         if (!completer.isCompleted) completer.complete();
         break;
       }
-      // Bu cümle bitene kadar bekle (completion handler complete() çağırır).
       await completer.future;
       if (!mounted) return;
       if (_paused) break;
     }
     if (!mounted) return;
-    setState(() {
-      _speaking = false;
-    });
+    setState(() => _speaking = false);
   }
 
   Future<void> _play() async {
-    if (!_ttsReady) {
-      debugPrint('[Pusula][TTS] _play çağrıldı ama TTS hazır değil.');
-      return;
-    }
-    if (_utterances.isEmpty) return;
+    if (!_ttsReady || _utterances.isEmpty) return;
     HapticFeedback.selectionClick();
     if (_paused) {
-      // Kaldığı yerden devam — _utteranceIndex orada kaldı.
       await _playFromIndex(_utteranceIndex);
     } else {
       await _playFromIndex(0);
@@ -318,9 +431,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
 
   Future<void> _pause() async {
     HapticFeedback.selectionClick();
-    // Mevcut cümleyi bitir, döngüyü durdur.
     setState(() => _paused = true);
-    // Anında sustur:
     await _tts.stop();
   }
 
@@ -340,25 +451,46 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     await _play();
   }
 
+  Future<void> _selectTopic(BriefingTopic t) async {
+    if (t.cacheKey == _topic.cacheKey) return;
+    HapticFeedback.selectionClick();
+    await _stop();
+    setState(() {
+      _topic = t;
+      _error = null;
+    });
+    await _generate();
+    if (!mounted) return;
+    if (_briefing != null && _ttsReady) {
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      if (mounted) _play();
+    }
+  }
+
+  Future<void> _refresh() async {
+    HapticFeedback.lightImpact();
+    await _stop();
+    await _generate(forceRefresh: true);
+    if (!mounted) return;
+    if (_briefing != null && _ttsReady) _play();
+  }
+
+  // ─────────────── Build ───────────────
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final news = context.watch<NewsProvider>();
+    final topics = _availableTopics(news);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sesli Brifing'),
         actions: [
           IconButton(
-            tooltip: 'Yeniden oluştur',
-            onPressed: _generating
-                ? null
-                : () async {
-                    await _stop();
-                    await _generate();
-                    if (!mounted) return;
-                    if (_briefing != null && _ttsReady) _play();
-                  },
+            tooltip: 'Bu konu için yeniden oluştur',
+            onPressed: _generating ? null : _refresh,
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -366,6 +498,13 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            _TopicChipsRow(
+              topics: topics,
+              selectedKey: _topic.cacheKey,
+              cachedKeys: _cache.keys.toSet(),
+              onSelect: _selectTopic,
+              disabled: _generating,
+            ),
             if (_ttsWarning != null) _TtsWarningBanner(message: _ttsWarning!),
             Expanded(
               child: _buildBody(context, cs, textTheme),
@@ -373,7 +512,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
             _PlayerBar(
               speaking: _speaking,
               paused: _paused,
-              hasBriefing: _utterances.isNotEmpty && _ttsReady,
+              hasBriefing:
+                  _utterances.isNotEmpty && _ttsReady && _ttsSupported,
               speechRate: _speechRate,
               progress: _utterances.isEmpty
                   ? 0.0
@@ -384,7 +524,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
               onRestart: _restart,
               onRateChanged: (r) async {
                 setState(() => _speechRate = r);
-                await _tts.setSpeechRate(r);
+                await _safeCall(
+                    'setSpeechRate', () async => _tts.setSpeechRate(r));
                 if (_speaking) {
                   await _tts.stop();
                   await _play();
@@ -410,12 +551,12 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              'Brifing hazırlanıyor…',
+              '${_topic.displayName} hazırlanıyor…',
               style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 6),
             Text(
-              'Yapay zeka son haberlerden bir gündem özeti yazıyor.',
+              'Yapay zeka son haberlerden bir özet yazıyor.',
               textAlign: TextAlign.center,
               style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
             ),
@@ -441,12 +582,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 FilledButton.tonal(
-                  onPressed: () async {
-                    await _stop();
-                    await _generate();
-                    if (!mounted) return;
-                    if (_briefing != null && _ttsReady) _play();
-                  },
+                  onPressed: _refresh,
                   child: const Text('Tekrar dene'),
                 ),
                 const SizedBox(width: 10),
@@ -491,10 +627,15 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.18),
+                    color: (_topic.category?.color ?? cs.primary)
+                        .withValues(alpha: 0.18),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.podcasts, color: cs.primary, size: 22),
+                  child: Icon(
+                    _topic.category?.icon ?? Icons.podcasts,
+                    color: _topic.category?.color ?? cs.primary,
+                    size: 22,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -502,7 +643,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Bugünün gündem brifingi',
+                        _topic.displayName,
                         style: tt.titleSmall?.copyWith(
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.1,
@@ -523,7 +664,6 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          // Aktif cümleyi vurgulayarak metni göster.
           _HighlightedText(
             utterances: _utterances,
             currentIndex: _utteranceIndex,
@@ -531,6 +671,80 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
           ),
           const SizedBox(height: 24),
         ],
+      ),
+    );
+  }
+}
+
+class _CachedBriefing {
+  const _CachedBriefing(this.text, this.utterances);
+  final String text;
+  final List<String> utterances;
+}
+
+class _TopicChipsRow extends StatelessWidget {
+  const _TopicChipsRow({
+    required this.topics,
+    required this.selectedKey,
+    required this.cachedKeys,
+    required this.onSelect,
+    required this.disabled,
+  });
+
+  final List<BriefingTopic> topics;
+  final String selectedKey;
+  final Set<String> cachedKeys;
+  final ValueChanged<BriefingTopic> onSelect;
+  final bool disabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return SizedBox(
+      height: 56,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        itemCount: topics.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final t = topics[i];
+          final selected = t.cacheKey == selectedKey;
+          final hasCached = cachedKeys.contains(t.cacheKey);
+          final accent = t.category?.color ?? cs.primary;
+          return ChoiceChip(
+            avatar: Icon(
+              t.category?.icon ?? Icons.podcasts,
+              size: 16,
+              color: selected ? cs.onPrimary : accent,
+            ),
+            label: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  t.isGeneral ? 'Genel' : t.category!.name,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: selected ? cs.onPrimary : cs.onSurface,
+                  ),
+                ),
+                if (hasCached && !selected) ...[
+                  const SizedBox(width: 6),
+                  Icon(Icons.check_circle,
+                      size: 12, color: cs.onSurfaceVariant),
+                ],
+              ],
+            ),
+            selected: selected,
+            onSelected: disabled ? null : (_) => onSelect(t),
+            selectedColor: accent,
+            backgroundColor: cs.surfaceContainerHighest,
+            showCheckmark: false,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+          );
+        },
       ),
     );
   }
@@ -545,7 +759,7 @@ class _TtsWarningBanner extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
         color: cs.tertiaryContainer.withValues(alpha: 0.6),
@@ -653,7 +867,6 @@ class _PlayerBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
       child: Column(
         children: [
-          // İlerleme çubuğu
           ClipRRect(
             borderRadius: BorderRadius.circular(2),
             child: LinearProgressIndicator(
