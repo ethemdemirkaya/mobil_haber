@@ -28,6 +28,18 @@ class AiModelPreset {
 
 enum AiModelTier { fast, balanced, premium, free }
 
+/// API anahtarının kaynağı — UI bunu rozet olarak göstermek isteyebilir.
+enum AiKeySource {
+  /// Hiç anahtar yok (build-time default da yok, kullanıcı da girmemiş).
+  none,
+
+  /// `--dart-define=OPENROUTER_API_KEY=...` ile gömülmüş build-time anahtar.
+  builtIn,
+
+  /// Kullanıcının Ayarlar'dan girdiği kişisel anahtar.
+  userProvided,
+}
+
 extension AiModelTierLabel on AiModelTier {
   String get label => switch (this) {
         AiModelTier.fast => 'Hızlı / Ucuz',
@@ -73,24 +85,36 @@ class AiSettingsProvider extends ChangeNotifier {
   static const String _prefsModel = 'pref_ai_model';
   static const String _prefsCache = 'pref_ai_cache';
 
-  /// Default — Claude Haiku, en hızlı ve en ucuz Anthropic modeli.
-  static const String defaultModelId = 'anthropic/claude-3.5-haiku';
+  /// Default — OpenAI'ın açık-ağırlıklı 20B modeli, OpenRouter'da
+  /// :free tier'da rate-limit ile ücretsiz. Yedek olarak Gemini 2.0 Flash
+  /// free de mevcut (presets[1]).
+  static const String defaultModelId = 'openai/gpt-oss-20b:free';
 
   /// Kullanıcıya sunulan hazır model listesi. ID'ler OpenRouter'ın resmi
   /// model id'leri ile eşleşmelidir. Listede olmayan modelleri kullanmak
   /// için "Diğer" seçilip elle id girilebilir.
+  ///
+  /// Sıralama: önce ücretsiz seçenekler (yeni kullanıcı için sıfır maliyet),
+  /// sonra ucuz hızlılar, sonra premium.
   static const List<AiModelPreset> presets = [
+    AiModelPreset(
+      id: 'openai/gpt-oss-20b:free',
+      label: 'GPT OSS 20B (free)',
+      description:
+          'OpenAI açık-ağırlıklı 20B — varsayılan, ücretsiz katmanda kullanım.',
+      tier: AiModelTier.free,
+    ),
+    AiModelPreset(
+      id: 'google/gemini-2.0-flash-exp:free',
+      label: 'Gemini 2.0 Flash (free)',
+      description: 'Google — ücretsiz, hızlı, geniş context (yedek).',
+      tier: AiModelTier.free,
+    ),
     AiModelPreset(
       id: 'anthropic/claude-3.5-haiku',
       label: 'Claude 3.5 Haiku',
-      description: 'Anthropic — hızlı, ucuz, makale özetleri için ideal.',
+      description: 'Anthropic — hızlı, ucuz, özet için ideal (~\$0.0005/makale).',
       tier: AiModelTier.fast,
-    ),
-    AiModelPreset(
-      id: 'anthropic/claude-3.5-sonnet',
-      label: 'Claude 3.5 Sonnet',
-      description: 'Anthropic — daha tutarlı, biraz daha pahalı.',
-      tier: AiModelTier.balanced,
     ),
     AiModelPreset(
       id: 'openai/gpt-4o-mini',
@@ -99,22 +123,10 @@ class AiSettingsProvider extends ChangeNotifier {
       tier: AiModelTier.fast,
     ),
     AiModelPreset(
-      id: 'openai/gpt-4o',
-      label: 'GPT-4o',
-      description: 'OpenAI — yüksek kalite, daha pahalı.',
-      tier: AiModelTier.premium,
-    ),
-    AiModelPreset(
       id: 'google/gemini-flash-1.5',
       label: 'Gemini 1.5 Flash',
       description: 'Google — çok hızlı, geniş context.',
       tier: AiModelTier.fast,
-    ),
-    AiModelPreset(
-      id: 'meta-llama/llama-3.1-70b-instruct',
-      label: 'Llama 3.1 70B',
-      description: 'Meta — açık ağırlıklı, ucuz.',
-      tier: AiModelTier.balanced,
     ),
     AiModelPreset(
       id: 'deepseek/deepseek-chat',
@@ -123,19 +135,59 @@ class AiSettingsProvider extends ChangeNotifier {
       tier: AiModelTier.fast,
     ),
     AiModelPreset(
-      id: 'google/gemini-2.0-flash-exp:free',
-      label: 'Gemini 2.0 Flash (free)',
-      description: 'Google — ücretsiz katman, sıkı rate limit.',
-      tier: AiModelTier.free,
+      id: 'meta-llama/llama-3.1-70b-instruct',
+      label: 'Llama 3.1 70B',
+      description: 'Meta — açık ağırlıklı, dengeli.',
+      tier: AiModelTier.balanced,
+    ),
+    AiModelPreset(
+      id: 'anthropic/claude-3.5-sonnet',
+      label: 'Claude 3.5 Sonnet',
+      description: 'Anthropic — daha tutarlı, biraz daha pahalı.',
+      tier: AiModelTier.balanced,
+    ),
+    AiModelPreset(
+      id: 'openai/gpt-4o',
+      label: 'GPT-4o',
+      description: 'OpenAI — yüksek kalite, daha pahalı.',
+      tier: AiModelTier.premium,
     ),
   ];
 
   // ─────────── Getters ───────────
   bool get initialized => _initialized;
   bool get enabled => _enabled;
+
+  /// Kullanıcının Ayarlar'dan girdiği anahtar. Build-time default'tan ayrı.
   String get apiKey => _apiKey;
   String get modelId => _modelId;
-  bool get hasApiKey => _apiKey.isNotEmpty;
+
+  /// Kullanıcı kendi anahtarını girmiş mi?
+  bool get hasUserApiKey => _apiKey.isNotEmpty;
+
+  /// Build-time'da `--dart-define=OPENROUTER_API_KEY=...` ile bir default
+  /// gömülmüş mü? Settings ekranında "kendi keyini girmek zorunda değilsin"
+  /// hint'i için.
+  bool get hasBuiltInKey => OpenRouterClient.hasBuiltInKey;
+
+  /// API çağrılarında kullanılacak gerçek anahtar — kullanıcı girdiyse
+  /// onu (kendi rate-limit/spend cap kontrolü), girmediyse build-time
+  /// embed'i. İkisi de yoksa boş string (`isReady` false döner).
+  String get effectiveApiKey =>
+      _apiKey.isNotEmpty ? _apiKey : OpenRouterClient.defaultApiKey;
+
+  /// Etkin anahtarın kaynağı — UI'da "kendi anahtarınız" / "uygulama
+  /// içinde gömülü" rozetini ayırt etmek için.
+  AiKeySource get keySource {
+    if (_apiKey.isNotEmpty) return AiKeySource.userProvided;
+    if (OpenRouterClient.hasBuiltInKey) return AiKeySource.builtIn;
+    return AiKeySource.none;
+  }
+
+  bool get hasAnyKey => effectiveApiKey.isNotEmpty;
+
+  /// Eski API uyumluluğu — UI bazı yerlerde `hasApiKey` çağırıyor olabilir.
+  bool get hasApiKey => hasAnyKey;
 
   /// Aktif modelin görünen adı — hazır listedeyse label, değilse id.
   String get currentModelLabel {
@@ -152,12 +204,16 @@ class AiSettingsProvider extends ChangeNotifier {
   String? cachedSummary(String articleId) => _cache[articleId];
 
   /// Kullanıcıya bu makale için "Özetle" butonu gösterilmeli mi?
-  bool isReady() => _enabled && _apiKey.isNotEmpty && _modelId.isNotEmpty;
+  bool isReady() => _enabled && hasAnyKey && _modelId.isNotEmpty;
 
   // ─────────── Persistence ───────────
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    _enabled = prefs.getBool(_prefsEnabled) ?? false;
+    // Build-time bir default key gömülmüşse uygulamayı varsayılan olarak
+    // "etkin" kabul ediyoruz — kullanıcının elle açmasına gerek kalmasın.
+    // Aksi halde kullanıcı kendi anahtarını girene kadar pasif başlasın.
+    _enabled = prefs.getBool(_prefsEnabled) ??
+        OpenRouterClient.hasBuiltInKey;
     _apiKey = prefs.getString(_prefsKey) ?? '';
     _modelId = prefs.getString(_prefsModel) ?? defaultModelId;
     final raw = prefs.getString(_prefsCache);
@@ -244,7 +300,7 @@ class AiSettingsProvider extends ChangeNotifier {
     try {
       final result = await _service.summarize(
         article: article,
-        apiKey: _apiKey,
+        apiKey: effectiveApiKey,
         model: _modelId,
       );
       _cache[article.id] = result;
@@ -262,8 +318,12 @@ class AiSettingsProvider extends ChangeNotifier {
   /// Settings ekranındaki "Bağlantıyı test et" butonu — başarılıysa OK
   /// döner, başarısızsa exception mesajını döner.
   Future<String> testConnection() async {
+    if (effectiveApiKey.isEmpty) return 'Önce bir API anahtarı girin.';
     try {
-      await _service.testConnection(apiKey: _apiKey, model: _modelId);
+      await _service.testConnection(
+        apiKey: effectiveApiKey,
+        model: _modelId,
+      );
       return 'Bağlantı başarılı.';
     } on OpenRouterException catch (e) {
       return 'Hata: ${e.message}';
@@ -285,5 +345,26 @@ class AiSettingsProvider extends ChangeNotifier {
     _cache.remove(articleId);
     notifyListeners();
     await _persistCache();
+  }
+
+  /// Sesli brifing gibi serbest bir prompt ile model çağırma. UI'nın özel
+  /// servisi (DailyBriefingService) buradan beslenir.
+  Future<String> generate({
+    required String systemPrompt,
+    required String userPrompt,
+    int maxTokens = 1000,
+  }) async {
+    if (!isReady()) {
+      throw const OpenRouterException(
+        'Yapay zeka kapalı veya yapılandırılmamış. Ayarlar > Yapay Zeka.',
+      );
+    }
+    return _service.generate(
+      apiKey: effectiveApiKey,
+      model: _modelId,
+      systemPrompt: systemPrompt,
+      userPrompt: userPrompt,
+      maxTokens: maxTokens,
+    );
   }
 }

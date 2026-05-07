@@ -59,6 +59,26 @@ Lütfen bu haberi yukarıdaki kurallara göre 3 madde halinde özetle.
   }) =>
       _client.testConnection(apiKey: apiKey, model: model);
 
+  /// Serbest prompt — özet dışındaki AI ihtiyaçları için (sesli brifing,
+  /// kategori başlığı üretme vb.). Sistem ve kullanıcı prompt'unu çağıran
+  /// belirler.
+  Future<String> generate({
+    required String apiKey,
+    required String model,
+    required String systemPrompt,
+    required String userPrompt,
+    int maxTokens = 1000,
+  }) {
+    return _client.chat(
+      apiKey: apiKey,
+      model: model,
+      systemPrompt: systemPrompt,
+      userPrompt: userPrompt,
+      maxTokens: maxTokens,
+      temperature: 0.4,
+    );
+  }
+
   String _composeSource(Article article) {
     final content = article.content.trim();
     final summary = article.summary.trim();

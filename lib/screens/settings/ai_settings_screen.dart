@@ -128,6 +128,46 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               context.read<AiSettingsProvider>().setEnabled(v);
             },
           ),
+          if (ai.keySource != AiKeySource.none)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: ai.keySource == AiKeySource.userProvided
+                      ? cs.primary.withValues(alpha: 0.10)
+                      : Colors.green.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      ai.keySource == AiKeySource.userProvided
+                          ? Icons.person_outline
+                          : Icons.verified_outlined,
+                      size: 16,
+                      color: ai.keySource == AiKeySource.userProvided
+                          ? cs.primary
+                          : Colors.green.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        ai.keySource == AiKeySource.userProvided
+                            ? 'Kişisel API anahtarınız kullanılıyor.'
+                            : 'Uygulama içi gömülü anahtar kullanılıyor — '
+                                'kendi anahtarınızı girmeniz gerekmiyor.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurface,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           const Divider(height: 1, indent: 20, endIndent: 20),
 
           // ─────────── Sağlayıcı bilgi kartı ───────────

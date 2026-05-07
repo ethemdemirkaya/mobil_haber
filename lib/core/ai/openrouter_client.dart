@@ -22,6 +22,25 @@ class OpenRouterClient {
   static const String _baseUrl = 'https://openrouter.ai/api/v1';
   static const Duration _defaultTimeout = Duration(seconds: 45);
 
+  /// Build-time enjekte edilen default API anahtarı.
+  ///
+  /// Build sırasında şöyle verilir:
+  ///
+  ///     flutter run --dart-define=OPENROUTER_API_KEY=sk-or-v1-xxx
+  ///     flutter build apk --dart-define=OPENROUTER_API_KEY=sk-or-v1-xxx
+  ///
+  /// Kaynak kodda olmadığı için public repo'ya **kazara push edilmez**.
+  /// CI/CD'de secret olarak saklanır. Kullanıcı Ayarlar'dan kendi anahtarını
+  /// girerse o öncelikli olur (kişisel rate-limit avantajı).
+  static const String defaultApiKey = String.fromEnvironment(
+    'OPENROUTER_API_KEY',
+    defaultValue: '',
+  );
+
+  /// Build-time'da default key sağlanmış mı? UI tarafı buna göre "kendi
+  /// keyini girmek zorunda değilsin" mesajı gösterebilir.
+  static bool get hasBuiltInKey => defaultApiKey.isNotEmpty;
+
   /// Tek bir chat-completions çağrısı yapar ve assistant cevabının
   /// metin içeriğini döner.
   ///
