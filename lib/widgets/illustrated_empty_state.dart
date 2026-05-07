@@ -32,8 +32,8 @@ class IllustratedEmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
-              width: 180,
-              height: 180,
+              width: 200,
+              height: 200,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
@@ -43,7 +43,7 @@ class IllustratedEmptyState extends StatelessWidget {
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
                         colors: [
-                          accent.withValues(alpha: 0.20),
+                          accent.withValues(alpha: 0.22),
                           accent.withValues(alpha: 0.0),
                         ],
                       ),
@@ -51,36 +51,42 @@ class IllustratedEmptyState extends StatelessWidget {
                   ),
                   // Orbit benzeri ikinci halka
                   Container(
-                    width: 130,
-                    height: 130,
+                    width: 148,
+                    height: 148,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: accent.withValues(alpha: 0.18),
+                        color: accent.withValues(alpha: 0.20),
                         width: 1.4,
                       ),
                     ),
                   ),
                   // İçerideki disk
                   Container(
-                    width: 92,
-                    height: 92,
+                    width: 102,
+                    height: 102,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: accent.withValues(alpha: 0.18),
                     ),
-                    child: Icon(icon, size: 42, color: accent),
+                    child: Icon(icon, size: 46, color: accent),
                   ),
-                  // Yıldız vurguları
+                  // Yıldız vurguları — yerleşim güncellendi (biraz daha
+                  // dağınık, üç sparkle)
                   const Positioned(
-                    top: 18,
-                    right: 22,
-                    child: _Sparkle(size: 10),
+                    top: 14,
+                    right: 18,
+                    child: _Sparkle(size: 12),
                   ),
                   const Positioned(
-                    bottom: 30,
-                    left: 18,
-                    child: _Sparkle(size: 8),
+                    top: 64,
+                    right: 6,
+                    child: _Sparkle(size: 7),
+                  ),
+                  const Positioned(
+                    bottom: 26,
+                    left: 16,
+                    child: _Sparkle(size: 9),
                   ),
                 ],
               ),

@@ -70,26 +70,31 @@ class ArticleCardSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Gerçek karta yakın oran/spacing — yüklenirken layout sıçramasın.
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const ShimmerBox(width: 110, height: 90, borderRadius: 16),
-          const SizedBox(width: 12),
+          const ShimmerBox(width: 124, height: 100, borderRadius: 16),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const ShimmerBox(height: 14, borderRadius: 6),
-                const SizedBox(height: 8),
-                const ShimmerBox(height: 14, width: 220, borderRadius: 6),
-                const SizedBox(height: 14),
+              children: const [
+                // Kategori chip placeholder
+                ShimmerBox(height: 16, width: 70, borderRadius: 8),
+                SizedBox(height: 10),
+                // Title 2 satır
+                ShimmerBox(height: 14, borderRadius: 6),
+                SizedBox(height: 6),
+                ShimmerBox(height: 14, width: 200, borderRadius: 6),
+                SizedBox(height: 14),
                 Row(
-                  children: const [
+                  children: [
                     ShimmerBox(height: 10, width: 60, borderRadius: 4),
                     SizedBox(width: 12),
-                    ShimmerBox(height: 10, width: 40, borderRadius: 4),
+                    ShimmerBox(height: 10, width: 70, borderRadius: 4),
                   ],
                 ),
               ],

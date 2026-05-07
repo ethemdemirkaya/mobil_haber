@@ -85,15 +85,33 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: colorScheme.surfaceContainerHighest,
         selectedColor: colorScheme.primary,
+        checkmarkColor: colorScheme.onPrimary,
+        // Label rengi seçili duruma göre değişiyor; aksi halde dark mode'da
+        // selected chip arkaplanı ile yazı tonu çok yakınlaşıp okunaksız
+        // kalıyordu.
         labelStyle: TextStyle(
           fontSize: 13 * f,
           fontWeight: FontWeight.w600,
-          color: colorScheme.onSurfaceVariant,
+          color: WidgetStateColor.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return colorScheme.onPrimary;
+            }
+            return colorScheme.onSurfaceVariant;
+          }),
         ),
         secondaryLabelStyle: TextStyle(
           fontSize: 13 * f,
           fontWeight: FontWeight.w600,
           color: colorScheme.onPrimary,
+        ),
+        iconTheme: IconThemeData(
+          size: 16,
+          color: WidgetStateColor.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return colorScheme.onPrimary;
+            }
+            return colorScheme.onSurfaceVariant;
+          }),
         ),
         side: BorderSide.none,
         shape: RoundedRectangleBorder(
@@ -102,14 +120,18 @@ class AppTheme {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        height: 68,
+        height: 72,
         backgroundColor: colorScheme.surface,
         surfaceTintColor: Colors.transparent,
-        indicatorColor: colorScheme.primaryContainer,
+        indicatorColor: colorScheme.primaryContainer.withValues(alpha: 0.7),
+        iconTheme: WidgetStatePropertyAll(
+          IconThemeData(size: 26, color: colorScheme.onSurfaceVariant),
+        ),
         labelTextStyle: WidgetStatePropertyAll(
           TextStyle(
-            fontSize: 12 * f,
+            fontSize: 11.5 * f,
             fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
           ),
         ),
       ),

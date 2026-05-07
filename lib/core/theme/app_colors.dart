@@ -3,10 +3,14 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  static const Color brandSeed = Color(0xFFD32F2F);
+  // v2 (özetleyici) palet — kırmızı yumuşatılıp modern bir tonla değiştirildi.
+  // Eski: #D32F2F (Material red 700) — kuvvetli ve klasik haber-app kırmızısı.
+  // Yeni: #E5484D — daha rafine, hafif desatüre, monitör/karanlık modda nazik.
+  static const Color brandSeed = Color(0xFFE5484D);
   static const Color accent = Color(0xFFFFA000);
 
-  static const Color categoryGundem = Color(0xFFD32F2F);
+  // Gündem rengi seed ile aynı çizgide (haber kategorilerinin temel kırmızısı).
+  static const Color categoryGundem = Color(0xFFE5484D);
   static const Color categorySpor = Color(0xFF2E7D32);
   static const Color categoryEkonomi = Color(0xFF1565C0);
   static const Color categoryTeknoloji = Color(0xFF6A1B9A);
