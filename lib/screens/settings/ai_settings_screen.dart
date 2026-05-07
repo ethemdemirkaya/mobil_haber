@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../data/repositories/openai_tts_service.dart';
+import '../../data/repositories/openrouter_models_repository.dart';
 import '../../providers/ai_settings_provider.dart';
 
 class AiSettingsScreen extends StatefulWidget {
@@ -15,7 +17,9 @@ class AiSettingsScreen extends StatefulWidget {
 class _AiSettingsScreenState extends State<AiSettingsScreen> {
   late final TextEditingController _keyController;
   late final TextEditingController _customModelController;
+  late final TextEditingController _openaiTtsKeyController;
   bool _obscureKey = true;
+  bool _obscureTtsKey = true;
   bool _testing = false;
 
   @override
@@ -28,12 +32,21 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     );
     _customModelController =
         TextEditingController(text: isPreset ? '' : ai.modelId);
+    _openaiTtsKeyController =
+        TextEditingController(text: ai.openaiTtsKey);
+
+    // Ekran açıldığında live OpenRouter listesini bir kez çekelim.
+    // Cache valid ise tekrar çağrı yapmaz.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ai.loadOpenRouterModels();
+    });
   }
 
   @override
   void dispose() {
     _keyController.dispose();
     _customModelController.dispose();
+    _openaiTtsKeyController.dispose();
     super.dispose();
   }
 
@@ -61,6 +74,19 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
         content: Text('Model güncellendi: $v'),
+        behavior: SnackBarBehavior.floating,
+      ));
+  }
+
+  Future<void> _saveTtsKey() async {
+    HapticFeedback.selectionClick();
+    final ai = context.read<AiSettingsProvider>();
+    await ai.setOpenaiTtsKey(_openaiTtsKeyController.text);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(
+        content: Text('OpenAI TTS anahtarı kaydedildi.'),
         behavior: SnackBarBehavior.floating,
       ));
   }
@@ -313,7 +339,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
           const SizedBox(height: 8),
 
           // ─────────── Model seçimi ───────────
-          const _SectionTitle('Model'),
+          const _SectionTitle('Hazır model presetleri'),
           for (final p in AiSettingsProvider.presets)
             _ModelTile(
               preset: p,
@@ -321,6 +347,10 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               onTap: () =>
                   context.read<AiSettingsProvider>().setModelId(p.id),
             ),
+
+          // ─────────── Canlı OpenRouter listesi ───────────
+          _LiveModelSection(currentModelId: ai.modelId),
+
           const _SectionTitle('Diğer model (custom)'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -348,6 +378,141 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 16),
+
+          // ─────────── Sesli okuma motoru ───────────
+          const _SectionTitle('Sesli okuma motoru'),
+          for (final kind in TtsEngineKind.values)
+            _TtsEngineTile(
+              kind: kind,
+              selected: ai.ttsEngine == kind,
+              onTap: () =>
+                  context.read<AiSettingsProvider>().setTtsEngine(kind),
+            ),
+          if (ai.ttsEngine == TtsEngineKind.openai) ...[
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: cs.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline,
+                            size: 16, color: cs.primary),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'OpenAI TTS yapılandırması',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Sesli brifing OpenAI sunucularında üretilen MP3\'ten '
+                      'çalınır. Anahtar OpenRouter\'dan ayrı bir OpenAI '
+                      'anahtarıdır (https://platform.openai.com/api-keys).',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: cs.onSurfaceVariant,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: TextField(
+                controller: _openaiTtsKeyController,
+                obscureText: _obscureTtsKey,
+                decoration: InputDecoration(
+                  labelText: 'OpenAI API anahtarı',
+                  hintText: 'sk-proj-...',
+                  prefixIcon: const Icon(Icons.vpn_key_outlined),
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscureTtsKey
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined),
+                    onPressed: () =>
+                        setState(() => _obscureTtsKey = !_obscureTtsKey),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onSubmitted: (_) => _saveTtsKey(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton.tonalIcon(
+                  onPressed: _saveTtsKey,
+                  icon: const Icon(Icons.save_outlined, size: 18),
+                  label: const Text('OpenAI TTS anahtarını kaydet'),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                'Ses karakteri',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ),
+            for (final v in OpenAiTtsService.voices)
+              _SimpleRadioTile(
+                title: v.label,
+                subtitle: v.description,
+                selected: ai.openaiTtsVoice == v.id,
+                onTap: () => context
+                    .read<AiSettingsProvider>()
+                    .setOpenaiTtsVoice(v.id),
+              ),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                'Model',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ),
+            for (final m in OpenAiTtsService.models)
+              _SimpleRadioTile(
+                title: m.label,
+                subtitle: m.description,
+                selected: ai.openaiTtsModel == m.id,
+                onTap: () => context
+                    .read<AiSettingsProvider>()
+                    .setOpenaiTtsModel(m.id),
+              ),
+            const SizedBox(height: 12),
+          ],
           const SizedBox(height: 16),
 
           // ─────────── Cache yönetimi ───────────
@@ -476,5 +641,423 @@ class _ModelTile extends StatelessWidget {
       AiModelTier.premium => Colors.orange.shade700,
       AiModelTier.free => Colors.purple.shade700,
     };
+  }
+}
+
+/// OpenRouter `/api/v1/models` endpoint'inden gelen canlı model listesi.
+///
+/// Üç durum:
+///   1. İlk açılış (loading) → spinner
+///   2. Liste hazır → "Sadece ücretsiz" filter chip'i + arama + scrollable liste
+///   3. Hata → tekrar dene butonu
+class _LiveModelSection extends StatefulWidget {
+  const _LiveModelSection({required this.currentModelId});
+  final String currentModelId;
+
+  @override
+  State<_LiveModelSection> createState() => _LiveModelSectionState();
+}
+
+class _LiveModelSectionState extends State<_LiveModelSection> {
+  bool _onlyFree = true;
+  String _search = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final ai = context.watch<AiSettingsProvider>();
+
+    final all = ai.availableModels;
+    final filtered = all.where((m) {
+      if (_onlyFree && !m.isFree) return false;
+      if (_search.isEmpty) return true;
+      final q = _search.toLowerCase();
+      return m.id.toLowerCase().contains(q) ||
+          m.name.toLowerCase().contains(q);
+    }).toList(growable: false);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 4),
+          child: Row(
+            children: [
+              Text(
+                'CANLI OPENROUTER LİSTESİ',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              const Spacer(),
+              if (ai.modelsLoading)
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                IconButton(
+                  tooltip: 'Yenile',
+                  iconSize: 18,
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => context
+                      .read<AiSettingsProvider>()
+                      .loadOpenRouterModels(forceRefresh: true),
+                  icon: const Icon(Icons.refresh),
+                ),
+            ],
+          ),
+        ),
+        if (ai.modelsError != null && all.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: cs.errorContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline, color: cs.onErrorContainer),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      ai.modelsError!,
+                      style: TextStyle(
+                          color: cs.onErrorContainer, fontSize: 12),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => context
+                        .read<AiSettingsProvider>()
+                        .loadOpenRouterModels(forceRefresh: true),
+                    child: const Text('Tekrar dene'),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else if (all.isEmpty && ai.modelsLoading)
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: Text('Canlı model listesi yükleniyor…')),
+          )
+        else if (all.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              'Liste boş.',
+              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+            ),
+          )
+        else ...[
+          if (!ai.isCurrentModelValid)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: Colors.orange.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded,
+                        size: 16, color: Colors.orange.shade800),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Şu an seçili model "${widget.currentModelId}" '
+                        'OpenRouter listesinde yok — emekli edilmiş '
+                        'olabilir. Aşağıdan başka bir model seçin.',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: cs.onSurface,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                FilterChip(
+                  label: Text(
+                    'Sadece ücretsiz (${ai.availableFreeModels.length})',
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                  selected: _onlyFree,
+                  onSelected: (v) => setState(() => _onlyFree = v),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: 'Ara: claude, free, gpt, gemini…',
+                      prefixIcon: const Icon(Icons.search, size: 18),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onChanged: (v) => setState(() => _search = v),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+            child: Text(
+              '${filtered.length} model gösteriliyor — '
+              'liste 6 saatte bir yenilenir.',
+              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+            ),
+          ),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 360),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const ClampingScrollPhysics(),
+              itemCount: filtered.length,
+              separatorBuilder: (_, _) => Divider(
+                height: 1,
+                color: cs.outlineVariant.withValues(alpha: 0.4),
+              ),
+              itemBuilder: (context, i) {
+                final m = filtered[i];
+                final selected = m.id == widget.currentModelId;
+                return _LiveModelTile(
+                  model: m,
+                  selected: selected,
+                  onTap: () {
+                    context.read<AiSettingsProvider>().setModelId(m.id);
+                    HapticFeedback.selectionClick();
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _LiveModelTile extends StatelessWidget {
+  const _LiveModelTile({
+    required this.model,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final OpenRouterModel model;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return ListTile(
+      onTap: onTap,
+      dense: true,
+      leading: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected
+                ? cs.primary
+                : cs.onSurfaceVariant.withValues(alpha: 0.5),
+            width: 2,
+          ),
+          color: selected ? cs.primary : Colors.transparent,
+        ),
+        child: selected
+            ? Icon(Icons.check, size: 14, color: cs.onPrimary)
+            : null,
+      ),
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(
+              model.name.isEmpty ? model.id : model.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            ),
+          ),
+          if (model.isFree)
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.purple.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                'ÜCRETSİZ',
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.purple.shade700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            )
+          else if (model.promptPricePerMillion != null)
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                model.promptPricePerMillion!,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ),
+        ],
+      ),
+      subtitle: Text(
+        '${model.id} • ${(model.contextLength / 1000).toStringAsFixed(0)}K context',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 11),
+      ),
+    );
+  }
+}
+
+class _SimpleRadioTile extends StatelessWidget {
+  const _SimpleRadioTile({
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return ListTile(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      leading: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected
+                ? cs.primary
+                : cs.onSurfaceVariant.withValues(alpha: 0.5),
+            width: 2,
+          ),
+          color: selected ? cs.primary : Colors.transparent,
+        ),
+        child: selected
+            ? Icon(Icons.check, size: 14, color: cs.onPrimary)
+            : null,
+      ),
+      title: Text(title,
+          style: const TextStyle(fontWeight: FontWeight.w700)),
+      subtitle: Text(subtitle,
+          style: const TextStyle(fontSize: 12, height: 1.35)),
+    );
+  }
+}
+
+class _TtsEngineTile extends StatelessWidget {
+  const _TtsEngineTile({
+    required this.kind,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final TtsEngineKind kind;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return ListTile(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      leading: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected
+                ? cs.primary
+                : cs.onSurfaceVariant.withValues(alpha: 0.5),
+            width: 2,
+          ),
+          color: selected ? cs.primary : Colors.transparent,
+        ),
+        child: selected
+            ? Icon(Icons.check, size: 14, color: cs.onPrimary)
+            : null,
+      ),
+      title: Row(
+        children: [
+          Icon(
+            kind == TtsEngineKind.system
+                ? Icons.smartphone_outlined
+                : Icons.cloud_outlined,
+            size: 16,
+            color: cs.onSurfaceVariant,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              kind.label,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+      subtitle: Text(
+        kind.description,
+        style: const TextStyle(fontSize: 12, height: 1.35),
+      ),
+    );
   }
 }

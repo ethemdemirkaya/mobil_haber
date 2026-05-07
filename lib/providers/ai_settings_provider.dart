@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/ai/openrouter_client.dart';
 import '../data/models/article.dart';
 import '../data/repositories/ai_summary_service.dart';
+import '../data/repositories/openrouter_models_repository.dart';
 
 /// OpenRouter modeli için "preset" tanımları.
 ///
@@ -40,6 +41,32 @@ enum AiKeySource {
   userProvided,
 }
 
+/// Sesli brifing okumak için hangi motorun kullanılacağı.
+enum TtsEngineKind {
+  /// flutter_tts: cihazın native TTS'i. Hızlı, ücretsiz, çevrimdışı.
+  /// Türkçe ses kalitesi cihaza göre değişir.
+  system,
+
+  /// OpenAI `audio/speech`: yüksek kaliteli MP3, parametrik ses seçimi.
+  /// Kullanıcı kendi OpenAI API anahtarını girer (OpenRouter'dan ayrı).
+  /// Maliyet: \$15/1M karakter (~brifing başına \$0.015).
+  openai,
+}
+
+extension TtsEngineKindLabel on TtsEngineKind {
+  String get label => switch (this) {
+        TtsEngineKind.system => 'Sistem TTS (varsayılan)',
+        TtsEngineKind.openai => 'OpenAI TTS (yüksek kalite)',
+      };
+
+  String get description => switch (this) {
+        TtsEngineKind.system => 'Cihazın yerleşik konuşma motoru — '
+            'ücretsiz ve çevrimdışı, kalite cihaza bağlı.',
+        TtsEngineKind.openai => 'OpenAI sunucularında üretilen MP3, '
+            'doğal ses. OpenAI API anahtarı + ücret gerekir.',
+      };
+}
+
 extension AiModelTierLabel on AiModelTier {
   String get label => switch (this) {
         AiModelTier.fast => 'Hızlı / Ucuz',
@@ -61,17 +88,37 @@ extension AiModelTierLabel on AiModelTier {
 /// düz metin saklanır. Production sürümde Keychain/Keystore (örn.
 /// `flutter_secure_storage`) kullanılmalı. Demo aşamada bu yeterli.
 class AiSettingsProvider extends ChangeNotifier {
-  AiSettingsProvider({AiSummaryService? service})
-      : _service = service ?? AiSummaryService() {
+  AiSettingsProvider({
+    AiSummaryService? service,
+    OpenRouterModelsRepository? modelsRepo,
+  })  : _service = service ?? AiSummaryService(),
+        _modelsRepo = modelsRepo ?? OpenRouterModelsRepository() {
     _load();
   }
 
   final AiSummaryService _service;
+  final OpenRouterModelsRepository _modelsRepo;
+
+  // Live OpenRouter model listesi
+  List<OpenRouterModel> _availableModels = const [];
+  bool _modelsLoading = false;
+  String? _modelsError;
 
   bool _initialized = false;
   bool _enabled = false;
   String _apiKey = '';
   String _modelId = defaultModelId;
+
+  // ─── TTS (sesli okuma) ───
+  TtsEngineKind _ttsEngine = TtsEngineKind.system;
+  String _openaiTtsKey = '';
+  String _openaiTtsVoice = 'nova';
+  String _openaiTtsModel = 'tts-1';
+
+  // ─── First-run banner ───
+  /// Build-time anahtar ile gelen yeni kullanıcı için "AI hazır" bildirimi
+  /// bir kez gösterildi mi?
+  bool _firstRunNoticeShown = false;
 
   /// articleId → özet metni
   final Map<String, String> _cache = <String, String>{};
@@ -84,6 +131,11 @@ class AiSettingsProvider extends ChangeNotifier {
   static const String _prefsKey = 'pref_ai_api_key';
   static const String _prefsModel = 'pref_ai_model';
   static const String _prefsCache = 'pref_ai_cache';
+  static const String _prefsTtsEngine = 'pref_ai_tts_engine';
+  static const String _prefsOpenaiTtsKey = 'pref_ai_openai_tts_key';
+  static const String _prefsOpenaiTtsVoice = 'pref_ai_openai_tts_voice';
+  static const String _prefsOpenaiTtsModel = 'pref_ai_openai_tts_model';
+  static const String _prefsFirstRunNotice = 'pref_ai_first_run_notice';
 
   /// Default — OpenAI'ın açık-ağırlıklı 20B modeli, OpenRouter'da
   /// :free tier'da rate-limit ile ücretsiz. Yedek olarak Gemini 2.0 Flash
@@ -200,6 +252,35 @@ class AiSettingsProvider extends ChangeNotifier {
   String? get loadingArticleId => _loadingArticleId;
   String? get lastError => _lastError;
 
+  // ─── Live OpenRouter modeller ───
+  List<OpenRouterModel> get availableModels => _availableModels;
+  List<OpenRouterModel> get availableFreeModels =>
+      _availableModels.where((m) => m.isFree).toList(growable: false);
+  bool get modelsLoading => _modelsLoading;
+  String? get modelsError => _modelsError;
+  bool get hasFetchedModels => _availableModels.isNotEmpty;
+
+  // ─── TTS getters ───
+  TtsEngineKind get ttsEngine => _ttsEngine;
+  String get openaiTtsKey => _openaiTtsKey;
+  bool get hasOpenaiTtsKey => _openaiTtsKey.isNotEmpty;
+  String get openaiTtsVoice => _openaiTtsVoice;
+  String get openaiTtsModel => _openaiTtsModel;
+
+  /// Seçili TTS motoru kullanılabilir durumda mı? OpenAI seçildiyse
+  /// anahtar girilmiş olmalı.
+  bool get isTtsEngineUsable {
+    if (_ttsEngine == TtsEngineKind.system) return true;
+    return _openaiTtsKey.isNotEmpty;
+  }
+
+  // ─── First-run notice ───
+  /// Sadece şu an gösterilmeli mi? — built-in key VAR + henüz görmemiş.
+  bool get shouldShowFirstRunNotice =>
+      !_firstRunNoticeShown && keySource == AiKeySource.builtIn;
+
+  bool get firstRunNoticeShown => _firstRunNoticeShown;
+
   /// Belirli bir makale için cache'lenmiş özet (yoksa null).
   String? cachedSummary(String articleId) => _cache[articleId];
 
@@ -216,6 +297,20 @@ class AiSettingsProvider extends ChangeNotifier {
         OpenRouterClient.hasBuiltInKey;
     _apiKey = prefs.getString(_prefsKey) ?? '';
     _modelId = prefs.getString(_prefsModel) ?? defaultModelId;
+
+    // TTS tercihleri
+    final ttsEngineId =
+        prefs.getString(_prefsTtsEngine) ?? TtsEngineKind.system.name;
+    _ttsEngine = TtsEngineKind.values.firstWhere(
+      (e) => e.name == ttsEngineId,
+      orElse: () => TtsEngineKind.system,
+    );
+    _openaiTtsKey = prefs.getString(_prefsOpenaiTtsKey) ?? '';
+    _openaiTtsVoice = prefs.getString(_prefsOpenaiTtsVoice) ?? 'nova';
+    _openaiTtsModel = prefs.getString(_prefsOpenaiTtsModel) ?? 'tts-1';
+
+    _firstRunNoticeShown = prefs.getBool(_prefsFirstRunNotice) ?? false;
+
     final raw = prefs.getString(_prefsCache);
     if (raw != null && raw.isNotEmpty) {
       try {
@@ -232,6 +327,79 @@ class AiSettingsProvider extends ChangeNotifier {
     }
     _initialized = true;
     notifyListeners();
+  }
+
+  // ─────────── TTS setters ───────────
+  Future<void> setTtsEngine(TtsEngineKind kind) async {
+    if (_ttsEngine == kind) return;
+    _ttsEngine = kind;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsTtsEngine, kind.name);
+  }
+
+  Future<void> setOpenaiTtsKey(String value) async {
+    final trimmed = value.trim();
+    if (_openaiTtsKey == trimmed) return;
+    _openaiTtsKey = trimmed;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    if (trimmed.isEmpty) {
+      await prefs.remove(_prefsOpenaiTtsKey);
+    } else {
+      await prefs.setString(_prefsOpenaiTtsKey, trimmed);
+    }
+  }
+
+  Future<void> setOpenaiTtsVoice(String voice) async {
+    if (_openaiTtsVoice == voice) return;
+    _openaiTtsVoice = voice;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsOpenaiTtsVoice, voice);
+  }
+
+  Future<void> setOpenaiTtsModel(String model) async {
+    if (_openaiTtsModel == model) return;
+    _openaiTtsModel = model;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsOpenaiTtsModel, model);
+  }
+
+  // ─────────── Live model listesi ───────────
+  /// OpenRouter'dan tüm modelleri canlı çeker. UI önce hazır liste varsa
+  /// onu gösterir, sonra sessizce yenisini ister.
+  Future<void> loadOpenRouterModels({bool forceRefresh = false}) async {
+    if (_modelsLoading) return;
+    _modelsLoading = true;
+    _modelsError = null;
+    notifyListeners();
+    try {
+      _availableModels =
+          await _modelsRepo.fetchAll(forceRefresh: forceRefresh);
+    } catch (e) {
+      _modelsError = 'Model listesi alınamadı: $e';
+    } finally {
+      _modelsLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Şu an seçili modelin id'si, fetch edilen listede mevcut mu?
+  /// Değilse — model expired/retired olmuş demektir; UI bir uyarı gösterir.
+  bool get isCurrentModelValid {
+    if (_availableModels.isEmpty) return true; // henüz fetch yok
+    return _availableModels.any((m) => m.id == _modelId);
+  }
+
+  // ─────────── First-run notice ───────────
+  Future<void> markFirstRunNoticeSeen() async {
+    if (_firstRunNoticeShown) return;
+    _firstRunNoticeShown = true;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefsFirstRunNotice, true);
   }
 
   Future<void> _persistCache() async {

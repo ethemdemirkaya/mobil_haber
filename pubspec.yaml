@@ -64,6 +64,10 @@ dependencies:
   # iOS: AVSpeechSynthesizer. Türkçe (tr-TR) varsayılanda destekleniyor.
   flutter_tts: ^4.2.0
 
+  # OpenAI TTS gibi MP3 üreten alternatif sesli okuma motorlarını
+  # oynatmak için. BytesSource desteklenir (in-memory MP3).
+  audioplayers: ^6.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

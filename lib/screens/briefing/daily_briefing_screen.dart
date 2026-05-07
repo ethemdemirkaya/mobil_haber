@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +11,7 @@ import '../../core/ai/openrouter_client.dart';
 import '../../data/models/article.dart';
 import '../../data/models/category.dart';
 import '../../data/repositories/daily_briefing_service.dart';
+import '../../data/repositories/openai_tts_service.dart';
 import '../../providers/ai_settings_provider.dart';
 import '../../providers/news_provider.dart';
 import '../settings/ai_settings_screen.dart';
@@ -39,6 +41,9 @@ class DailyBriefingScreen extends StatefulWidget {
 class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   final FlutterTts _tts = FlutterTts();
   final DailyBriefingService _service = DailyBriefingService();
+  final OpenAiTtsService _openaiTts = OpenAiTtsService();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  StreamSubscription<void>? _audioCompleteSub;
 
   // Akış durumu — başlangıçta brifing üretiliyor → spinner gösterilsin.
   bool _generating = true;
@@ -256,8 +261,16 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   @override
   void dispose() {
     _tts.stop();
+    _audioCompleteSub?.cancel();
+    _audioPlayer.dispose();
     super.dispose();
   }
+
+  /// Ayarlardan seçili motor — UI build sırasında okunup playback'te
+  /// kullanılır. AI ayarları ekranından değiştirildiğinde Consumer
+  /// otomatik rebuild eder.
+  TtsEngineKind get _activeEngine =>
+      context.read<AiSettingsProvider>().ttsEngine;
 
   // ─────────────── AI generation ───────────────
 
@@ -367,51 +380,38 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
 
   // ─────────────── Playback ───────────────
 
-  /// Sırayla tüm cümleleri çalar. Her cümle için speak() çağrılır,
-  /// completion handler future'ını çözer, sıradaki cümleye geçilir.
+  /// Sırayla tüm cümleleri çalar. Aktif motora göre branch:
+  ///   - system: flutter_tts.speak() + completion handler
+  ///   - openai: OpenAI'dan MP3 indir, audioplayers ile çal, onPlayerComplete bekle
   Future<void> _playFromIndex(int startIndex) async {
-    if (!_ttsReady) return;
     if (_utterances.isEmpty) return;
+    final engine = _activeEngine;
+    if (engine == TtsEngineKind.system && !_ttsReady) return;
+
     setState(() {
       _utteranceIndex = startIndex;
       _paused = false;
+      _speaking = true;
     });
+
     for (var i = startIndex; i < _utterances.length; i++) {
       if (!mounted) return;
       if (_paused) break;
       _utteranceIndex = i;
-      final completer = Completer<void>();
-      _utteranceCompleter = completer;
       try {
-        final result = await _tts.speak(_utterances[i]);
-        if (result == 0) {
-          debugPrint('[Pusula][TTS] speak failed at chunk $i');
-          if (!completer.isCompleted) completer.complete();
-          if (!mounted) return;
-          setState(() {
-            _ttsSupported = false;
-            _ttsWarning = 'Bu platformda sesli okuma çalışmıyor olabilir. '
-                'Mobil cihazda denemenizi öneririz.';
-            _speaking = false;
-          });
-          break;
+        if (engine == TtsEngineKind.openai) {
+          await _speakViaOpenAi(_utterances[i]);
+        } else {
+          await _speakViaSystem(_utterances[i]);
         }
-      } on MissingPluginException catch (e) {
-        debugPrint('[Pusula][TTS] speak missing: $e');
-        if (!completer.isCompleted) completer.complete();
+      } catch (e) {
+        debugPrint('[Pusula][TTS] cümle $i için hata: $e');
         if (!mounted) return;
         setState(() {
-          _ttsSupported = false;
-          _ttsWarning = 'Sesli okuma motoru bu cihazda kullanılamıyor. '
-              'Uygulamayı tamamen kapatıp yeniden açın (hot reload yetmez).';
+          _ttsWarning = 'Sesli okuma sırasında hata: $e';
         });
         break;
-      } catch (e) {
-        debugPrint('[Pusula][TTS] speak threw: $e');
-        if (!completer.isCompleted) completer.complete();
-        break;
       }
-      await completer.future;
       if (!mounted) return;
       if (_paused) break;
     }
@@ -419,8 +419,79 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     setState(() => _speaking = false);
   }
 
+  Future<void> _speakViaSystem(String text) async {
+    final completer = Completer<void>();
+    _utteranceCompleter = completer;
+    try {
+      final result = await _tts.speak(text);
+      if (result == 0) {
+        if (!completer.isCompleted) completer.complete();
+        throw Exception('Sistem TTS speak() 0 döndü.');
+      }
+    } on MissingPluginException catch (e) {
+      if (!completer.isCompleted) completer.complete();
+      if (mounted) {
+        setState(() {
+          _ttsSupported = false;
+          _ttsWarning = 'Sesli okuma motoru bu cihazda kullanılamıyor. '
+              'Uygulamayı tamamen kapatıp yeniden açın (hot reload yetmez).';
+        });
+      }
+      throw Exception(e.message ?? 'MissingPlugin');
+    }
+    await completer.future;
+  }
+
+  Future<void> _speakViaOpenAi(String text) async {
+    final ai = context.read<AiSettingsProvider>();
+    if (ai.openaiTtsKey.isEmpty) {
+      throw const OpenAiTtsException(
+        'OpenAI TTS anahtarı yok. Ayarlar > Yapay Zeka > Sesli Okuma '
+        'Motoru bölümünden girin.',
+      );
+    }
+    // OpenAI ses hızı: 0.25-4.0 (1.0 normal). Bizim slider 0.30-0.70 idi
+    // (flutter_tts skalası). Burayı OpenAI skalasına çeviriyoruz.
+    // 0.30 → 0.75 (yavaş), 0.50 → 1.0 (normal), 0.70 → 1.25 (hızlı).
+    final openaiSpeed = (0.5 + (_speechRate - 0.5) * 1.5).clamp(0.5, 2.0);
+
+    final bytes = await _openaiTts.synthesize(
+      apiKey: ai.openaiTtsKey,
+      text: text,
+      voice: ai.openaiTtsVoice,
+      model: ai.openaiTtsModel,
+      speed: openaiSpeed,
+    );
+
+    // Önceki play tamamlama subscription'ını temizle.
+    await _audioCompleteSub?.cancel();
+    final completer = Completer<void>();
+    _audioCompleteSub = _audioPlayer.onPlayerComplete.listen((_) {
+      if (!completer.isCompleted) completer.complete();
+    });
+    // Hata durumlarını da yakala.
+    final errSub = _audioPlayer.onLog.listen((_) {});
+    try {
+      await _audioPlayer.stop();
+      await _audioPlayer.play(BytesSource(bytes));
+      // Pause çağrılırsa player durur, completer manuel complete edilir.
+      await completer.future.timeout(
+        const Duration(minutes: 3),
+        onTimeout: () {
+          debugPrint('[Pusula][OpenAI TTS] playback timeout');
+        },
+      );
+    } finally {
+      await errSub.cancel();
+      await _audioCompleteSub?.cancel();
+      _audioCompleteSub = null;
+    }
+  }
+
   Future<void> _play() async {
-    if (!_ttsReady || _utterances.isEmpty) return;
+    if (_utterances.isEmpty) return;
+    final engine = _activeEngine;
+    if (engine == TtsEngineKind.system && !_ttsReady) return;
     HapticFeedback.selectionClick();
     if (_paused) {
       await _playFromIndex(_utteranceIndex);
@@ -432,7 +503,14 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   Future<void> _pause() async {
     HapticFeedback.selectionClick();
     setState(() => _paused = true);
-    await _tts.stop();
+    if (_activeEngine == TtsEngineKind.openai) {
+      await _audioPlayer.stop();
+      // Completer'ı tetikle ki döngü break etsin.
+      _audioCompleteSub?.cancel();
+      _audioCompleteSub = null;
+    } else {
+      await _tts.stop();
+    }
   }
 
   Future<void> _stop() async {
@@ -440,8 +518,15 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     setState(() {
       _paused = false;
       _utteranceIndex = 0;
+      _speaking = false;
     });
-    await _tts.stop();
+    if (_activeEngine == TtsEngineKind.openai) {
+      await _audioPlayer.stop();
+      _audioCompleteSub?.cancel();
+      _audioCompleteSub = null;
+    } else {
+      await _tts.stop();
+    }
   }
 
   Future<void> _restart() async {
@@ -512,8 +597,12 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
             _PlayerBar(
               speaking: _speaking,
               paused: _paused,
-              hasBriefing:
-                  _utterances.isNotEmpty && _ttsReady && _ttsSupported,
+              hasBriefing: _utterances.isNotEmpty &&
+                  ((_activeEngine == TtsEngineKind.system &&
+                          _ttsReady &&
+                          _ttsSupported) ||
+                      (_activeEngine == TtsEngineKind.openai &&
+                          context.watch<AiSettingsProvider>().hasOpenaiTtsKey)),
               speechRate: _speechRate,
               progress: _utterances.isEmpty
                   ? 0.0
