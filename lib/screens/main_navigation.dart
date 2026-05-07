@@ -7,6 +7,7 @@ import '../providers/news_provider.dart';
 import '../providers/preferences_provider.dart';
 import 'bookmarks/bookmarks_screen.dart';
 import 'home/home_screen.dart';
+import 'personalized/personalized_feed_screen.dart';
 import 'search/search_screen.dart';
 import 'settings/settings_screen.dart';
 
@@ -22,6 +23,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
   static const List<Widget> _screens = [
     HomeScreen(),
+    PersonalizedFeedScreen(),
     SearchScreen(),
     BookmarksScreen(),
     SettingsScreen(),
@@ -64,6 +66,11 @@ class _MainNavigationState extends State<MainNavigation> {
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home_rounded),
             label: 'Ana Sayfa',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.tune_outlined),
+            selectedIcon: Icon(Icons.tune),
+            label: 'Sana Özel',
           ),
           const NavigationDestination(
             icon: Icon(Icons.search_outlined),
