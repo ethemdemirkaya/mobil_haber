@@ -48,3 +48,11 @@ YAPILACAKLAR.md
 
 # Claude Code harness state (local only)
 .claude/
+
+# Environment / secrets — Flutter --dart-define-from-file beklediği JSON.
+# Şablon `.env.json.example` committed; `.env.json` her geliştiricinin
+# kendi yerel kopyası, asla commit edilmez.
+.env.json
+.env
+.env.local
+.env.*.local

@@ -24,14 +24,23 @@ class OpenRouterClient {
 
   /// Build-time enjekte edilen default API anahtarı.
   ///
-  /// Build sırasında şöyle verilir:
+  /// **Önerilen kullanım — `.env.json` üzerinden:**
   ///
+  ///     # 1. Şablonu kopyala
+  ///     Copy-Item .env.json.example .env.json
+  ///     # 2. .env.json içine anahtarını yaz (sk-or-v1-...)
+  ///     # 3. VSCode'da F5 → otomatik yüklenir.
+  ///     # 4. CLI: ./run.ps1
+  ///
+  /// **Manuel komut satırı:**
+  ///
+  ///     flutter run --dart-define-from-file=.env.json
   ///     flutter run --dart-define=OPENROUTER_API_KEY=sk-or-v1-xxx
-  ///     flutter build apk --dart-define=OPENROUTER_API_KEY=sk-or-v1-xxx
   ///
-  /// Kaynak kodda olmadığı için public repo'ya **kazara push edilmez**.
-  /// CI/CD'de secret olarak saklanır. Kullanıcı Ayarlar'dan kendi anahtarını
-  /// girerse o öncelikli olur (kişisel rate-limit avantajı).
+  /// `.env.json` gitignored, kaynak kodda olmadığı için public repo'ya
+  /// **kazara push edilmez**. CI/CD'de secret olarak saklanır. Kullanıcı
+  /// Ayarlar'dan kendi anahtarını girerse o öncelikli olur (kişisel
+  /// rate-limit avantajı).
   static const String defaultApiKey = String.fromEnvironment(
     'OPENROUTER_API_KEY',
     defaultValue: '',

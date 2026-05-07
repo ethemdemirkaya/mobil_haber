@@ -198,8 +198,10 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   Text(
                     'Tek API anahtarıyla 100+ AI modeline erişim sağlar '
                     '(Anthropic, OpenAI, Google, Meta, DeepSeek vb.). '
-                    'Anahtar https://openrouter.ai/keys adresinden alınır '
-                    've cihazınızda saklanır.',
+                    'Anahtar https://openrouter.ai/keys adresinden alınır.\n\n'
+                    'Geliştirici iseniz: kök dizindeki .env.json.example\'ı '
+                    '.env.json olarak kopyalayıp anahtarınızı oraya yazın; '
+                    'VSCode\'da F5 ile her seferinde otomatik yüklenir.',
                     style: TextStyle(
                       color: cs.onSurfaceVariant,
                       fontSize: 12,
