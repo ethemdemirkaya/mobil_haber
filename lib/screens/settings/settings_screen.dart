@@ -15,6 +15,7 @@ import 'about_screen.dart';
 import 'ai_settings_screen.dart';
 import 'data_usage_screen.dart';
 import 'keyword_filters_screen.dart';
+import 'scheduled_briefings_screen.dart';
 import 'diagnostics_screen.dart';
 import 'notification_prefs_screen.dart';
 import 'reading_history_screen.dart';
@@ -68,6 +69,13 @@ class SettingsScreen extends StatelessWidget {
             title: 'Sesli Brifing',
             subtitle: 'Bugünün haberlerini AI özetiyle dinle',
             page: DailyBriefingScreen(),
+          ),
+          _Divider(),
+          _NavTile(
+            icon: Icons.schedule_outlined,
+            title: 'Zamanlanmış Brifingler',
+            subtitle: 'Sabah 7\'de spor, akşam 18\'de ekonomi…',
+            page: ScheduledBriefingsScreen(),
           ),
           SizedBox(height: 12),
           _SectionTitle('Tercihler'),

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../core/notifications/scheduled_briefing_service.dart';
 import '../providers/bookmark_provider.dart';
 import '../providers/news_provider.dart';
 import '../providers/preferences_provider.dart';
 import 'bookmarks/bookmarks_screen.dart';
+import 'briefing/daily_briefing_screen.dart';
 import 'home/home_screen.dart';
 import 'personalized/personalized_feed_screen.dart';
 import 'search/search_screen.dart';
@@ -42,7 +44,40 @@ class _MainNavigationState extends State<MainNavigation> {
       if (news.activeSourceCount == 0) {
         news.applySources(prefs.effectiveSources);
       }
+      // Zamanlanmış brifing bildirimine dokunulmuşsa onu yakalayıp
+      // ilgili kategoriyle DailyBriefingScreen'i aç.
+      _consumePendingBriefingTap();
     });
+    ScheduledBriefingService.tappedPayload.addListener(_onBriefingTapped);
+  }
+
+  @override
+  void dispose() {
+    ScheduledBriefingService.tappedPayload.removeListener(_onBriefingTapped);
+    super.dispose();
+  }
+
+  void _onBriefingTapped() {
+    _consumePendingBriefingTap();
+  }
+
+  void _consumePendingBriefingTap() {
+    final payload = ScheduledBriefingService.tappedPayload.value;
+    if (payload == null || payload.isEmpty) return;
+    // Tek seferlik tüket — clear et ki ekran yeniden açılınca tekrar
+    // tetiklenmesin.
+    ScheduledBriefingService.tappedPayload.value = null;
+    // Brifing ekranını açarken payload (categoryId) ile başlat.
+    // Mevcut DailyBriefingScreen kategoriyi kendi içinde yönetiyor;
+    // category seçimi initial state için constructor parametresi
+    // eklemek istemiyoruz — basit yol: ekranı aç, kullanıcı chip'ten seçsin.
+    // Daha iyi UX için ileride initialCategoryId param eklenebilir.
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const DailyBriefingScreen(),
+      ),
+    );
   }
 
   @override
