@@ -59,6 +59,41 @@ Akış kuralları:
     return buffer.toString();
   }
 
+  /// Uzun bir metni cümle sınırlarında parçalara böler. Android TTS'inde
+  /// `speak()` çağrısının ~4000 karakter limiti var; bunun altında bile
+  /// uzun metinlerde kelime ortasında kesilme oluyor. Cümle bazlı parçalama
+  /// + sıraya alıp ardışık `speak()` ile her cümleyi ayrı çalmak daha
+  /// stabil.
+  ///
+  /// Türkçe noktalama: `.`, `!`, `?`. Ayrıca `…` ve `\n\n`. Kısa parçacıkları
+  /// (≤ 3 kelime) önceki/sonraki cümleyle birleştirir.
+  List<String> splitIntoUtterances(String text, {int maxChars = 220}) {
+    if (text.trim().isEmpty) return const [];
+    // Newline → space (cümle bütünlüğü için)
+    final flat = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+    // Cümle sonu işaretinden sonraki boşlukta böl.
+    final parts = flat
+        .split(RegExp(r'(?<=[\.!\?…])\s+'))
+        .where((p) => p.trim().isNotEmpty)
+        .map((p) => p.trim())
+        .toList(growable: false);
+
+    // Çok kısa parçaları sonrakine yapıştır.
+    final merged = <String>[];
+    for (final p in parts) {
+      if (merged.isNotEmpty &&
+          (p.length < 12 || merged.last.length + p.length < maxChars)) {
+        if (merged.last.length + p.length < maxChars) {
+          merged[merged.length - 1] = '${merged.last} $p';
+          continue;
+        }
+      }
+      merged.add(p);
+    }
+    return merged;
+  }
+
   /// AI cevabını TTS'in okuması için hafifçe temizle: madde başları, fazla
   /// boşluklar, AI'ın bazen koyduğu emojiler vb.
   String sanitizeForSpeech(String raw) {
