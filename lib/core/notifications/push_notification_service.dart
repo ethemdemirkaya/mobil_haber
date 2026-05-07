@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../firebase_options.dart';
+
 /// Pusula push bildirim katmanı (Firebase Cloud Messaging).
 ///
 /// **Çalışma kapsamı:**
@@ -41,15 +43,12 @@ class PushNotificationService {
   }) async {
     if (_initialized) return;
     try {
-      // flutterfire configure çalışmışsa lib/firebase_options.dart üretilir
-      // ve aşağıdaki dynamic import yerine doğrudan kullanılır. Bu
-      // koşullu yaklaşım, dosya yokken bile derlemenin kırılmamasını sağlar.
-      // Kurulum tamamlandıktan sonra istersen bu satırı:
-      //   await Firebase.initializeApp(
-      //     options: DefaultFirebaseOptions.currentPlatform,
-      //   );
-      // ile değiştirebilirsin (firebase_options.dart import et).
-      await Firebase.initializeApp();
+      // flutterfire configure ile üretilen DefaultFirebaseOptions
+      // platform-bazlı API key + appId + projectId taşır. Mac'te iOS
+      // configure tamamlanınca DefaultFirebaseOptions.ios da hazır olur.
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
     } catch (e) {
       debugPrint('[Pusula][FCM] Firebase init başarısız: $e\n'
           '→ Setup için: ./setup-firebase.ps1 (veya docs/FIREBASE_SETUP.md)');

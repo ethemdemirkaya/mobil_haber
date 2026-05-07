@@ -56,3 +56,13 @@ YAPILACAKLAR.md
 .env
 .env.local
 .env.*.local
+
+# Firebase — flutterfire configure tarafından üretilen platform config'leri.
+# Public repo'ya pushlanmaz. Yeni geliştirici clone edince setup-firebase.ps1
+# ile kendi Firebase projesinden tekrar üretir.
+firebase.json
+.firebaserc
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist
+lib/firebase_options.dart
