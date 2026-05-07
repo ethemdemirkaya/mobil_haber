@@ -8,6 +8,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/ai/openrouter_client.dart';
+import '../../core/tts/briefing_audio_cache.dart';
 import '../../data/models/article.dart';
 import '../../data/models/category.dart';
 import '../../data/repositories/daily_briefing_service.dart';
@@ -455,26 +456,48 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     // 0.30 → 0.75 (yavaş), 0.50 → 1.0 (normal), 0.70 → 1.25 (hızlı).
     final openaiSpeed = (0.5 + (_speechRate - 0.5) * 1.5).clamp(0.5, 2.0);
 
-    final bytes = await _openaiTts.synthesize(
-      apiKey: ai.openaiTtsKey,
+    // 1) Disk cache kontrolü — aynı (text + voice + model + speed)
+    //    kombinasyonu için MP3 varsa API'ye gitmeden direkt çal.
+    final cached = await BriefingAudioCache.find(
       text: text,
       voice: ai.openaiTtsVoice,
       model: ai.openaiTtsModel,
       speed: openaiSpeed,
     );
 
-    // Önceki play tamamlama subscription'ını temizle.
+    Source playerSource;
+    if (cached != null) {
+      debugPrint('[Pusula][OpenAI TTS] cache hit: ${cached.path}');
+      playerSource = DeviceFileSource(cached.path);
+    } else {
+      // 2) Cache miss → API çağrısı + disk'e kaydet.
+      final bytes = await _openaiTts.synthesize(
+        apiKey: ai.openaiTtsKey,
+        text: text,
+        voice: ai.openaiTtsVoice,
+        model: ai.openaiTtsModel,
+        speed: openaiSpeed,
+      );
+      // ignore: unawaited_futures
+      BriefingAudioCache.store(
+        text: text,
+        voice: ai.openaiTtsVoice,
+        model: ai.openaiTtsModel,
+        speed: openaiSpeed,
+        bytes: bytes,
+      );
+      playerSource = BytesSource(bytes);
+    }
+
+    // 3) Çal + sonraki cümleye geç completion ile.
     await _audioCompleteSub?.cancel();
     final completer = Completer<void>();
     _audioCompleteSub = _audioPlayer.onPlayerComplete.listen((_) {
       if (!completer.isCompleted) completer.complete();
     });
-    // Hata durumlarını da yakala.
-    final errSub = _audioPlayer.onLog.listen((_) {});
     try {
       await _audioPlayer.stop();
-      await _audioPlayer.play(BytesSource(bytes));
-      // Pause çağrılırsa player durur, completer manuel complete edilir.
+      await _audioPlayer.play(playerSource);
       await completer.future.timeout(
         const Duration(minutes: 3),
         onTimeout: () {
@@ -482,7 +505,6 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
         },
       );
     } finally {
-      await errSub.cancel();
       await _audioCompleteSub?.cancel();
       _audioCompleteSub = null;
     }

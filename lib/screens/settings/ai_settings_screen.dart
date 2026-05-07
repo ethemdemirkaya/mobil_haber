@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/tts/briefing_audio_cache.dart';
 import '../../data/repositories/openai_tts_service.dart';
 import '../../data/repositories/openrouter_models_repository.dart';
 import '../../providers/ai_settings_provider.dart';
@@ -535,6 +536,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               );
             },
           ),
+          const _AudioCacheTile(),
           const SizedBox(height: 24),
         ],
       ),
@@ -948,6 +950,72 @@ class _LiveModelTile extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(fontSize: 11),
       ),
+    );
+  }
+}
+
+class _AudioCacheTile extends StatefulWidget {
+  const _AudioCacheTile();
+
+  @override
+  State<_AudioCacheTile> createState() => _AudioCacheTileState();
+}
+
+class _AudioCacheTileState extends State<_AudioCacheTile> {
+  CacheStats? _stats;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshStats();
+  }
+
+  Future<void> _refreshStats() async {
+    final s = await BriefingAudioCache.stats();
+    if (!mounted) return;
+    setState(() => _stats = s);
+  }
+
+  Future<void> _clear() async {
+    HapticFeedback.lightImpact();
+    setState(() => _busy = true);
+    final removed = await BriefingAudioCache.clear();
+    await _refreshStats();
+    if (!mounted) return;
+    setState(() => _busy = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text('$removed adet ses dosyası silindi.'),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = _stats;
+    final subtitle = s == null
+        ? 'Yükleniyor…'
+        : (s.count == 0
+            ? 'Boş — henüz cache\'lenmiş ses yok.'
+            : '${s.count} dosya · ${s.humanSize}');
+    return ListTile(
+      leading: const Icon(Icons.audiotrack_outlined),
+      title: const Text('OpenAI TTS ses önbelleği'),
+      subtitle: Text(subtitle),
+      trailing: _busy
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : (s == null || s.count == 0
+              ? null
+              : TextButton(
+                  onPressed: _clear,
+                  child: const Text('Temizle'),
+                )),
     );
   }
 }
