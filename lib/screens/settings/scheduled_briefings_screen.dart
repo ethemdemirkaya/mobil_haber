@@ -347,8 +347,8 @@ class _BriefingEditorSheetState extends State<_BriefingEditorSheet> {
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
-              'Not: bildirim her gün aynı saatte gelir. "Sadece hafta '
-              'içi" filtresi gelecek bir sürümde eklenecek.',
+              'Sadece seçili günlerde bildirim gönderilir. Her gün için '
+              'ayrı haftalık zamanlama kullanılır.',
               style: TextStyle(
                 fontSize: 11,
                 color: cs.onSurfaceVariant,

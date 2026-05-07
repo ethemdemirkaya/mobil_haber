@@ -186,7 +186,8 @@ class ScheduledBriefingService {
     }
   }
 
-  /// Yeni brifing ekle (id otomatik) veya mevcut güncelle.
+  /// Yeni brifing ekle (id otomatik) veya mevcut güncelle. Önceki
+  /// schedule'lar iptal edilir, yeni gün setine göre yeniden zamanlanır.
   static Future<ScheduledBriefing> save(ScheduledBriefing item) async {
     final list = (await all()).toList();
     final idx = list.indexWhere((x) => x.id == item.id);
@@ -196,12 +197,22 @@ class ScheduledBriefingService {
       list.add(item);
     }
     await _persist(list);
+    // Eski day-of-week id'lerini de sil (ID şeması değişmiş olabilir).
+    await _cancelAllForBriefing(item.id);
     if (item.enabled) {
       await _schedule(item);
-    } else {
-      await _plugin.cancel(item.id);
     }
     return item;
+  }
+
+  /// Bir brifing için tüm gün-id'lerini iptal eder.
+  /// Şema: notif id = baseId * 10 + dayOfWeek (1..7).
+  static Future<void> _cancelAllForBriefing(int baseId) async {
+    for (var d = 1; d <= 7; d++) {
+      try {
+        await _plugin.cancel(baseId * 10 + d);
+      } catch (_) {/* yoksa bir şey olmaz */}
+    }
   }
 
   /// Yeni id üret — basit max+1.
@@ -211,11 +222,11 @@ class ScheduledBriefingService {
     return list.map((e) => e.id).reduce((a, b) => a > b ? a : b) + 1;
   }
 
-  /// Bir kayıt sil + bildirimi iptal et.
+  /// Bir kayıt sil + tüm gün-id'lerini iptal et.
   static Future<void> delete(int id) async {
     final list = (await all()).where((x) => x.id != id).toList();
     await _persist(list);
-    await _plugin.cancel(id);
+    await _cancelAllForBriefing(id);
   }
 
   /// Bildirim'i kapat ama kayıtta tut (kullanıcı sonra açabilir).
@@ -226,10 +237,9 @@ class ScheduledBriefingService {
     final updated = list[idx].copyWith(enabled: enabled);
     final newList = List<ScheduledBriefing>.of(list)..[idx] = updated;
     await _persist(newList);
+    await _cancelAllForBriefing(id);
     if (enabled) {
       await _schedule(updated);
-    } else {
-      await _plugin.cancel(id);
     }
   }
 
@@ -238,6 +248,7 @@ class ScheduledBriefingService {
   static Future<void> rescheduleAll() async {
     final list = await all();
     for (final s in list) {
+      await _cancelAllForBriefing(s.id);
       if (s.enabled) await _schedule(s);
     }
   }
@@ -248,29 +259,17 @@ class ScheduledBriefingService {
     await prefs.setString(_prefsKey, encoded);
   }
 
-  /// Tek bir brifingi haftalık tekrarla zamanlar. flutter_local_notifications
-  /// `weekly` doğrudan desteklemediği için her gün için ayrı id ile
-  /// (id*10 + gün) zamanla — alternatif: matchDateTimeComponents:
-  /// DateTimeComponents.dayOfWeekAndTime ile her gün id'sine ait tek
-  /// kayıt + UI tarafında istediği günü filtreleme. Biz daha pratik yolu
-  /// seçtik: tek id, daily tekrar; UI gerektiğinde gün filtresi yapar.
+  /// Brifingi seçili günler için zamanlar. Her gün için ayrı bildirim id
+  /// (`baseId * 10 + dayOfWeek`) + `matchDateTimeComponents.dayOfWeekAndTime`
+  /// kombinasyonu kullanılır — bu, bildirimi yalnızca o gün+saat eşleşince
+  /// haftalık olarak tekrarlar.
   ///
-  /// MVP için: günde bir bildirim (ilk eşleşen gün), sonraki güne
-  /// sürünür. matchDateTimeComponents.time ile günde bir tekrar.
+  /// Örnek:
+  ///   baseId = 5, daysOfWeek = {1, 2, 3, 4, 5} (hafta içi)
+  ///   → 5 ayrı bildirim: id 51 (Pzt), 52 (Sal), 53 (Çar), 54 (Per), 55 (Cum)
+  ///   Her biri sadece kendi günü 07:00'da çıkar, haftalık tekrar eder.
   static Future<void> _schedule(ScheduledBriefing s) async {
     final now = tz.TZDateTime.now(tz.local);
-    var first = tz.TZDateTime(
-      tz.local,
-      now.year,
-      now.month,
-      now.day,
-      s.hour,
-      s.minute,
-    );
-    if (first.isBefore(now)) {
-      first = first.add(const Duration(days: 1));
-    }
-
     final cat = NewsCategory.byId(s.categoryId);
     final body = s.categoryId == 'all'
         ? 'Bugünün gündemi hazır. Açıp dinleyebilirsiniz.'
@@ -290,28 +289,72 @@ class ScheduledBriefingService {
       iOS: iosDetails,
     );
 
-    try {
-      await _plugin.zonedSchedule(
-        s.id,
-        s.title,
-        body,
-        first,
-        notifDetails,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        // Günde aynı saatte tekrar et. Gün-of-week filtresi UI tarafında
-        // (kullanıcı bildirim gelince açar, brifing yine üretilir; yanlış
-        // günde gelmesi MVP için kabul edilebilir; ileride per-gün ayrı
-        // id ile genişletilebilir).
-        matchDateTimeComponents: DateTimeComponents.time,
-        payload: s.categoryId,
-      );
-      debugPrint(
-        '[Pusula][Sched] ${s.title} → ${first.toIso8601String()}',
-      );
-    } catch (e) {
-      debugPrint('[Pusula][Sched] zonedSchedule hata: $e');
+    // Boş günlerde hiç bildirim oluşturulmaz.
+    if (s.daysOfWeek.isEmpty) {
+      debugPrint('[Pusula][Sched] daysOfWeek boş → skip ${s.title}');
+      return;
     }
+
+    for (final dayOfWeek in s.daysOfWeek) {
+      final notifId = s.id * 10 + dayOfWeek;
+      final firstFire = _nextOccurrenceOfDay(
+        baseNow: now,
+        dayOfWeek: dayOfWeek,
+        hour: s.hour,
+        minute: s.minute,
+      );
+      try {
+        await _plugin.zonedSchedule(
+          notifId,
+          s.title,
+          body,
+          firstFire,
+          notifDetails,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          // Haftalık tekrar — sadece bu gün + saat eşleşince tetiklenir.
+          matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+          payload: s.categoryId,
+        );
+        debugPrint('[Pusula][Sched] $notifId (${_dayName(dayOfWeek)}) '
+            '→ ${firstFire.toIso8601String()}');
+      } catch (e) {
+        debugPrint('[Pusula][Sched] zonedSchedule hata (id $notifId): $e');
+      }
+    }
+  }
+
+  /// `dayOfWeek` (1=Pzt..7=Paz) için, verilen saat-dakikadaki bir
+  /// sonraki occurrence'ı döner. Bugün o günse ve saat geçmediyse bugün,
+  /// aksi halde gelecek hafta aynı gün.
+  static tz.TZDateTime _nextOccurrenceOfDay({
+    required tz.TZDateTime baseNow,
+    required int dayOfWeek,
+    required int hour,
+    required int minute,
+  }) {
+    var candidate = tz.TZDateTime(
+      tz.local,
+      baseNow.year,
+      baseNow.month,
+      baseNow.day,
+      hour,
+      minute,
+    );
+    // baseNow.weekday: 1..7 (DateTime convention). dayOfWeek aynı şema.
+    final daysAhead = (dayOfWeek - baseNow.weekday) % 7;
+    candidate = candidate.add(Duration(days: daysAhead));
+    if (!candidate.isAfter(baseNow)) {
+      // Bugün ama saat geçmiş → 1 hafta sonraya at.
+      candidate = candidate.add(const Duration(days: 7));
+    }
+    return candidate;
+  }
+
+  static String _dayName(int d) {
+    const names = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+    if (d < 1 || d > 7) return 'gün$d';
+    return names[d - 1];
   }
 }
