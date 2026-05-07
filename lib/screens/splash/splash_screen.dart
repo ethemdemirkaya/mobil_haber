@@ -121,8 +121,8 @@ class _SplashScreenState extends State<SplashScreen>
                       AppConstants.appName,
                       style: textTheme.headlineMedium?.copyWith(
                         color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.6,
                       ),
                     ),
                     const SizedBox(height: 8),

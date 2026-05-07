@@ -33,28 +33,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   static const List<_OnboardingPage> _pages = [
     _OnboardingPage(
-      title: 'Günün haberleri\nparmaklarınızın ucunda',
+      // v2 (özetleyici) mesajı: "Birleştir + özetle" değer önerisi.
+      title: 'Çok kaynaktan\ntek bir özet akışı',
       subtitle:
-          'Ekonomi, spor, teknoloji ve daha fazlasını tek bir akışta takip edin.',
-      icon: Icons.newspaper_outlined,
-      colorA: Color(0xFFD32F2F),
-      colorB: Color(0xFFEF5350),
+          '11+ haber kaynağından gelen başlıkları birleştirip kısa özetlerle sunuyoruz.',
+      icon: Icons.layers_outlined,
+      colorA: Color(0xFFE5484D),
+      colorB: Color(0xFFF87171),
     ),
     _OnboardingPage(
-      title: 'Sizi ilgilendiren\nkategorilerle keşfet',
+      title: 'Hızlı oku,\nzamanını kazan',
       subtitle:
-          '12 kategori ve hızlı arama ile aradığınız haberi anında bulun.',
-      icon: Icons.category_outlined,
-      colorA: Color(0xFF1565C0),
-      colorB: Color(0xFF42A5F5),
+          'Tam metin yerine net özetler. Detay istersen tek dokunuşla orijinal kaynağa atla.',
+      icon: Icons.bolt_outlined,
+      colorA: Color(0xFF1E88E5),
+      colorB: Color(0xFF60A5FA),
     ),
     _OnboardingPage(
-      title: 'Beğendiklerinizi kaydedin,\nsonra okuyun',
+      title: 'Sevdiklerini kaydet,\nsonra okumayı unutma',
       subtitle:
-          'Kaydetme listesi ve okuma geçmişiyle hiçbir haberi kaçırmayın.',
+          'Kaydetme listesi, okuma geçmişi ve kategori filtrelerle hiçbir haberi kaçırma.',
       icon: Icons.bookmark_added_outlined,
-      colorA: Color(0xFF6A1B9A),
-      colorB: Color(0xFFAB47BC),
+      colorA: Color(0xFF7C3AED),
+      colorB: Color(0xFFA78BFA),
     ),
   ];
 
@@ -159,10 +160,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 26,
-                              fontWeight: FontWeight.w800,
-                              height: 1.2,
-                              letterSpacing: -0.4,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
+                              height: 1.18,
+                              letterSpacing: -0.5,
                             ),
                           ),
                           const SizedBox(height: 14),

@@ -52,7 +52,7 @@ class AboutScreen extends StatelessWidget {
                   AppConstants.appName,
                   style: textTheme.headlineSmall?.copyWith(
                     color: Colors.white,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                     letterSpacing: -0.6,
                   ),
                 ),
@@ -87,10 +87,10 @@ class AboutScreen extends StatelessWidget {
           _Section(
             title: 'Uygulama hakkında',
             child: Text(
-              'mobil_haber, Material 3 tasarım dili, açık/koyu tema ve '
-              'kategori bazlı keşif deneyimi sunan bir Flutter uygulamasıdır. '
-              'Veri kaynağı olarak hafif bir PHP REST API ile beslenir; '
-              'çevrimdışı durumlarda mock veriye otomatik düşer.',
+              'mobil_haber bir özetleyicidir: AA, TRT, NTV, Sözcü, BBC, Hacker '
+              'News gibi 11+ kaynaktan haber başlıklarını birleştirir, kısa '
+              'özetler halinde sunar. Tam habere ulaşmak için orijinal kaynağa '
+              'tek dokunuşla atlarsınız.',
               style: textTheme.bodyMedium?.copyWith(height: 1.5),
             ),
           ),
@@ -99,13 +99,15 @@ class AboutScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
+                _Bullet('Çok kaynaklı agregat akış (RSS + açık API\'ler)'),
+                _Bullet('Detayda özet + "Orijinali oku" CTA'),
+                _Bullet('Sepya okuma modu, S/M/L yazı boyutu'),
                 _Bullet('Açık/koyu tema, sistem temasına otomatik uyum'),
-                _Bullet('S/M/L yazı boyutu ölçeklendirme'),
                 _Bullet('12 kategori + öne çıkanlar carousel\'i'),
                 _Bullet('Anlık arama + arama geçmişi'),
                 _Bullet('Yer imleri (kalıcı) + swipe-to-delete'),
-                _Bullet('Okuma geçmişi ve "Devam et"'),
-                _Bullet('Bildirim ve veri tasarrufu tercihleri'),
+                _Bullet('Okuma geçmişi ve "Devam et" satırı'),
+                _Bullet('Çevrimdışı fallback (örnek veriler)'),
               ],
             ),
           ),

@@ -70,7 +70,7 @@ class AuthorProfileSheet extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'mobil_haber muhabiri',
+                          'İmzalı yazılar',
                           style: textTheme.bodySmall,
                         ),
                       ],

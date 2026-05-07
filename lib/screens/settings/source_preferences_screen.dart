@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../data/repositories/external_news_repository.dart';
 import '../../providers/external_news_provider.dart';
 import '../../providers/preferences_provider.dart';
+import '../../widgets/illustrated_empty_state.dart';
 
 class SourcePreferencesScreen extends StatefulWidget {
   const SourcePreferencesScreen({super.key});
@@ -46,15 +47,15 @@ class _SourcePreferencesScreenState extends State<SourcePreferencesScreen> {
       body: external.loadingSources && sources.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : sources.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      'Kaynak listesi alınamadı.',
-                      style: TextStyle(color: cs.onSurfaceVariant),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
+              ? IllustratedEmptyState(
+                  icon: Icons.cloud_off_outlined,
+                  title: 'Kaynak listesi alınamadı',
+                  subtitle:
+                      'Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol '
+                      'edip tekrar deneyebilirsiniz.',
+                  actionLabel: 'Tekrar dene',
+                  onAction: () =>
+                      context.read<ExternalNewsProvider>().loadSources(),
                 )
               : ListView(
                   padding: const EdgeInsets.symmetric(vertical: 8),
