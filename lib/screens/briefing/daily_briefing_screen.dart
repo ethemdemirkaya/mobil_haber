@@ -12,9 +12,11 @@ import '../../core/tts/briefing_audio_cache.dart';
 import '../../data/models/article.dart';
 import '../../data/models/category.dart';
 import '../../data/repositories/daily_briefing_service.dart';
+import '../../data/repositories/market_widget_service.dart';
 import '../../data/repositories/openai_tts_service.dart';
 import '../../providers/ai_settings_provider.dart';
 import '../../providers/news_provider.dart';
+import '../../widgets/market_mini_widget.dart';
 import '../settings/ai_settings_screen.dart';
 
 /// Bugünün haberlerinden AI ile yazılmış sesli brifingi okutan ekran.
@@ -44,7 +46,9 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   final DailyBriefingService _service = DailyBriefingService();
   final OpenAiTtsService _openaiTts = OpenAiTtsService();
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final MarketWidgetService _marketService = MarketWidgetService();
   StreamSubscription<void>? _audioCompleteSub;
+  MarketSnapshot? _market;
 
   // Akış durumu — başlangıçta brifing üretiliyor → spinner gösterilsin.
   bool _generating = true;
@@ -90,15 +94,25 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   }
 
   Future<void> _bootstrap() async {
-    // TTS init + AI generate paralel başlasın — 5-10sn AI beklerken
-    // TTS init harcanan süreyi tamamen örtebilir.
+    // TTS init + AI generate + market widget paralel başlasın.
     final ttsFuture = _initTts();
     final genFuture = _generate();
-    await Future.wait([ttsFuture, genFuture]);
+    final marketFuture = _loadMarket();
+    await Future.wait([ttsFuture, genFuture, marketFuture]);
     if (!mounted) return;
     if (_briefing != null && _briefing!.isNotEmpty && _ttsReady) {
       await Future<void>.delayed(const Duration(milliseconds: 300));
       if (mounted) _play();
+    }
+  }
+
+  Future<void> _loadMarket() async {
+    try {
+      final snap = await _marketService.fetch();
+      if (!mounted) return;
+      setState(() => _market = snap);
+    } catch (e) {
+      debugPrint('[Pusula][Market] yüklenemedi: $e');
     }
   }
 
@@ -330,13 +344,22 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     });
 
     try {
+      // Brifing girişine hava + döviz cümlesini AI'a aktar — spiker
+      // doğal şekilde "Hava 18 derece, dolar 38 lira" diyerek girsin.
+      final intro = _market?.toSpokenIntro();
+      var userPrompt = _service.buildUserPrompt(
+        articles: articles,
+        now: DateTime.now(),
+        topic: _topic,
+      );
+      if (intro != null) {
+        userPrompt =
+            'Brifing girişinde şu bağlamı doğal bir şekilde kullan: '
+            '"$intro"\n\n$userPrompt';
+      }
       final raw = await ai.generate(
         systemPrompt: DailyBriefingService.systemPromptFor(_topic),
-        userPrompt: _service.buildUserPrompt(
-          articles: articles,
-          now: DateTime.now(),
-          topic: _topic,
-        ),
+        userPrompt: userPrompt,
         maxTokens: 700,
       );
       final cleaned = _service.sanitizeForSpeech(raw);
@@ -612,6 +635,11 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
               onSelect: _selectTopic,
               disabled: _generating,
             ),
+            if (_market != null && _market!.hasAny) ...[
+              const SizedBox(height: 4),
+              MarketMiniWidget(snapshot: _market),
+              const SizedBox(height: 4),
+            ],
             if (_ttsWarning != null) _TtsWarningBanner(message: _ttsWarning!),
             Expanded(
               child: _buildBody(context, cs, textTheme),
