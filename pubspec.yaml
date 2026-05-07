@@ -50,6 +50,9 @@ dependencies:
   # HTTP client for the mobil_haber REST API
   http: ^1.2.2
 
+  # System share sheet integration (article share button)
+  share_plus: ^10.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
