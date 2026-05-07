@@ -22,7 +22,12 @@ class MobilHaberApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => OnboardingProvider()),
-        ChangeNotifierProvider(create: (_) => NewsProvider()),
+        // News'i splash sırasında eager yükle — ana ekrana geldiğinde
+        // veriler hazır olsun.
+        ChangeNotifierProvider(
+          create: (_) => NewsProvider(),
+          lazy: false,
+        ),
         ChangeNotifierProvider(create: (_) => BookmarkProvider()),
         ChangeNotifierProvider(create: (_) => SearchProvider()),
         ChangeNotifierProvider(create: (_) => ReadingHistoryProvider()),
