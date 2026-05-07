@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../data/models/article.dart';
+import '../../data/models/news_source.dart';
 import '../../providers/ai_settings_provider.dart';
 import '../../providers/bookmark_provider.dart';
 import '../../providers/news_provider.dart';
@@ -99,7 +101,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     HapticFeedback.selectionClick();
     final a = widget.article;
     final url = a.hasOriginalUrl ? '\n${a.sourceUrl}' : '';
-    final text = '${a.title}\n\n${a.summary}$url\n\n— mobil_haber';
+    final text = '${a.title}\n\n${a.summary}$url\n\n— Pusula';
     await Share.share(text, subject: a.title);
   }
 
@@ -490,13 +492,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           ),
                           const Spacer(),
                           if (article.sourceName.isNotEmpty)
-                            Text(
-                              article.sourceName,
-                              style: textTheme.labelSmall?.copyWith(
-                                color: cs.onSurfaceVariant,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            _SourceBadge(sourceName: article.sourceName),
                         ],
                       ),
                       const SizedBox(height: 10),
@@ -782,6 +778,99 @@ class _ScrimIconButton extends StatelessWidget {
     );
     if (tooltip == null) return button;
     return Tooltip(message: tooltip!, child: button);
+  }
+}
+
+/// Kaynak adı + logosu birlikte gösteren küçük rozet.
+///
+/// Detay ekranının üstünde (ÖZET satırında) ve AI özet kartında kullanılır.
+/// Logo `NewsSourceCatalog`'tan kaynak adıyla eşleşirse Google s2/favicons
+/// üzerinden gelir; bulunamazsa marka harf placeholder gösterilir.
+class _SourceBadge extends StatelessWidget {
+  const _SourceBadge({required this.sourceName});
+
+  final String sourceName;
+  static const double size = 18;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final source = _findSource(sourceName);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: (source?.brandColor ?? cs.outlineVariant)
+              .withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (source != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: Container(
+                width: size,
+                height: size,
+                color: source.brandColor.withValues(alpha: 0.10),
+                child: CachedNetworkImage(
+                  imageUrl: source.logoUrl,
+                  fit: BoxFit.contain,
+                  placeholder: (_, _) => _LogoLetter(source: source, size: size),
+                  errorWidget: (_, _, _) =>
+                      _LogoLetter(source: source, size: size),
+                ),
+              ),
+            )
+          else
+            Icon(Icons.public, size: size, color: cs.onSurfaceVariant),
+          const SizedBox(width: 6),
+          Text(
+            sourceName,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: cs.onSurfaceVariant,
+              letterSpacing: 0.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static NewsSource? _findSource(String name) {
+    for (final s in NewsSourceCatalog.all) {
+      if (s.name == name || s.shortName == name) return s;
+    }
+    return null;
+  }
+}
+
+class _LogoLetter extends StatelessWidget {
+  const _LogoLetter({required this.source, required this.size});
+  final NewsSource source;
+  final double size;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      color: source.brandColor.withValues(alpha: 0.18),
+      child: Text(
+        source.shortName.substring(0, 1).toUpperCase(),
+        style: TextStyle(
+          color: source.brandColor,
+          fontWeight: FontWeight.w800,
+          fontSize: size * 0.55,
+        ),
+      ),
+    );
   }
 }
 
