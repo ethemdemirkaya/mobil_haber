@@ -1,0 +1,11 @@
+RewriteEngine On
+
+# Yoksa veya dizin değilse tüm istekleri index.php'ye yönlendir
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
+
+# Apache 2.4+ tarayıcı önbelleği önerileri (statik bir şey servis etmiyoruz ama yine de)
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+</IfModule>
