@@ -3,8 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:cached_network_image/cached_network_image.dart';
-
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../data/models/article.dart';
@@ -21,6 +19,7 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/error_banner.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/shimmer_loading.dart';
+import '../../widgets/source_logo.dart';
 import '../briefing/daily_briefing_screen.dart';
 import '../category/category_articles_screen.dart';
 import '../detail/article_detail_screen.dart';
@@ -37,21 +36,47 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final PageController _featuredCtrl =
       PageController(viewportFraction: 0.88);
+  final ScrollController _scrollController = ScrollController();
   int _featuredIndex = 0;
   Timer? _autoScrollTimer;
   bool _userPaused = false;
+
+  /// İlk açılışta liste içinde görünen makale sayısı. Kullanıcı sona
+  /// yaklaştığında `_loadMoreStep` kadar artar — pseudo-pagination.
+  int _visibleCount = _initialVisible;
+  static const int _initialVisible = 15;
+  static const int _loadMoreStep = 15;
 
   @override
   void initState() {
     super.initState();
     _startAutoScroll();
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
     _autoScrollTimer?.cancel();
     _featuredCtrl.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Sona ~600px kala bir sonraki batch'i göster. Yeni HTTP yok —
+  /// NewsProvider zaten tüm makaleleri çekti, biz görünür kısmı artırıyoruz.
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 600) {
+      final news = context.read<NewsProvider>();
+      final total = news.articles.length;
+      if (_visibleCount < total) {
+        setState(() {
+          _visibleCount = (_visibleCount + _loadMoreStep).clamp(0, total);
+        });
+      }
+    }
   }
 
   void _startAutoScroll() {
@@ -184,6 +209,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: RefreshIndicator(
           onRefresh: _refresh,
           child: CustomScrollView(
+            controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(
@@ -488,9 +514,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         'Başka bir kategori seçin veya yenilemeyi deneyin.',
                   ),
                 )
-              else
+              else ...[
                 SliverList.separated(
-                  itemCount: news.articles.length,
+                  itemCount:
+                      news.articles.length.clamp(0, _visibleCount),
                   separatorBuilder: (_, _) => Divider(
                     height: 1,
                     indent: 16,
@@ -508,6 +535,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   },
                 ),
+                // "Daha fazla yükle" footer — scroll auto-load çalışıyor
+                // ama görsel olarak da gösterip butonla manuel tetiklemeye
+                // izin verelim. Liste sonuna gelindiyse "Hepsi bu kadar".
+                SliverToBoxAdapter(
+                  child: _LoadMoreFooter(
+                    visible: _visibleCount,
+                    total: news.articles.length,
+                    onLoadMore: () => setState(() {
+                      _visibleCount = (_visibleCount + _loadMoreStep)
+                          .clamp(0, news.articles.length);
+                    }),
+                    onRefresh: _refresh,
+                  ),
+                ),
+              ],
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],
           ),
@@ -953,25 +995,7 @@ class _SourceMiniCard extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              width: 32,
-              height: 32,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: source.brandColor.withValues(alpha: 0.10),
-              ),
-              child: CachedNetworkImage(
-                imageUrl: source.logoUrl,
-                width: 32,
-                height: 32,
-                fit: BoxFit.contain,
-                placeholder: (_, _) => _LogoFallback(source: source),
-                errorWidget: (_, _, _) => _LogoFallback(source: source),
-              ),
-            ),
-          ),
+          SourceLogo(source: source, size: 32, borderRadius: 8),
           const SizedBox(height: 6),
           Text(
             source.shortName,
@@ -990,23 +1014,63 @@ class _SourceMiniCard extends StatelessWidget {
   }
 }
 
-class _LogoFallback extends StatelessWidget {
-  const _LogoFallback({required this.source});
-  final NewsSource source;
+/// Liste sonuna eklenen "Daha fazla" / "Hepsi bu kadar" footer.
+/// Scroll-tabanlı auto-load zaten aktif; bu kart görsel feedback verir
+/// ve manuel "Daha fazla yükle" butonuyla gösterilen sayıyı artırır.
+class _LoadMoreFooter extends StatelessWidget {
+  const _LoadMoreFooter({
+    required this.visible,
+    required this.total,
+    required this.onLoadMore,
+    required this.onRefresh,
+  });
+
+  final int visible;
+  final int total;
+  final VoidCallback onLoadMore;
+  final Future<void> Function() onRefresh;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 32,
-      height: 32,
-      alignment: Alignment.center,
-      color: source.brandColor.withValues(alpha: 0.14),
-      child: Text(
-        source.shortName.substring(0, 1).toUpperCase(),
-        style: TextStyle(
-          color: source.brandColor,
-          fontWeight: FontWeight.w800,
-          fontSize: 14,
-        ),
+    final cs = Theme.of(context).colorScheme;
+    final hasMore = visible < total;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+      child: Center(
+        child: hasMore
+            ? FilledButton.tonalIcon(
+                onPressed: onLoadMore,
+                icon: const Icon(Icons.expand_more, size: 20),
+                label: Text(
+                  'Daha fazla yükle • $visible / $total',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 14),
+                ),
+              )
+            : Column(
+                children: [
+                  Icon(Icons.check_circle_outline,
+                      color: cs.onSurfaceVariant, size: 22),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Hepsi bu kadar — $total haber gösterildi',
+                    style: TextStyle(
+                      color: cs.onSurfaceVariant,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: onRefresh,
+                    icon: const Icon(Icons.refresh, size: 16),
+                    label: const Text('Yenile'),
+                  ),
+                ],
+              ),
       ),
     );
   }

@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +6,7 @@ import '../../data/models/news_source.dart';
 import '../../providers/news_provider.dart';
 import '../../providers/onboarding_provider.dart';
 import '../../providers/preferences_provider.dart';
+import '../../widgets/source_logo.dart';
 import '../main_navigation.dart';
 
 /// Onboarding'in son adımı — kullanıcı kullanmak istediği haber
@@ -292,7 +292,7 @@ class _SourceTile extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
         child: Row(
           children: [
-            _SourceLogo(source: source, size: 44),
+            SourceLogo(source: source, size: 44),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -354,50 +354,6 @@ class _SourceTile extends StatelessWidget {
   }
 }
 
-class _SourceLogo extends StatelessWidget {
-  const _SourceLogo({required this.source, required this.size});
-  final NewsSource source;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final placeholder = Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: source.brandColor.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        source.shortName.isNotEmpty
-            ? source.shortName.substring(0, 1).toUpperCase()
-            : '?',
-        style: TextStyle(
-          color: source.brandColor,
-          fontWeight: FontWeight.w800,
-          fontSize: size * 0.45,
-        ),
-      ),
-    );
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: size,
-        height: size,
-        color: source.brandColor.withValues(alpha: 0.10),
-        child: CachedNetworkImage(
-          imageUrl: source.logoUrl,
-          width: size,
-          height: size,
-          fit: BoxFit.contain,
-          placeholder: (_, _) => placeholder,
-          errorWidget: (_, _, _) => placeholder,
-        ),
-      ),
-    );
-  }
-}
 
 class _PickIndicator extends StatelessWidget {
   const _PickIndicator({required this.selected, required this.color});
