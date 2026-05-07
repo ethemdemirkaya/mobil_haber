@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/date_formatter.dart';
@@ -17,9 +18,19 @@ import '../../widgets/author_profile_sheet.dart';
 import '../../widgets/section_header.dart';
 
 class ArticleDetailScreen extends StatefulWidget {
-  const ArticleDetailScreen({super.key, required this.article});
+  const ArticleDetailScreen({
+    super.key,
+    required this.article,
+    this.heroTag,
+  });
 
   final Article article;
+
+  /// Çağıran widget'ın Hero tag'i. Null ise hero animasyonu çalışmaz
+  /// (basit page transition'a düşer). Aynı haber home ekranında birden
+  /// fazla kart varyasyonunda görünebildiği için her çağıran kendi
+  /// prefix'iyle bunu belirtir.
+  final String? heroTag;
 
   @override
   State<ArticleDetailScreen> createState() => _ArticleDetailScreenState();
@@ -85,8 +96,28 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   Future<void> _share() async {
     HapticFeedback.selectionClick();
     final a = widget.article;
-    final text = '${a.title}\n\n${a.summary}\n\n— mobil_haber';
+    final url = a.hasOriginalUrl ? '\n${a.sourceUrl}' : '';
+    final text = '${a.title}\n\n${a.summary}$url\n\n— mobil_haber';
     await Share.share(text, subject: a.title);
+  }
+
+  Future<void> _openOriginal(String url) async {
+    if (url.isEmpty) return;
+    HapticFeedback.selectionClick();
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    final ok = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          content: Text('Bağlantı açılamadı'),
+          behavior: SnackBarBehavior.floating,
+        ));
+    }
   }
 
   Future<void> _openAuthor() async {
@@ -134,6 +165,16 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
     return Scaffold(
       backgroundColor: isSepia ? sepiaBg : null,
+      // Sticky CTA: harici URL varsa her makalede alt kenarda görünür.
+      // Önemli UX: kullanıcı uzun bir özeti okuyup geri scroll etmek
+      // zorunda kalmadan kaynağa atlayabilir.
+      bottomNavigationBar: article.hasOriginalUrl
+          ? _OriginalLinkCta(
+              accent: cat.color,
+              host: _hostOf(article.sourceUrl),
+              onPressed: () => _openOriginal(article.sourceUrl),
+            )
+          : null,
       body: Stack(
         children: [
           CustomScrollView(
@@ -189,25 +230,38 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   background: Stack(
                     fit: StackFit.expand,
                     children: [
-                      Hero(
-                        tag: 'article-img-${article.id}',
-                        child: ArticleImage(
+                      // Hero yalnızca çağıran tag bildirdiyse aktif (aksi
+                      // halde duplicate-tag hatası riskine girmemek için
+                      // basit ImageContainer).
+                      if (widget.heroTag != null)
+                        Hero(
+                          tag: widget.heroTag!,
+                          child: ArticleImage(
+                            url: article.imageUrl,
+                            borderRadius: 0,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      else
+                        ArticleImage(
                           url: article.imageUrl,
                           borderRadius: 0,
                           fit: BoxFit.cover,
                         ),
-                      ),
+                      // İkili gradient: üst (sistem barı için kontrast) +
+                      // alt (içerik bölgesine yumuşak geçiş).
                       const DecoratedBox(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              Color(0x66000000),
-                              Colors.transparent,
-                              Colors.transparent,
+                              Color(0x80000000),
+                              Color(0x14000000),
+                              Color(0x00000000),
+                              Color(0x33000000),
                             ],
-                            stops: [0.0, 0.4, 1.0],
+                            stops: [0.0, 0.30, 0.55, 1.0],
                           ),
                         ),
                       ),
@@ -247,9 +301,11 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                       const SizedBox(height: 14),
                       Text(
                         article.title,
+                        // v2: 800 → 700, daha rafine letter spacing.
                         style: textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          height: 1.25,
+                          fontWeight: FontWeight.w700,
+                          height: 1.22,
+                          letterSpacing: -0.4,
                         ),
                       ),
                       const SizedBox(height: 14),
@@ -298,12 +354,12 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.schedule_outlined,
+                                    Icon(Icons.bolt_outlined,
                                         size: 14,
                                         color: cs.onSurfaceVariant),
                                     const SizedBox(width: 4),
                                     Text(
-                                      '${article.readMinutes} dk',
+                                      '${article.readMinutes} dk özet',
                                       style: textTheme.bodySmall,
                                     ),
                                   ],
@@ -314,66 +370,99 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 22),
-                      // TL;DR — kısa özet rozetiyle vurgulu kart
-                      Container(
-                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-                        decoration: BoxDecoration(
-                          color: isSepia
-                              ? sepiaBg.withValues(alpha: 0.6)
-                              : cat.color.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border(
-                            left: BorderSide(
+                      // Özet header
+                      Row(
+                        children: [
+                          Icon(Icons.auto_awesome,
+                              size: 16, color: cat.color),
+                          const SizedBox(width: 6),
+                          Text(
+                            'ÖZET',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.4,
                               color: cat.color,
-                              width: 4,
                             ),
                           ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.bolt,
-                                    size: 14, color: cat.color),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'TL;DR',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 1.1,
-                                    color: cat.color,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
+                          const Spacer(),
+                          if (article.sourceName.isNotEmpty)
                             Text(
-                              article.summary,
-                              style: textTheme.titleMedium?.copyWith(
-                                color: isSepia
-                                    ? sepiaText
-                                    : cs.onSurface,
+                              article.sourceName,
+                              style: textTheme.labelSmall?.copyWith(
+                                color: cs.onSurfaceVariant,
                                 fontWeight: FontWeight.w600,
-                                height: 1.45,
                               ),
                             ),
-                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      // Ana özet — büyük, okunaklı
+                      Text(
+                        article.summary.isNotEmpty
+                            ? article.summary
+                            : article.title,
+                        style: textTheme.titleMedium?.copyWith(
+                          color: isSepia ? sepiaText : cs.onSurface,
+                          fontWeight: FontWeight.w500,
+                          height: isSepia ? 1.65 : 1.55,
+                          fontSize: 17,
+                          fontFamily: isSepia ? 'serif' : null,
                         ),
                       ),
+                      // Eğer içerik özetten anlamlı şekilde uzunsa, ek
+                      // bağlam olarak göster.
+                      if (article.content.isNotEmpty &&
+                          article.content != article.summary &&
+                          article.content.length > article.summary.length + 80) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          article.content,
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: isSepia
+                                ? sepiaText.withValues(alpha: 0.85)
+                                : cs.onSurfaceVariant,
+                            height: isSepia ? 1.65 : 1.55,
+                            fontFamily: isSepia ? 'serif' : null,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 18),
-                      Divider(
-                          height: 1,
-                          color:
-                              cs.outlineVariant.withValues(alpha: 0.5)),
-                      const SizedBox(height: 18),
+                      // CTA artık sticky alt kenarda — burada yalnızca
+                      // harici kaynak yoksa bilgi rozeti gösteriliyor.
+                      if (!article.hasOriginalUrl)
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: cs.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline,
+                                  size: 16, color: cs.onSurfaceVariant),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Bu özet için harici kaynak bağlantısı yok.',
+                                  style: textTheme.bodySmall,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (!article.hasOriginalUrl) const SizedBox(height: 12),
                       Text(
-                        article.content,
-                        style: textTheme.bodyLarge?.copyWith(
-                          color: isSepia ? sepiaText : null,
-                          height: isSepia ? 1.7 : 1.6,
-                          fontFamily: isSepia ? 'serif' : null,
+                        article.sourceName.isNotEmpty
+                            ? 'Bu özet ${article.sourceName} tarafından sağlanan '
+                                'metinden derlenmiştir; tam habere erişmek için '
+                                'yukarıdaki butonu kullanın.'
+                            : 'Özetler kaynak sağlayıcının sunduğu metinden '
+                                'derlenir; tam habere erişmek için yukarıdaki '
+                                'butonu kullanın.',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                          fontStyle: FontStyle.italic,
                         ),
                       ),
                     ],
@@ -424,6 +513,89 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
     return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
         .toUpperCase();
+  }
+
+  static String _hostOf(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return '';
+    final h = uri.host;
+    return h.startsWith('www.') ? h.substring(4) : h;
+  }
+}
+
+/// Detay ekranının alt kenarındaki sticky "Orijinali oku" CTA'sı.
+class _OriginalLinkCta extends StatelessWidget {
+  const _OriginalLinkCta({
+    required this.accent,
+    required this.host,
+    required this.onPressed,
+  });
+
+  final Color accent;
+  final String host;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.surface,
+          border: Border(
+            top: BorderSide(
+              color: cs.outlineVariant.withValues(alpha: 0.4),
+            ),
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: FilledButton(
+          onPressed: onPressed,
+          style: FilledButton.styleFrom(
+            backgroundColor: accent,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.open_in_new, size: 18),
+              const SizedBox(width: 8),
+              const Text(
+                'Orijinal haberi oku',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (host.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    host,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
