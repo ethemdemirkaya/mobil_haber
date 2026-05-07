@@ -60,6 +60,10 @@ dependencies:
   # parse etmek için. Backend gerektirmez.
   xml: ^6.5.0
 
+  # Sesli haber brifingi için native TTS — Android: Google TTS,
+  # iOS: AVSpeechSynthesizer. Türkçe (tr-TR) varsayılanda destekleniyor.
+  flutter_tts: ^4.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

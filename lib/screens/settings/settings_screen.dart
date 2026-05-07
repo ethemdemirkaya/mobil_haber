@@ -9,6 +9,7 @@ import '../../providers/reading_history_provider.dart';
 import '../../providers/reading_theme_provider.dart';
 import '../../providers/search_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../briefing/daily_briefing_screen.dart';
 import '../live/live_news_screen.dart';
 import 'about_screen.dart';
 import 'ai_settings_screen.dart';
@@ -53,6 +54,13 @@ class SettingsScreen extends StatelessWidget {
           ),
           _Divider(),
           _AiSettingsNavTile(),
+          _Divider(),
+          _NavTile(
+            icon: Icons.podcasts_rounded,
+            title: 'Sesli Brifing',
+            subtitle: 'Bugünün haberlerini AI özetiyle dinle',
+            page: DailyBriefingScreen(),
+          ),
           SizedBox(height: 12),
           _SectionTitle('Tercihler'),
           _NavTile(
@@ -89,7 +97,7 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.info_outline,
             title: 'Uygulama hakkında',
             subtitle:
-                'mobil_haber sürüm ${AppConstants.appVersion}',
+                '${AppConstants.appName} sürüm ${AppConstants.appVersion}',
             page: AboutScreen(),
           ),
           SizedBox(height: 24),

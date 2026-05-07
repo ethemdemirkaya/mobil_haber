@@ -20,6 +20,7 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/error_banner.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/shimmer_loading.dart';
+import '../briefing/daily_briefing_screen.dart';
 import '../category/category_articles_screen.dart';
 import '../detail/article_detail_screen.dart';
 import '../search/search_screen.dart';
@@ -240,6 +241,19 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ),
                       ),
+                      _HeaderIconButton(
+                        icon: Icons.podcasts_rounded,
+                        tooltip: 'Sesli brifing',
+                        accent: true,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const DailyBriefingScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
                       _HeaderIconButton(
                         icon: Icons.notifications_none_rounded,
                         tooltip: 'Son haberler',
@@ -797,17 +811,24 @@ class _HeaderIconButton extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.onTap,
+    this.accent = false,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback onTap;
 
+  /// Marka vurgulu varyant — sesli brifing gibi öne çıkartmak istediğimiz
+  /// aksiyonlar için. Primary container rengiyle dolu pill gösterir.
+  final bool accent;
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final bg = accent ? cs.primaryContainer : cs.surfaceContainerHighest;
+    final fg = accent ? cs.onPrimaryContainer : cs.onSurface;
     return Material(
-      color: cs.surfaceContainerHighest,
+      color: bg,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
       ),
@@ -819,7 +840,7 @@ class _HeaderIconButton extends StatelessWidget {
           child: SizedBox(
             width: 44,
             height: 44,
-            child: Icon(icon, size: 22, color: cs.onSurface),
+            child: Icon(icon, size: 22, color: fg),
           ),
         ),
       ),
