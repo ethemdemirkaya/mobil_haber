@@ -54,6 +54,7 @@ class ArticleCard extends StatelessWidget {
                   tag: 'card-img-${article.id}',
                   child: ArticleImage(
                     url: article.imageUrl,
+                    articleUrl: article.sourceUrl,
                     width: imageSize,
                     height: imageHeight,
                     borderRadius: 14,
@@ -219,6 +220,7 @@ class FeaturedArticleCard extends StatelessWidget {
                 tag: 'featured-img-${article.id}',
                 child: ArticleImage(
                   url: article.imageUrl,
+                  articleUrl: article.sourceUrl,
                   fit: BoxFit.cover,
                   borderRadius: 22,
                 ),

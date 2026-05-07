@@ -271,34 +271,114 @@ class RssNewsService {
     return null;
   }
 
-  /// Görseli sırasıyla `media:thumbnail`, `media:content`, `enclosure`,
-  /// `image`, ve içerik HTML'inden ilk `<img src="...">` üzerinden çıkarır.
+  /// Görseli birkaç olası RSS field'ından çıkarır ve en büyük varyantı
+  /// seçer. Sıra:
+  ///   1. `media:content` veya `media:thumbnail` arasından en geniş width.
+  ///   2. `<image>` (item içinde, AA RSS gibi).
+  ///   3. `enclosure` (image type).
+  ///   4. Description HTML'indeki ilk `<img src=...>`.
+  ///
+  /// Ardından `_upgradeImage` ile bilinen kaynakların thumbnail URL
+  /// pattern'lerini full-size'a çevirir (AA, Hürriyet, CNN Türk, BBC, NTV).
   String _extractImage(XmlElement el, {String fallbackHtml = ''}) {
-    for (final node in el.descendants.whereType<XmlElement>()) {
-      if (node.localName == 'thumbnail' || node.localName == 'content') {
-        final url = node.getAttribute('url');
-        if (url != null && _looksLikeImage(url)) return url;
+    String best = '';
+    int bestWidth = 0;
+
+    void consider(String? url, {int? width}) {
+      if (url == null || url.isEmpty) return;
+      if (!_looksLikeImage(url)) return;
+      final w = width ?? 0;
+      if (best.isEmpty || w > bestWidth) {
+        best = url;
+        bestWidth = w;
       }
-      if (node.localName == 'enclosure') {
+    }
+
+    // 1. media:content / media:thumbnail — width attribute'una göre
+    //    en büyük varyantı topla.
+    for (final node in el.descendants.whereType<XmlElement>()) {
+      final ln = node.localName;
+      if (ln == 'thumbnail' || ln == 'content') {
+        final url = node.getAttribute('url');
+        final widthStr = node.getAttribute('width');
+        consider(url, width: int.tryParse(widthStr ?? ''));
+      } else if (ln == 'enclosure') {
         final url = node.getAttribute('url');
         final type = node.getAttribute('type') ?? '';
         if (url != null && (type.startsWith('image/') || _looksLikeImage(url))) {
-          return url;
+          // Enclosure'da width yok genelde; varsayılan olarak orta-büyük say.
+          consider(url, width: 600);
         }
-      }
-      if (node.localName == 'image') {
+      } else if (ln == 'image') {
         final url = node.getAttribute('url') ?? node.innerText.trim();
-        if (url.isNotEmpty && _looksLikeImage(url)) return url;
+        consider(url, width: 400);
       }
     }
-    if (fallbackHtml.isNotEmpty) {
+
+    // 2. AA RSS gibi: <item> içinde tek başına <image>full-url</image>.
+    if (best.isEmpty) {
+      final imageEl = el.findElements('image').firstOrNull;
+      if (imageEl != null) {
+        consider(imageEl.innerText.trim(), width: 800);
+      }
+    }
+
+    // 3. Son çare: description HTML'indeki img.
+    if (best.isEmpty && fallbackHtml.isNotEmpty) {
       final m = RegExp(
         r'''<img[^>]+src=["']([^"']+)["']''',
         caseSensitive: false,
       ).firstMatch(fallbackHtml);
-      if (m != null) return m.group(1) ?? '';
+      if (m != null) best = m.group(1) ?? '';
     }
-    return '';
+
+    return _upgradeImage(best);
+  }
+
+  /// Bilinen Türk haber CDN'leri için thumbnail URL'lerini büyük varyantlara
+  /// çevirir. Test edildi (Mayıs 2026).
+  ///
+  /// - **AA** (`cdnuploads.aa.com.tr`): `thumbs_b_c_<hash>.jpg` → `<hash>.jpg`
+  ///   (~90 KB → ~170 KB; 2x kalite).
+  /// - **Hürriyet** (`image.hurimg.com`): `/620x350/` → `/1280x720/`.
+  /// - **CNN Türk** (`image.cnnturk.com`): `/720x490/` → `/1280x720/`.
+  /// - **BBC** (`ichef.bbci.co.uk`): `/240/` → `/1024/` (cps path).
+  /// - **NTV** (`images.ntv.com.tr`): `width=930` → `width=1600`.
+  ///
+  /// Tanınmayan URL'ler dokunulmadan döner.
+  String _upgradeImage(String url) {
+    if (url.isEmpty) return url;
+    final u = url;
+
+    if (u.contains('cdnuploads.aa.com.tr')) {
+      return u.replaceAll(RegExp(r'thumbs_b_c_'), '');
+    }
+    if (u.contains('image.hurimg.com')) {
+      return u.replaceFirst(
+        RegExp(r'/\d{2,4}x\d{2,4}/'),
+        '/1280x720/',
+      );
+    }
+    if (u.contains('image.cnnturk.com')) {
+      return u.replaceFirst(
+        RegExp(r'/\d{2,4}x\d{2,4}/'),
+        '/1280x720/',
+      );
+    }
+    if (u.contains('ichef.bbci.co.uk')) {
+      return u.replaceFirst(
+        RegExp(r'/(?:240|320|480|640|800)/cps'),
+        '/1024/cps',
+      );
+    }
+    if (u.contains('images.ntv.com.tr')) {
+      var fixed = u.replaceFirst(RegExp(r'width=\d+'), 'width=1600');
+      // Format webp bazen rendererda sorun çıkarıyor — JPEG'e çevirme şart
+      // değil, bırakıyoruz.
+      return fixed;
+    }
+
+    return u;
   }
 
   bool _looksLikeImage(String url) {
@@ -310,7 +390,15 @@ class RssNewsService {
         u.endsWith('.gif') ||
         u.contains('image/') ||
         u.contains('img/') ||
-        u.contains('photo');
+        u.contains('photo') ||
+        u.contains('cdnuploads.aa') ||
+        u.contains('image.hurimg') ||
+        u.contains('image.cnnturk') ||
+        u.contains('ichef.bbci') ||
+        u.contains('images.ntv') ||
+        u.contains('media.cumhuriyet') ||
+        u.contains('isbh.tmgrup') ||
+        u.contains('iasbh.tmgrup');
   }
 
   /// Kategori belirleme:

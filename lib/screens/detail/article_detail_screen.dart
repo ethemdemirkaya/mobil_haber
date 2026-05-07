@@ -342,6 +342,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           tag: widget.heroTag!,
                           child: ArticleImage(
                             url: article.imageUrl,
+                            articleUrl: article.sourceUrl,
                             borderRadius: 0,
                             fit: BoxFit.cover,
                           ),
@@ -349,6 +350,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                       else
                         ArticleImage(
                           url: article.imageUrl,
+                          articleUrl: article.sourceUrl,
                           borderRadius: 0,
                           fit: BoxFit.cover,
                         ),
@@ -1136,6 +1138,7 @@ class _RelatedTile extends StatelessWidget {
             children: [
               ArticleImage(
                 url: article.imageUrl,
+                articleUrl: article.sourceUrl,
                 width: 88,
                 height: 72,
                 borderRadius: 12,

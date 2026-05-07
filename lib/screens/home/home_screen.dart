@@ -619,6 +619,7 @@ class _TrendingCard extends StatelessWidget {
             children: [
               ArticleImage(
                 url: article.imageUrl,
+                articleUrl: article.sourceUrl,
                 fit: BoxFit.cover,
                 borderRadius: 18,
               ),
@@ -747,6 +748,7 @@ class _ContinueCard extends StatelessWidget {
                   children: [
                     ArticleImage(
                       url: article.imageUrl,
+                      articleUrl: article.sourceUrl,
                       width: 64,
                       height: 64,
                       borderRadius: 12,
