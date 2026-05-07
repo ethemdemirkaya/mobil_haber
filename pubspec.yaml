@@ -47,6 +47,9 @@ dependencies:
   # Network image with caching and placeholder support
   cached_network_image: ^3.4.1
 
+  # HTTP client for the mobil_haber REST API
+  http: ^1.2.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

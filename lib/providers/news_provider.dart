@@ -1,19 +1,32 @@
 import 'package:flutter/foundation.dart';
 
-import '../data/mock/mock_news_data.dart';
+import '../core/network/api_config.dart';
 import '../data/models/article.dart';
 import '../data/models/category.dart';
+import '../data/repositories/api_news_repository.dart';
+import '../data/repositories/mock_news_repository.dart';
+import '../data/repositories/news_repository.dart';
 
 class NewsProvider extends ChangeNotifier {
-  NewsProvider() {
+  NewsProvider({NewsRepository? repository})
+      : _repository = repository ??
+            (ApiConfig.useApi
+                ? ApiNewsRepository()
+                : MockNewsRepository()) {
     _load();
   }
 
+  final NewsRepository _repository;
+
   bool _loading = true;
+  String? _lastError;
   List<Article> _all = const [];
   String _selectedCategoryId = NewsCategory.all.id;
 
   bool get loading => _loading;
+  String? get lastError => _lastError;
+  bool get hasError => _lastError != null;
+
   String get selectedCategoryId => _selectedCategoryId;
   NewsCategory get selectedCategory =>
       NewsCategory.byId(_selectedCategoryId);
@@ -27,6 +40,13 @@ class NewsProvider extends ChangeNotifier {
     }
     return _all
         .where((a) => a.categoryId == _selectedCategoryId)
+        .toList(growable: false);
+  }
+
+  List<Article> articlesOf(String categoryId) {
+    if (categoryId == NewsCategory.all.id) return List.unmodifiable(_all);
+    return _all
+        .where((a) => a.categoryId == categoryId)
         .toList(growable: false);
   }
 
@@ -53,19 +73,31 @@ class NewsProvider extends ChangeNotifier {
 
   Future<void> _load() async {
     _loading = true;
+    _lastError = null;
     notifyListeners();
-    await Future<void>.delayed(const Duration(milliseconds: 600));
-    _all = MockNewsData.articles;
-    _loading = false;
-    notifyListeners();
+    try {
+      _all = await _repository.fetchAll();
+    } catch (e) {
+      _lastError = 'Haberler yüklenemedi: $e';
+      // Network başarısız ise mock'a düş, ama hatayı korur (banner için).
+      if (_repository is! MockNewsRepository) {
+        try {
+          _all = await MockNewsRepository().fetchAll();
+        } catch (_) {
+          _all = const [];
+        }
+      }
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
   }
 
-  Future<void> refresh() async {
-    _loading = true;
-    notifyListeners();
-    await Future<void>.delayed(const Duration(milliseconds: 700));
-    _all = MockNewsData.articles;
-    _loading = false;
+  Future<void> refresh() => _load();
+
+  void clearError() {
+    if (_lastError == null) return;
+    _lastError = null;
     notifyListeners();
   }
 

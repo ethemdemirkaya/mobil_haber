@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/date_formatter.dart';
 import '../../data/models/article.dart';
 import '../../data/models/category.dart';
 import '../../providers/news_provider.dart';
 import '../../widgets/article_card.dart';
 import '../../widgets/category_chip.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/error_banner.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/shimmer_loading.dart';
+import '../category/category_articles_screen.dart';
 import '../detail/article_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -39,6 +42,87 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(
         builder: (_) => ArticleDetailScreen(article: article),
       ),
+    );
+  }
+
+  void _openCategory(NewsCategory category) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CategoryArticlesScreen(category: category),
+      ),
+    );
+  }
+
+  void _showLatestSheet() {
+    final news = context.read<NewsProvider>();
+    final latest = news.latest(take: 8);
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.notifications_active_outlined),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Son haberler',
+                      style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Anlık güncellemeler',
+                  style: Theme.of(ctx).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: latest.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 4),
+                    itemBuilder: (_, i) {
+                      final a = latest[i];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          radius: 20,
+                          backgroundColor:
+                              a.category.color.withValues(alpha: 0.15),
+                          child: Icon(a.category.icon,
+                              color: a.category.color, size: 18),
+                        ),
+                        title: Text(
+                          a.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600),
+                        ),
+                        subtitle:
+                            Text(DateFormatter.relative(a.publishedAt)),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _openArticle(a);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -96,13 +180,22 @@ class _HomeScreenState extends State<HomeScreen> {
                             Icons.notifications_none_rounded,
                             color: cs.onPrimaryContainer,
                           ),
-                          onPressed: () {},
+                          onPressed: _showLatestSheet,
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
+              if (news.hasError)
+                SliverToBoxAdapter(
+                  child: ErrorBanner(
+                    message: news.lastError ?? 'Bilinmeyen hata',
+                    onRetry: _refresh,
+                    onDismiss: () =>
+                        context.read<NewsProvider>().clearError(),
+                  ),
+                ),
               SliverToBoxAdapter(
                 child: news.loading && news.featured.isEmpty
                     ? const Padding(
@@ -154,6 +247,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           NewsCategory.all.id
                       ? 'Tüm kategorilerden seçtiklerimiz'
                       : '${news.articles.length} haber',
+                  actionLabel:
+                      news.selectedCategoryId == NewsCategory.all.id
+                          ? null
+                          : 'Tümünü gör',
+                  onAction:
+                      news.selectedCategoryId == NewsCategory.all.id
+                          ? null
+                          : () => _openCategory(news.selectedCategory),
                 ),
               ),
               if (news.loading && news.articles.isEmpty)
