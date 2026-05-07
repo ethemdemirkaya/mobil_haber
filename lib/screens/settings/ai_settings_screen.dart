@@ -155,46 +155,59 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               context.read<AiSettingsProvider>().setEnabled(v);
             },
           ),
-          if (ai.keySource != AiKeySource.none)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: ai.keySource == AiKeySource.userProvided
-                      ? cs.primary.withValues(alpha: 0.10)
-                      : Colors.green.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(10),
+          // ─────────── Aktif anahtar mod toggle'ı ───────────
+          // Kullanıcı default'ta env-embedded anahtarı kullanır.
+          // İstediğinde "Kendi anahtarım"a geçer (eski anahtar silinmez,
+          // sadece pasifleşir).
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'AKTİF ANAHTAR',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                    color: cs.onSurfaceVariant,
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      ai.keySource == AiKeySource.userProvided
-                          ? Icons.person_outline
-                          : Icons.verified_outlined,
-                      size: 16,
-                      color: ai.keySource == AiKeySource.userProvided
-                          ? cs.primary
-                          : Colors.green.shade700,
+                const SizedBox(height: 8),
+                SegmentedButton<ApiKeyMode>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(
+                      value: ApiKeyMode.builtIn,
+                      icon: Icon(Icons.verified_outlined, size: 16),
+                      label: Text('Varsayılan'),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        ai.keySource == AiKeySource.userProvided
-                            ? 'Kişisel API anahtarınız kullanılıyor.'
-                            : 'Uygulama içi gömülü anahtar kullanılıyor — '
-                                'kendi anahtarınızı girmeniz gerekmiyor.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurface,
-                        ),
-                      ),
+                    ButtonSegment(
+                      value: ApiKeyMode.userProvided,
+                      icon: Icon(Icons.person_outline, size: 16),
+                      label: Text('Kendi anahtarım'),
                     ),
                   ],
+                  selected: {ai.apiKeyMode},
+                  onSelectionChanged: (set) {
+                    HapticFeedback.selectionClick();
+                    context
+                        .read<AiSettingsProvider>()
+                        .setApiKeyMode(set.first);
+                  },
                 ),
-              ),
+              ],
             ),
+          ),
+          // Aktif mod durumu — uyarı + bilgi banner'ı.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: _ApiKeyModeStatus(
+              mode: ai.apiKeyMode,
+              hasBuiltIn: ai.hasBuiltInKey,
+              hasUserKey: ai.hasUserApiKey,
+            ),
+          ),
           const Divider(height: 1, indent: 20, endIndent: 20),
 
           // ─────────── Sağlayıcı bilgi kartı ───────────
@@ -254,57 +267,86 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
           ),
 
           // ─────────── API Key alanı ───────────
-          const _SectionTitle('API Anahtarı'),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: TextField(
-              controller: _keyController,
-              obscureText: _obscureKey,
-              decoration: InputDecoration(
-                hintText: 'sk-or-v1-...',
-                prefixIcon: const Icon(Icons.vpn_key_outlined),
-                suffixIcon: IconButton(
-                  tooltip: _obscureKey ? 'Göster' : 'Gizle',
-                  icon: Icon(
-                    _obscureKey
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
+          // API Key alanı sadece "Kendi anahtarım" modunda görünür.
+          // Default modda kullanıcının elle anahtar girmesine gerek yok.
+          if (ai.apiKeyMode == ApiKeyMode.userProvided) ...[
+            const _SectionTitle('Kişisel API Anahtarınız'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: TextField(
+                controller: _keyController,
+                obscureText: _obscureKey,
+                decoration: InputDecoration(
+                  hintText: 'sk-or-v1-...',
+                  prefixIcon: const Icon(Icons.vpn_key_outlined),
+                  suffixIcon: IconButton(
+                    tooltip: _obscureKey ? 'Göster' : 'Gizle',
+                    icon: Icon(
+                      _obscureKey
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscureKey = !_obscureKey),
                   ),
-                  onPressed: () =>
-                      setState(() => _obscureKey = !_obscureKey),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                onSubmitted: (_) => _saveKey(),
               ),
-              onSubmitted: (_) => _saveKey(),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-            child: Row(
-              children: [
-                FilledButton.icon(
-                  onPressed: _saveKey,
-                  icon: const Icon(Icons.save_outlined, size: 18),
-                  label: const Text('Kaydet'),
-                ),
-                const SizedBox(width: 10),
-                OutlinedButton.icon(
-                  onPressed: _testing ? null : _test,
-                  icon: _testing
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child:
-                              CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.bolt_outlined, size: 18),
-                  label: Text(_testing ? 'Test ediliyor' : 'Bağlantıyı test et'),
-                ),
-              ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              child: Row(
+                children: [
+                  FilledButton.icon(
+                    onPressed: _saveKey,
+                    icon: const Icon(Icons.save_outlined, size: 18),
+                    label: const Text('Kaydet'),
+                  ),
+                  const SizedBox(width: 10),
+                  OutlinedButton.icon(
+                    onPressed: _testing ? null : _test,
+                    icon: _testing
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2),
+                          )
+                        : const Icon(Icons.bolt_outlined, size: 18),
+                    label: Text(_testing
+                        ? 'Test ediliyor'
+                        : 'Bağlantıyı test et'),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ] else ...[
+            // Default mod: küçük bilgi + sadece "test et" butonu.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+              child: Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _testing ? null : _test,
+                    icon: _testing
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2),
+                          )
+                        : const Icon(Icons.bolt_outlined, size: 18),
+                    label: Text(_testing
+                        ? 'Test ediliyor'
+                        : 'Varsayılan anahtarı test et'),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (ai.lastError != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
@@ -951,6 +993,90 @@ class _LiveModelTile extends StatelessWidget {
         style: const TextStyle(fontSize: 11),
       ),
     );
+  }
+}
+
+/// Aktif anahtar modunun durumunu gösteren bilgi/uyarı kartı.
+/// 4 durum:
+///   - builtIn + env var → yeşil "Pusula varsayılan anahtarı aktif"
+///   - builtIn + env yok → kırmızı "Varsayılan anahtar yok, kendi anahtarına geç"
+///   - userProvided + key var → mavi "Kişisel anahtar aktif"
+///   - userProvided + key yok → turuncu "Anahtarını gir"
+class _ApiKeyModeStatus extends StatelessWidget {
+  const _ApiKeyModeStatus({
+    required this.mode,
+    required this.hasBuiltIn,
+    required this.hasUserKey,
+  });
+
+  final ApiKeyMode mode;
+  final bool hasBuiltIn;
+  final bool hasUserKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final (icon, accent, text) = _resolve(cs);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.30)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: accent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 12,
+                color: cs.onSurface,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  (IconData, Color, String) _resolve(ColorScheme cs) {
+    switch (mode) {
+      case ApiKeyMode.builtIn:
+        if (hasBuiltIn) {
+          return (
+            Icons.verified_outlined,
+            Colors.green.shade700,
+            'Varsayılan anahtar aktif — uygulama içi gömülü OpenRouter '
+                'anahtarını kullanıyor. Senin için kullanım limiti '
+                'paylaşılır.',
+          );
+        }
+        return (
+          Icons.warning_amber_rounded,
+          Colors.red.shade700,
+          'Bu sürümde varsayılan anahtar yok. "Kendi anahtarım" moduna '
+              'geçip OpenRouter anahtarını gir.',
+        );
+      case ApiKeyMode.userProvided:
+        if (hasUserKey) {
+          return (
+            Icons.person_outline,
+            cs.primary,
+            'Kişisel API anahtarın aktif — kendi rate-limit ve '
+                'faturalandırman kullanılıyor.',
+          );
+        }
+        return (
+          Icons.error_outline,
+          Colors.orange.shade700,
+          'Anahtarın boş. Aşağıdaki kutuya OpenRouter anahtarını yapıştır '
+              've "Kaydet"e bas.',
+        );
+    }
   }
 }
 

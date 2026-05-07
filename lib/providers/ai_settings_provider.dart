@@ -41,6 +41,32 @@ enum AiKeySource {
   userProvided,
 }
 
+/// Kullanıcının HANGİ anahtarı kullanmak istediğine dair tercihi.
+/// Bu kayıttan bağımsız olarak hem env-embedded hem user-entered key
+/// saklı kalır; mode hangisinin aktif olacağına karar verir.
+enum ApiKeyMode {
+  /// Uygulama içinde gömülü (`.env.json`'daki) anahtar — varsayılan.
+  builtIn,
+
+  /// Kullanıcının Ayarlar'dan girdiği kişisel anahtar.
+  userProvided,
+}
+
+extension ApiKeyModeLabel on ApiKeyMode {
+  String get label => switch (this) {
+        ApiKeyMode.builtIn => 'Varsayılan',
+        ApiKeyMode.userProvided => 'Kendi anahtarım',
+      };
+
+  String get description => switch (this) {
+        ApiKeyMode.builtIn => 'Pusula\'nın yerleşik OpenRouter anahtarı '
+            '(uygulamayla birlikte gelir).',
+        ApiKeyMode.userProvided =>
+          'Kişisel OpenRouter anahtarın — kendi kullanım limitin, '
+              'kendi faturalandırman.',
+      };
+}
+
 /// Sesli brifing okumak için hangi motorun kullanılacağı.
 enum TtsEngineKind {
   /// flutter_tts: cihazın native TTS'i. Hızlı, ücretsiz, çevrimdışı.
@@ -109,6 +135,11 @@ class AiSettingsProvider extends ChangeNotifier {
   String _apiKey = '';
   String _modelId = defaultModelId;
 
+  /// Hangi anahtar (mode) aktif kullanılacak. Default builtIn — env
+  /// dosyasındaki anahtar varsa onu kullanır. User explicit "kendi
+  /// anahtarım" derse o aktif olur.
+  ApiKeyMode _apiKeyMode = ApiKeyMode.builtIn;
+
   // ─── TTS (sesli okuma) ───
   TtsEngineKind _ttsEngine = TtsEngineKind.system;
   String _openaiTtsKey = '';
@@ -129,6 +160,7 @@ class AiSettingsProvider extends ChangeNotifier {
 
   static const String _prefsEnabled = 'pref_ai_enabled';
   static const String _prefsKey = 'pref_ai_api_key';
+  static const String _prefsKeyMode = 'pref_ai_key_mode';
   static const String _prefsModel = 'pref_ai_model';
   static const String _prefsCache = 'pref_ai_cache';
   static const String _prefsTtsEngine = 'pref_ai_tts_engine';
@@ -222,21 +254,36 @@ class AiSettingsProvider extends ChangeNotifier {
   /// hint'i için.
   bool get hasBuiltInKey => OpenRouterClient.hasBuiltInKey;
 
-  /// API çağrılarında kullanılacak gerçek anahtar — kullanıcı girdiyse
-  /// onu (kendi rate-limit/spend cap kontrolü), girmediyse build-time
-  /// embed'i. İkisi de yoksa boş string (`isReady` false döner).
-  String get effectiveApiKey =>
-      _apiKey.isNotEmpty ? _apiKey : OpenRouterClient.defaultApiKey;
+  /// Kullanıcının hangi modu aktif tercih ettiği.
+  ApiKeyMode get apiKeyMode => _apiKeyMode;
 
-  /// Etkin anahtarın kaynağı — UI'da "kendi anahtarınız" / "uygulama
-  /// içinde gömülü" rozetini ayırt etmek için.
+  /// API çağrılarında kullanılacak gerçek anahtar. Mode'a göre seçer:
+  ///   - userProvided: kullanıcının girdiği anahtar (boş ise boş döner)
+  ///   - builtIn: build-time gömülü anahtar (boş ise boş döner)
+  /// Boş dönerse `isReady` false olur.
+  String get effectiveApiKey {
+    return _apiKeyMode == ApiKeyMode.userProvided
+        ? _apiKey
+        : OpenRouterClient.defaultApiKey;
+  }
+
+  /// Etkin anahtarın kaynağı — UI rozeti için. Aktif mode'a göre değişir.
   AiKeySource get keySource {
-    if (_apiKey.isNotEmpty) return AiKeySource.userProvided;
-    if (OpenRouterClient.hasBuiltInKey) return AiKeySource.builtIn;
-    return AiKeySource.none;
+    if (effectiveApiKey.isEmpty) return AiKeySource.none;
+    return _apiKeyMode == ApiKeyMode.userProvided
+        ? AiKeySource.userProvided
+        : AiKeySource.builtIn;
   }
 
   bool get hasAnyKey => effectiveApiKey.isNotEmpty;
+
+  /// Aktif modu kullanmak için gerekli anahtar var mı?
+  /// userProvided modunda kullanıcı keyi olmalı, builtIn'de env keyi.
+  bool get isModeUsable {
+    return _apiKeyMode == ApiKeyMode.userProvided
+        ? _apiKey.isNotEmpty
+        : OpenRouterClient.hasBuiltInKey;
+  }
 
   /// Eski API uyumluluğu — UI bazı yerlerde `hasApiKey` çağırıyor olabilir.
   bool get hasApiKey => hasAnyKey;
@@ -297,6 +344,25 @@ class AiSettingsProvider extends ChangeNotifier {
         OpenRouterClient.hasBuiltInKey;
     _apiKey = prefs.getString(_prefsKey) ?? '';
     _modelId = prefs.getString(_prefsModel) ?? defaultModelId;
+
+    // ApiKeyMode default kararı:
+    //   - Kayıtlı bir tercih varsa onu yükle.
+    //   - Yoksa: build-time anahtar varsa builtIn (sıfır kurulumla çalışsın);
+    //     yoksa user'ın anahtarı zaten varsa userProvided; ikisi de yoksa
+    //     builtIn (kullanıcı birini girince UI mode değiştirsin diye).
+    final storedMode = prefs.getString(_prefsKeyMode);
+    if (storedMode != null) {
+      _apiKeyMode = ApiKeyMode.values.firstWhere(
+        (m) => m.name == storedMode,
+        orElse: () => ApiKeyMode.builtIn,
+      );
+    } else {
+      _apiKeyMode = OpenRouterClient.hasBuiltInKey
+          ? ApiKeyMode.builtIn
+          : (_apiKey.isNotEmpty
+              ? ApiKeyMode.userProvided
+              : ApiKeyMode.builtIn);
+    }
 
     // TTS tercihleri
     final ttsEngineId =
@@ -427,6 +493,17 @@ class AiSettingsProvider extends ChangeNotifier {
     } else {
       await prefs.setString(_prefsKey, trimmed);
     }
+  }
+
+  /// Aktif anahtar modunu değiştir. UI segmented button'dan çağrılır.
+  /// Kullanıcı `userProvided`'a geçerken anahtarı boşsa effectiveApiKey
+  /// boş döner — UI bunu uyarı banner'ı ile gösterir.
+  Future<void> setApiKeyMode(ApiKeyMode mode) async {
+    if (_apiKeyMode == mode) return;
+    _apiKeyMode = mode;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsKeyMode, mode.name);
   }
 
   Future<void> setModelId(String value) async {
