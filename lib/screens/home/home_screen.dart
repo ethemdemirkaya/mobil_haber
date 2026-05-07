@@ -9,6 +9,7 @@ import '../../data/models/article.dart';
 import '../../data/models/category.dart';
 import '../../providers/news_provider.dart';
 import '../../providers/reading_history_provider.dart';
+import '../../providers/reading_progress_provider.dart';
 import '../../widgets/article_card.dart';
 import '../../widgets/article_image.dart';
 import '../../widgets/category_chip.dart';
@@ -18,6 +19,7 @@ import '../../widgets/section_header.dart';
 import '../../widgets/shimmer_loading.dart';
 import '../category/category_articles_screen.dart';
 import '../detail/article_detail_screen.dart';
+import '../search/search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -66,10 +68,13 @@ class _HomeScreenState extends State<HomeScreen> {
     await context.read<NewsProvider>().refresh();
   }
 
-  void _openArticle(Article article) {
+  void _openArticle(Article article, {String? heroTag}) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ArticleDetailScreen(article: article),
+        builder: (_) => ArticleDetailScreen(
+          article: article,
+          heroTag: heroTag,
+        ),
       ),
     );
   }
@@ -178,7 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding:
-                      const EdgeInsets.fromLTRB(20, 16, 20, 4),
+                      const EdgeInsets.fromLTRB(20, 16, 20, 0),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -187,40 +192,66 @@ class _HomeScreenState extends State<HomeScreen> {
                           crossAxisAlignment:
                               CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Merhaba 👋',
-                              style: textTheme.bodyMedium?.copyWith(
-                                color: cs.onSurfaceVariant,
-                              ),
+                            Row(
+                              children: [
+                                Text(
+                                  AppConstants.appName,
+                                  style:
+                                      textTheme.headlineSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                // v2 (özetleyici) marka rozetimsi vurgu
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: cs.primary
+                                        .withValues(alpha: 0.10),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    'özet',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.5,
+                                      color: cs.primary,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              AppConstants.appName,
-                              style:
-                                  textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.4,
+                              'Hızlı · Birleştirilmiş · Özet',
+                              style: textTheme.bodySmall?.copyWith(
+                                color: cs.onSurfaceVariant,
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: 0.1,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: cs.primaryContainer
-                              .withValues(alpha: 0.6),
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          icon: Icon(
-                            Icons.notifications_none_rounded,
-                            color: cs.onPrimaryContainer,
-                          ),
-                          onPressed: _showLatestSheet,
-                        ),
+                      _HeaderIconButton(
+                        icon: Icons.notifications_none_rounded,
+                        tooltip: 'Son haberler',
+                        onTap: _showLatestSheet,
                       ),
                     ],
                   ),
+                ),
+              ),
+              // Yarı-pasif arama bandı (kullanıcı dokununca SearchScreen'e
+              // benzer bir deneyim için MainNavigation'da sekme değişir).
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.fromLTRB(20, 14, 20, 6),
+                  child: _SearchShortcutBar(),
                 ),
               ),
               if (news.hasError)
@@ -231,6 +262,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     onDismiss: () =>
                         context.read<NewsProvider>().clearError(),
                   ),
+                )
+              else if (news.usingFallback && !news.loading)
+                SliverToBoxAdapter(
+                  child: _OfflineFallbackNotice(onRetry: _refresh),
                 ),
               SliverToBoxAdapter(
                 child: news.loading && news.featured.isEmpty
@@ -256,7 +291,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           currentIndex: _featuredIndex,
                           onIndexChanged: (i) =>
                               setState(() => _featuredIndex = i),
-                          onTap: _openArticle,
+                          onTap: (a) => _openArticle(
+                            a,
+                            heroTag: 'featured-img-${a.id}',
+                          ),
                         ),
                       ),
               ),
@@ -390,7 +428,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     final a = news.articles[index];
                     return ArticleCard(
                       article: a,
-                      onTap: () => _openArticle(a),
+                      onTap: () => _openArticle(
+                        a,
+                        heroTag: 'card-img-${a.id}',
+                      ),
                     );
                   },
                 ),
@@ -424,46 +465,58 @@ class _FeaturedCarousel extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Column(
       children: [
+        // v2: "Editörün seçtikleri" yerine, agregatör konseptine uyumlu
+        // "Öne çıkan başlıklar — son 24 saat".
         const SectionHeader(
           title: 'Öne çıkanlar',
-          subtitle: 'Editörün seçtikleri',
+          subtitle: 'Son güncel başlıklar',
         ),
         SizedBox(
-          height: 240,
+          height: 248,
           child: PageView.builder(
             controller: controller,
             itemCount: articles.length,
             onPageChanged: onIndexChanged,
             itemBuilder: (context, index) {
               final a = articles[index];
+              final active = index == currentIndex;
               return AnimatedPadding(
-                duration: const Duration(milliseconds: 220),
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
                 padding: EdgeInsets.symmetric(
                   horizontal: 8,
-                  vertical: index == currentIndex ? 4 : 14,
+                  // Aktif kartın ölçeklenmesi yerine padding farkıyla
+                  // hafif "yükseliyor" hissi.
+                  vertical: active ? 4 : 16,
                 ),
-                child: FeaturedArticleCard(
-                  article: a,
-                  onTap: () => onTap(a),
+                child: AnimatedScale(
+                  duration: const Duration(milliseconds: 240),
+                  curve: Curves.easeOutCubic,
+                  scale: active ? 1.0 : 0.97,
+                  child: FeaturedArticleCard(
+                    article: a,
+                    onTap: () => onTap(a),
+                  ),
                 ),
               );
             },
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(articles.length, (i) {
             final selected = i == currentIndex;
             return AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
+              duration: const Duration(milliseconds: 240),
+              curve: Curves.easeOutCubic,
               margin: const EdgeInsets.symmetric(horizontal: 3),
-              width: selected ? 18 : 6,
+              width: selected ? 22 : 6,
               height: 6,
               decoration: BoxDecoration(
                 color: selected
                     ? cs.primary
-                    : cs.onSurfaceVariant.withValues(alpha: 0.3),
+                    : cs.onSurfaceVariant.withValues(alpha: 0.28),
                 borderRadius: BorderRadius.circular(4),
               ),
             );
@@ -610,6 +663,9 @@ class _ContinueCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final progress = context.select<ReadingProgressProvider, double>(
+      (p) => p.get(article.id),
+    );
     return SizedBox(
       width: 240,
       child: Material(
@@ -620,49 +676,217 @@ class _ContinueCard extends StatelessWidget {
         ),
         child: InkWell(
           onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              children: [
-                ArticleImage(
-                  url: article.imageUrl,
-                  width: 64,
-                  height: 64,
-                  borderRadius: 12,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        article.category.name,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: article.category.color,
-                          letterSpacing: 0.4,
-                        ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Row(
+                  children: [
+                    ArticleImage(
+                      url: article.imageUrl,
+                      width: 64,
+                      height: 64,
+                      borderRadius: 12,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            article.category.name,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: article.category.color,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            article.title,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              height: 1.25,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        article.title,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          height: 1.25,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              // Okuma ilerleme çubuğu — en alt kenarda 3px ince çizgi.
+              // Kullanıcının nerede kaldığını gösterir; pozitif geri
+              // bildirim ve "geri dönüp tamamla" davetkârlığı sağlar.
+              SizedBox(
+                height: 3,
+                child: LinearProgressIndicator(
+                  value: progress.clamp(0.0, 1.0),
+                  backgroundColor:
+                      cs.outlineVariant.withValues(alpha: 0.4),
+                  valueColor:
+                      AlwaysStoppedAnimation(article.category.color),
+                ),
+              ),
+            ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Header'daki bildirim/aksiyon butonu — daha yumuşak yuvarlatılmış
+/// sürüm.
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: cs.surfaceContainerHighest,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Tooltip(
+          message: tooltip,
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Icon(icon, size: 22, color: cs.onSurface),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Home ekranının üstünde duran arama kısayol bandı. Tek dokunuşla
+/// SearchScreen'i route olarak açar (bottom-nav sekme switching'e
+/// karşı: çağrı kalıcı bir route, kullanıcı geri tuşuyla dönebilir).
+class _SearchShortcutBar extends StatelessWidget {
+  const _SearchShortcutBar();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: cs.surfaceContainerHighest,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const SearchScreen(),
+            ),
+          );
+        },
+        child: Padding(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Icon(Icons.search_rounded,
+                  size: 20, color: cs.onSurfaceVariant),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Haber, yazar veya kategori ara…',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: cs.surface,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: cs.outlineVariant.withValues(alpha: 0.6),
+                  ),
+                ),
+                child: Text(
+                  '⌘K',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: cs.onSurfaceVariant,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Aggregate başarısız + mock fallback aktif olduğunda gösterilen yumuşak
+/// bilgi banner'ı (hata değil, durum bildirimi).
+class _OfflineFallbackNotice extends StatelessWidget {
+  const _OfflineFallbackNotice({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.wifi_off_rounded,
+              size: 18, color: cs.onSurfaceVariant),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Çevrimdışısınız — örnek veriler gösteriliyor.',
+              style: TextStyle(
+                color: cs.onSurface,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            child: const Text('Yenile'),
+          ),
+        ],
       ),
     );
   }
