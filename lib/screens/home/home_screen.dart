@@ -129,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16),
                     itemCount: NewsCategory.values.length,
-                    separatorBuilder: (_, __) =>
+                    separatorBuilder: (_, _) =>
                         const SizedBox(width: 8),
                     itemBuilder: (context, index) {
                       final c = NewsCategory.values[index];
@@ -159,7 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
               if (news.loading && news.articles.isEmpty)
                 SliverList.builder(
                   itemCount: 4,
-                  itemBuilder: (_, __) =>
+                  itemBuilder: (_, _) =>
                       const ArticleCardSkeleton(),
                 )
               else if (news.articles.isEmpty)
@@ -175,7 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
               else
                 SliverList.separated(
                   itemCount: news.articles.length,
-                  separatorBuilder: (_, __) => Divider(
+                  separatorBuilder: (_, _) => Divider(
                     height: 1,
                     indent: 16,
                     endIndent: 16,

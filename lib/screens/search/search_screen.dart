@@ -126,7 +126,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: NewsCategory.values.length,
-                separatorBuilder: (_, __) =>
+                separatorBuilder: (_, _) =>
                     const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final c = NewsCategory.values[index];
@@ -171,7 +171,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       : ListView.separated(
                           padding: EdgeInsets.zero,
                           itemCount: results.length + 1,
-                          separatorBuilder: (_, __) => Divider(
+                          separatorBuilder: (_, _) => Divider(
                             height: 1,
                             indent: 16,
                             endIndent: 16,

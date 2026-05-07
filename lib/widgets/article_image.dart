@@ -33,7 +33,7 @@ class ArticleImage extends StatelessWidget {
           height: height,
           width: width,
         ),
-        errorWidget: (context, _, __) => Container(
+        errorWidget: (context, _, _) => Container(
           color: cs.surfaceContainerHighest,
           height: height,
           width: width,
