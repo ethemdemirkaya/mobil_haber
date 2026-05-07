@@ -14,6 +14,7 @@ import '../live/live_news_screen.dart';
 import 'about_screen.dart';
 import 'ai_settings_screen.dart';
 import 'data_usage_screen.dart';
+import 'keyword_filters_screen.dart';
 import 'diagnostics_screen.dart';
 import 'notification_prefs_screen.dart';
 import 'reading_history_screen.dart';
@@ -51,6 +52,13 @@ class SettingsScreen extends StatelessWidget {
             title: 'Kaynak Tercihleri',
             subtitle: 'Canlı ekranda hangi kaynaklar gösterilsin',
             page: SourcePreferencesScreen(),
+          ),
+          _Divider(),
+          _NavTile(
+            icon: Icons.tag,
+            title: 'Anahtar Kelime Filtreleri',
+            subtitle: 'İlgi alanların: Galatasaray, Bitcoin, FED…',
+            page: KeywordFiltersScreen(),
           ),
           _Divider(),
           _AiSettingsNavTile(),

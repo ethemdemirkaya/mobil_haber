@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../core/utils/date_formatter.dart';
 import '../data/models/article.dart';
 import '../providers/bookmark_provider.dart';
+import '../providers/keyword_filter_provider.dart';
 import '../providers/reading_history_provider.dart';
 import '../providers/reading_theme_provider.dart';
 import 'article_image.dart';
@@ -111,6 +112,10 @@ class ArticleCard extends StatelessWidget {
                               ),
                             ),
                           ],
+                          // Keyword match rozeti — kullanıcının ilgi
+                          // duyduğu kelimelerden birine eşleşiyorsa
+                          // primary renkte vurgulayıcı badge.
+                          _KeywordMatchBadge(article: article),
                           const Spacer(),
                           if (showBookmark)
                             _BookmarkButton(article: article),
@@ -303,6 +308,58 @@ class FeaturedArticleCard extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _KeywordMatchBadge extends StatelessWidget {
+  const _KeywordMatchBadge({required this.article});
+  final Article article;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final matched = context.select<KeywordFilterProvider, List<String>>(
+      (p) => p.matchedKeywords(article),
+    );
+    if (matched.isEmpty) return const SizedBox.shrink();
+    final shown = matched.length == 1
+        ? matched.first
+        : '${matched.first} +${matched.length - 1}';
+    return Padding(
+      padding: const EdgeInsets.only(left: 6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          color: cs.primary.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: cs.primary.withValues(alpha: 0.35),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.tag, size: 10, color: cs.primary),
+            const SizedBox(width: 3),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 90),
+              child: Text(
+                shown,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: cs.primary,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
