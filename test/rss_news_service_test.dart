@@ -2,8 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-import 'package:mobil_haber/data/models/news_source.dart';
-import 'package:mobil_haber/data/repositories/rss_news_service.dart';
+import 'package:pusula_news/data/models/news_source.dart';
+import 'package:pusula_news/data/repositories/rss_news_service.dart';
 
 const String _trtFixture = '''
 <?xml version="1.0" encoding="UTF-8"?>

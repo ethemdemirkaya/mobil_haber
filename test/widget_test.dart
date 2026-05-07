@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:mobil_haber/app.dart';
+import 'package:pusula_news/app.dart';
 
 void main() {
   setUp(() {
