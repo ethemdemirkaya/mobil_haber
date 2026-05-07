@@ -1,4 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../providers/bookmark_provider.dart';
+import 'bookmarks/bookmarks_screen.dart';
+import 'home/home_screen.dart';
+import 'search/search_screen.dart';
+import 'settings/settings_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -10,56 +17,55 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _index = 0;
 
-  static const List<Widget> _placeholders = [
-    _Placeholder(label: 'Ana Sayfa'),
-    _Placeholder(label: 'Arama'),
-    _Placeholder(label: 'Kaydedilenler'),
-    _Placeholder(label: 'Ayarlar'),
+  static const List<Widget> _screens = [
+    HomeScreen(),
+    SearchScreen(),
+    BookmarksScreen(),
+    SettingsScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final bookmarkCount = context.select<BookmarkProvider, int>(
+      (b) => b.count,
+    );
+
     return Scaffold(
-      body: IndexedStack(index: _index, children: _placeholders),
+      body: IndexedStack(index: _index, children: _screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(
+        destinations: [
+          const NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home_rounded),
             label: 'Ana Sayfa',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.search_outlined),
             selectedIcon: Icon(Icons.search),
             label: 'Arama',
           ),
           NavigationDestination(
-            icon: Icon(Icons.bookmark_outline),
-            selectedIcon: Icon(Icons.bookmark),
+            icon: Badge(
+              label: bookmarkCount > 0 ? Text('$bookmarkCount') : null,
+              isLabelVisible: bookmarkCount > 0,
+              child: const Icon(Icons.bookmark_outline),
+            ),
+            selectedIcon: Badge(
+              label: bookmarkCount > 0 ? Text('$bookmarkCount') : null,
+              isLabelVisible: bookmarkCount > 0,
+              child: const Icon(Icons.bookmark),
+            ),
             label: 'Kayıtlı',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
             label: 'Ayarlar',
           ),
         ],
       ),
-    );
-  }
-}
-
-class _Placeholder extends StatelessWidget {
-  const _Placeholder({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(label)),
-      body: Center(child: Text('$label (yakında)')),
     );
   }
 }
