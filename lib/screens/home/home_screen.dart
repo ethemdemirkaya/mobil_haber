@@ -10,6 +10,7 @@ import '../../core/utils/date_formatter.dart';
 import '../../data/models/article.dart';
 import '../../data/models/category.dart';
 import '../../data/models/news_source.dart';
+import '../../providers/ai_settings_provider.dart';
 import '../../providers/news_provider.dart';
 import '../../providers/reading_history_provider.dart';
 import '../../providers/reading_progress_provider.dart';
@@ -272,6 +273,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: _SearchShortcutBar(),
                 ),
               ),
+              // First-run "AI hazır" tek seferlik bilgilendirme.
+              // ignore: deprecated_member_use_from_same_package
+              const SliverToBoxAdapter(child: _AiReadyBanner()),
               if (news.hasError)
                 SliverToBoxAdapter(
                   child: ErrorBanner(
@@ -279,6 +283,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     onRetry: _refresh,
                     onDismiss: () =>
                         context.read<NewsProvider>().clearError(),
+                  ),
+                )
+              else if (news.offline && !news.loading)
+                SliverToBoxAdapter(
+                  child: _OfflineNotice(
+                    cachedAt: news.lastFetchAt,
+                    onRetry: _refresh,
                   ),
                 )
               else if (news.usingFallback && !news.loading)
@@ -1049,6 +1060,153 @@ class _AddSourcesChip extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// İlk açılış sonrası, build-time gömülü API anahtarı varsa bir kez
+/// yeşil bir başarı banner'ı gösterir. Kullanıcı dismiss edince bir
+/// daha gözükmez.
+class _AiReadyBanner extends StatelessWidget {
+  const _AiReadyBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final ai = context.watch<AiSettingsProvider>();
+    if (!ai.shouldShowFirstRunNotice) return const SizedBox.shrink();
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.green.withValues(alpha: 0.16),
+            Colors.green.withValues(alpha: 0.06),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Colors.green.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.check_circle,
+                color: Colors.green.shade700, size: 22),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Yapay zeka hazır',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                    color: cs.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Brifing ve makale özetleri için ek kurulum gerekmiyor — '
+                  'uygulama içi anahtar etkin.',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: cs.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Anladım',
+            icon: const Icon(Icons.close, size: 18),
+            onPressed: () =>
+                context.read<AiSettingsProvider>().markFirstRunNoticeSeen(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Çevrimdışı modda — son başarılı çekimden disk cache'inden yükledik.
+/// "Çevrimdışısınız" + son güncelleme zamanı + yenile.
+class _OfflineNotice extends StatelessWidget {
+  const _OfflineNotice({required this.cachedAt, required this.onRetry});
+
+  final DateTime? cachedAt;
+  final VoidCallback onRetry;
+
+  String _relative(DateTime? at) {
+    if (at == null) return 'bilinmiyor';
+    final diff = DateTime.now().difference(at);
+    if (diff.inMinutes < 60) return '${diff.inMinutes} dk önce';
+    if (diff.inHours < 24) return '${diff.inHours} saat önce';
+    return '${diff.inDays} gün önce';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+      decoration: BoxDecoration(
+        color: cs.tertiaryContainer.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: cs.tertiary.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.cloud_off_rounded,
+              size: 18, color: cs.onTertiaryContainer),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Çevrimdışısınız',
+                  style: TextStyle(
+                    color: cs.onTertiaryContainer,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
+                Text(
+                  'Son güncellenen haberleri (${_relative(cachedAt)}) '
+                  'gösteriyoruz.',
+                  style: TextStyle(
+                    color: cs.onTertiaryContainer,
+                    fontSize: 11.5,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            child: const Text('Yenile'),
+          ),
+        ],
       ),
     );
   }
