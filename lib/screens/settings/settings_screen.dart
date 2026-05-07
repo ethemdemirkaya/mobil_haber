@@ -4,8 +4,13 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/bookmark_provider.dart';
+import '../../providers/reading_history_provider.dart';
 import '../../providers/search_provider.dart';
 import '../../providers/theme_provider.dart';
+import 'about_screen.dart';
+import 'data_usage_screen.dart';
+import 'notification_prefs_screen.dart';
+import 'reading_history_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -16,19 +21,43 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Ayarlar')),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        children: const [
+        children: [
           _SectionTitle('Görünüm'),
           _ThemeModeTile(),
           _Divider(),
           _FontScaleTile(),
-          SizedBox(height: 16),
+          SizedBox(height: 12),
+          _SectionTitle('Tercihler'),
+          _NavTile(
+            icon: Icons.notifications_outlined,
+            title: 'Bildirim Tercihleri',
+            subtitle: 'Son dakika, günlük özet ve kategori bildirimleri',
+            page: NotificationPrefsScreen(),
+          ),
+          _Divider(),
+          _NavTile(
+            icon: Icons.data_saver_off_outlined,
+            title: 'Veri Kullanımı',
+            subtitle: 'Düşük çözünürlük, otomatik oynatma',
+            page: DataUsageScreen(),
+          ),
+          SizedBox(height: 12),
           _SectionTitle('Veriler'),
+          _ReadingHistoryNavTile(),
+          _Divider(),
           _ClearSearchTile(),
           _Divider(),
           _ClearBookmarksTile(),
-          SizedBox(height: 16),
+          SizedBox(height: 12),
           _SectionTitle('Hakkında'),
-          _AboutTile(),
+          _NavTile(
+            icon: Icons.info_outline,
+            title: 'Uygulama hakkında',
+            subtitle:
+                'mobil_haber sürüm ${AppConstants.appVersion}',
+            page: AboutScreen(),
+          ),
+          SizedBox(height: 24),
         ],
       ),
     );
@@ -71,6 +100,35 @@ class _Divider extends StatelessWidget {
   }
 }
 
+class _NavTile extends StatelessWidget {
+  const _NavTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.page,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget page;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => page),
+        );
+      },
+    );
+  }
+}
+
 class _ThemeModeTile extends StatelessWidget {
   const _ThemeModeTile();
 
@@ -104,9 +162,8 @@ class _ThemeModeTile extends StatelessWidget {
           ),
         ],
         selected: {theme.themeMode},
-        onSelectionChanged: (set) => context
-            .read<ThemeProvider>()
-            .setThemeMode(set.first),
+        onSelectionChanged: (set) =>
+            context.read<ThemeProvider>().setThemeMode(set.first),
       ),
     );
   }
@@ -139,10 +196,31 @@ class _FontScaleTile extends StatelessWidget {
           ),
         ],
         selected: {theme.fontScale},
-        onSelectionChanged: (set) => context
-            .read<ThemeProvider>()
-            .setFontScale(set.first),
+        onSelectionChanged: (set) =>
+            context.read<ThemeProvider>().setFontScale(set.first),
       ),
+    );
+  }
+}
+
+class _ReadingHistoryNavTile extends StatelessWidget {
+  const _ReadingHistoryNavTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final count = context.watch<ReadingHistoryProvider>().count;
+    return ListTile(
+      leading: const Icon(Icons.history),
+      title: const Text('Okuma Geçmişi'),
+      subtitle: Text('$count makale'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const ReadingHistoryScreen(),
+          ),
+        );
+      },
     );
   }
 }
@@ -154,7 +232,7 @@ class _ClearSearchTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final history = context.watch<SearchProvider>().history;
     return ListTile(
-      leading: const Icon(Icons.history),
+      leading: const Icon(Icons.search_off_outlined),
       title: const Text('Arama geçmişini temizle'),
       subtitle: Text('${history.length} kayıt'),
       enabled: history.isNotEmpty,
@@ -194,35 +272,6 @@ class _ClearBookmarksTile extends StatelessWidget {
           context.read<BookmarkProvider>().clearAll();
           _snack(context, 'Kayıtlı haberler temizlendi');
         }
-      },
-    );
-  }
-}
-
-class _AboutTile extends StatelessWidget {
-  const _AboutTile();
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: const Icon(Icons.info_outline),
-      title: const Text('Uygulama'),
-      subtitle: const Text('mobil_haber sürüm 1.0.0'),
-      onTap: () {
-        showAboutDialog(
-          context: context,
-          applicationName: AppConstants.appName,
-          applicationVersion: '1.0.0',
-          applicationIcon: const Icon(Icons.newspaper_outlined, size: 32),
-          applicationLegalese:
-              '© 2026 mobil_haber. Demo amaçlı bir Flutter projesidir.',
-          children: const [
-            SizedBox(height: 12),
-            Text(
-                'Material 3 tasarım dili, açık/koyu tema desteği ve mock veriyle hazırlanmış '
-                'bir mobil haber uygulaması örneği.'),
-          ],
-        );
       },
     );
   }

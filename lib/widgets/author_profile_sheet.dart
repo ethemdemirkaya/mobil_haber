@@ -11,8 +11,8 @@ class AuthorProfileSheet extends StatelessWidget {
 
   final String authorName;
 
-  static Future<void> show(BuildContext context, String authorName) {
-    return showModalBottomSheet<void>(
+  static Future<Article?> show(BuildContext context, String authorName) {
+    return showModalBottomSheet<Article>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,

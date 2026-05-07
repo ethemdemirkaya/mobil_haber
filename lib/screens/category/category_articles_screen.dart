@@ -90,10 +90,15 @@ class _CategoryArticlesScreenState extends State<CategoryArticlesScreen> {
               ),
             ),
             for (final s in _CategorySort.values)
-              RadioListTile<_CategorySort>(
-                value: s,
-                groupValue: _sort,
-                onChanged: (v) => Navigator.of(ctx).pop(v),
+              ListTile(
+                leading: Icon(
+                  _sort == s
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  color: _sort == s
+                      ? Theme.of(ctx).colorScheme.primary
+                      : null,
+                ),
                 title: Row(
                   children: [
                     Icon(s.icon, size: 18),
@@ -101,6 +106,7 @@ class _CategoryArticlesScreenState extends State<CategoryArticlesScreen> {
                     Text(s.label),
                   ],
                 ),
+                onTap: () => Navigator.of(ctx).pop(s),
               ),
             const SizedBox(height: 8),
           ],

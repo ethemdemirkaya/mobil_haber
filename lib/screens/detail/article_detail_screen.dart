@@ -61,17 +61,17 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     await Share.share(text, subject: a.title);
   }
 
-  void _openAuthor() {
+  Future<void> _openAuthor() async {
     HapticFeedback.selectionClick();
-    AuthorProfileSheet.show(context, widget.article.author).then((selected) {
-      if (selected is Article && mounted) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ArticleDetailScreen(article: selected),
-          ),
-        );
-      }
-    });
+    final selected =
+        await AuthorProfileSheet.show(context, widget.article.author);
+    if (selected != null && mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ArticleDetailScreen(article: selected),
+        ),
+      );
+    }
   }
 
   void _bumpFontScale(int delta) {

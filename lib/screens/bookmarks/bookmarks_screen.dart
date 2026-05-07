@@ -76,11 +76,17 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
               ),
             ),
             for (final s in _BookmarkSort.values)
-              RadioListTile<_BookmarkSort>(
-                value: s,
-                groupValue: _sort,
-                onChanged: (v) => Navigator.of(ctx).pop(v),
+              ListTile(
+                leading: Icon(
+                  _sort == s
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  color: _sort == s
+                      ? Theme.of(ctx).colorScheme.primary
+                      : null,
+                ),
                 title: Text(s.label),
+                onTap: () => Navigator.of(ctx).pop(s),
               ),
             const SizedBox(height: 8),
           ],

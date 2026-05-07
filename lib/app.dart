@@ -7,6 +7,7 @@ import 'core/theme/app_theme.dart';
 import 'providers/bookmark_provider.dart';
 import 'providers/news_provider.dart';
 import 'providers/onboarding_provider.dart';
+import 'providers/preferences_provider.dart';
 import 'providers/reading_history_provider.dart';
 import 'providers/search_provider.dart';
 import 'providers/theme_provider.dart';
@@ -25,6 +26,7 @@ class MobilHaberApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BookmarkProvider()),
         ChangeNotifierProvider(create: (_) => SearchProvider()),
         ChangeNotifierProvider(create: (_) => ReadingHistoryProvider()),
+        ChangeNotifierProvider(create: (_) => PreferencesProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, theme, _) {
