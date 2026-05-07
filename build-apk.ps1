@@ -19,42 +19,47 @@ param(
 $ErrorActionPreference = "Stop"
 
 if (-not (Test-Path .env.json)) {
-    Write-Host "[!] .env.json bulunamadı. Önce şunu yap:" -ForegroundColor Yellow
+    Write-Host "[!] .env.json bulunamadi. Once sunu yap:" -ForegroundColor Yellow
     Write-Host "    Copy-Item .env.json.example .env.json" -ForegroundColor Cyan
     Write-Host "    # .env.json'a OPENROUTER_API_KEY'i yaz" -ForegroundColor Cyan
     exit 1
 }
 
-$mode = if ($Debug) { "--debug" } else { "--release" }
-$splitArg = if ($Universal) { "" } else { "--split-per-abi" }
+$mode = if ($Debug) { '--debug' } else { '--release' }
+$useSplit = -not $Universal
 
-Write-Host ""
-Write-Host "┌─ Pusula APK build ──────────────────────────────────────────────┐" -ForegroundColor Cyan
-Write-Host "│ Mode:          $mode" -ForegroundColor Cyan
-Write-Host "│ Split per ABI: $(-not $Universal)" -ForegroundColor Cyan
-Write-Host "│ env file:      .env.json (build-time gömülecek)                 │" -ForegroundColor Cyan
-Write-Host "└─────────────────────────────────────────────────────────────────┘" -ForegroundColor Cyan
-Write-Host ""
+Write-Host ''
+Write-Host '--- Pusula APK build ---' -ForegroundColor Cyan
+Write-Host ('  Mode:          {0}' -f $mode) -ForegroundColor Cyan
+Write-Host ('  Split per ABI: {0}' -f $useSplit) -ForegroundColor Cyan
+Write-Host '  env file:      .env.json (build-time gomulecek)' -ForegroundColor Cyan
+Write-Host ''
 
-$args = @("build", "apk", $mode, "--dart-define-from-file=.env.json")
-if ($splitArg) { $args += $splitArg }
+# Flutter komut argümanları (PowerShell @args splat)
+$flutterArgs = @('build', 'apk', $mode, '--dart-define-from-file=.env.json')
+if ($useSplit) { $flutterArgs += '--split-per-abi' }
 
-flutter @args
+& flutter @flutterArgs
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "✗ Build başarısız" -ForegroundColor Red
+    Write-Host 'X Build basarisiz' -ForegroundColor Red
     exit 1
 }
 
-Write-Host ""
-Write-Host "✓ APK üretildi:" -ForegroundColor Green
-Get-ChildItem "build\app\outputs\flutter-apk\*.apk" -ErrorAction SilentlyContinue |
+Write-Host ''
+Write-Host '+ APK uretildi:' -ForegroundColor Green
+
+$apkDir = 'build/app/outputs/flutter-apk'
+$apks = Get-ChildItem (Join-Path $apkDir '*.apk') -ErrorAction SilentlyContinue |
     Sort-Object LastWriteTime -Descending |
-    Select-Object -First 4 |
-    ForEach-Object {
-        $sizeMB = [math]::Round($_.Length / 1MB, 2)
-        Write-Host "  $($_.Name) ($sizeMB MB)" -ForegroundColor Green
-    }
-Write-Host ""
-Write-Host "Yol: build\app\outputs\flutter-apk\" -ForegroundColor Cyan
-Write-Host ""
+    Select-Object -First 4
+
+foreach ($apk in $apks) {
+    $sizeMB = [math]::Round($apk.Length / 1MB, 2)
+    $line = '  {0} ({1} MB)' -f $apk.Name, $sizeMB
+    Write-Host $line -ForegroundColor Green
+}
+
+Write-Host ''
+Write-Host ('Yol: {0}' -f $apkDir) -ForegroundColor Cyan
+Write-Host ''
