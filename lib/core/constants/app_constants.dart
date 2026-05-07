@@ -1,8 +1,8 @@
 class AppConstants {
   AppConstants._();
 
-  static const String appName = 'mobil_haber';
-  static const String appTagline = 'Çok kaynaktan tek özet akışı';
+  static const String appName = 'Pusula';
+  static const String appTagline = 'Haberler arasında yön bulun';
 
   static const String prefsThemeMode = 'pref_theme_mode';
   static const String prefsFontScale = 'pref_font_scale';

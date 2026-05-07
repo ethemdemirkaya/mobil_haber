@@ -15,7 +15,7 @@ void main() {
     await tester.pumpWidget(const MobilHaberApp());
     await tester.pump();
 
-    expect(find.text('mobil_haber'), findsWidgets);
+    expect(find.text('Pusula'), findsWidgets);
 
     // Splash 1.6 sn timer'ını ileri sarıp Onboarding'e geçişi tamamla.
     // Onboarding'in PageView animasyonları periyodik değildir → settle eder.

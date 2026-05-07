@@ -40,7 +40,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       // v2 (özetleyici) mesajı: "Birleştir + özetle" değer önerisi.
       title: 'Çok kaynaktan\ntek bir özet akışı',
       subtitle:
-          '11+ haber kaynağından gelen başlıkları birleştirip kısa özetlerle sunuyoruz.',
+          '13+ haber kaynağından gelen başlıkları birleştirip kısa özetlerle sunuyoruz.',
       icon: Icons.layers_outlined,
       colorA: Color(0xFFE5484D),
       colorB: Color(0xFFF87171),

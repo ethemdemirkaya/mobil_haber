@@ -87,10 +87,11 @@ class AboutScreen extends StatelessWidget {
           _Section(
             title: 'Uygulama hakkında',
             child: Text(
-              'mobil_haber bir özetleyicidir: AA, TRT, NTV, Sözcü, BBC, Hacker '
-              'News gibi 11+ kaynaktan haber başlıklarını birleştirir, kısa '
-              'özetler halinde sunar. Tam habere ulaşmak için orijinal kaynağa '
-              'tek dokunuşla atlarsınız.',
+              'Pusula bir haber özetleyicisidir: AA, TRT, NTV, Sözcü, BBC '
+              'Türkçe gibi 13+ kaynaktan başlıkları birleştirir, kısa özetler '
+              'halinde sunar. İsterseniz yapay zeka ile detaylı özet üretir, '
+              'sesli olarak okutabilirsiniz. Tam habere ulaşmak için orijinal '
+              'kaynağa tek dokunuşla atlarsınız.',
               style: textTheme.bodyMedium?.copyWith(height: 1.5),
             ),
           ),
@@ -136,7 +137,7 @@ class AboutScreen extends StatelessWidget {
           const SizedBox(height: 16),
           Center(
             child: Text(
-              '© 2026 mobil_haber',
+              '© 2026 Pusula',
               style: textTheme.bodySmall,
             ),
           ),
