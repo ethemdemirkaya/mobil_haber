@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -6,7 +8,9 @@ import '../../core/utils/date_formatter.dart';
 import '../../data/models/article.dart';
 import '../../data/models/category.dart';
 import '../../providers/news_provider.dart';
+import '../../providers/reading_history_provider.dart';
 import '../../widgets/article_card.dart';
+import '../../widgets/article_image.dart';
 import '../../widgets/category_chip.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/error_banner.dart';
@@ -26,11 +30,36 @@ class _HomeScreenState extends State<HomeScreen> {
   final PageController _featuredCtrl =
       PageController(viewportFraction: 0.88);
   int _featuredIndex = 0;
+  Timer? _autoScrollTimer;
+  bool _userPaused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startAutoScroll();
+  }
 
   @override
   void dispose() {
+    _autoScrollTimer?.cancel();
     _featuredCtrl.dispose();
     super.dispose();
+  }
+
+  void _startAutoScroll() {
+    _autoScrollTimer?.cancel();
+    _autoScrollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted || _userPaused) return;
+      if (!_featuredCtrl.hasClients) return;
+      final featured = context.read<NewsProvider>().featured;
+      if (featured.length < 2) return;
+      final next = (_featuredIndex + 1) % featured.length;
+      _featuredCtrl.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 520),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   Future<void> _refresh() async {
@@ -132,6 +161,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final textTheme = Theme.of(context).textTheme;
     final news = context.watch<NewsProvider>();
 
+    final history = context.watch<ReadingHistoryProvider>();
+    final continueReading = history.ids
+        .map(news.byId)
+        .whereType<Article>()
+        .take(8)
+        .toList(growable: false);
+
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
@@ -202,15 +238,54 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: EdgeInsets.fromLTRB(0, 18, 0, 0),
                         child: FeaturedSkeleton(),
                       )
-                    : _FeaturedCarousel(
-                        controller: _featuredCtrl,
-                        articles: news.featured,
-                        currentIndex: _featuredIndex,
-                        onIndexChanged: (i) =>
-                            setState(() => _featuredIndex = i),
-                        onTap: _openArticle,
+                    : Listener(
+                        onPointerDown: (_) =>
+                            setState(() => _userPaused = true),
+                        onPointerUp: (_) {
+                          // Kullanıcı dokunduktan kısa süre sonra otomatik
+                          // kaymayı yeniden açıyoruz.
+                          Future.delayed(const Duration(seconds: 2), () {
+                            if (mounted) {
+                              setState(() => _userPaused = false);
+                            }
+                          });
+                        },
+                        child: _FeaturedCarousel(
+                          controller: _featuredCtrl,
+                          articles: news.featured,
+                          currentIndex: _featuredIndex,
+                          onIndexChanged: (i) =>
+                              setState(() => _featuredIndex = i),
+                          onTap: _openArticle,
+                        ),
                       ),
               ),
+              if (continueReading.isNotEmpty) ...[
+                const SliverToBoxAdapter(
+                  child: SectionHeader(
+                    title: 'Devam et',
+                    subtitle: 'Son okuduklarınız',
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 132,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: continueReading.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 12),
+                      itemBuilder: (context, index) {
+                        final a = continueReading[index];
+                        return _ContinueCard(
+                          article: a,
+                          onTap: () => _openArticle(a),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
               const SliverToBoxAdapter(
                 child: SectionHeader(title: 'Kategoriler'),
               ),
@@ -366,6 +441,76 @@ class _FeaturedCarousel extends StatelessWidget {
           }),
         ),
       ],
+    );
+  }
+}
+
+class _ContinueCard extends StatelessWidget {
+  const _ContinueCard({
+    required this.article,
+    required this.onTap,
+  });
+
+  final Article article;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: 240,
+      child: Material(
+        color: cs.surfaceContainerLow,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              children: [
+                ArticleImage(
+                  url: article.imageUrl,
+                  width: 64,
+                  height: 64,
+                  borderRadius: 12,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        article.category.name,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: article.category.color,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        article.title,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          height: 1.25,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
