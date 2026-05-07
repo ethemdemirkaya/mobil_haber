@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/mock/mock_news_data.dart';
 import '../data/models/article.dart';
@@ -6,34 +9,50 @@ import '../data/models/category.dart';
 import '../data/models/news_source.dart';
 import '../data/repositories/rss_news_service.dart';
 
-/// **mobil_haber özetleyici** — birincil veri kaynağı doğrudan RSS.
+/// Pusula — birincil veri kaynağı doğrudan RSS, ikincil olarak offline cache.
 ///
-/// Backend gerektirmez. Kullanıcının seçtiği `NewsSource` listesinden
-/// `RssNewsService.aggregate()` ile haberleri paralel çekip birleştirir.
-/// Hiç haber gelmezse mock'a düşer (offline / tüm feed'ler erişilemez).
+/// Veri katmanı (öncelik sırası):
+///   1. **Live RSS** — `RssNewsService.aggregate()` ile paralel çekim
+///   2. **Disk cache** — son başarılı çekim SharedPreferences'a yazılır;
+///      offline veya tüm kaynaklar erişilemez olduğunda buradan okunur
+///   3. **Mock fallback** — disk cache de yoksa örnek veriler
 class NewsProvider extends ChangeNotifier {
   NewsProvider({RssNewsService? rssService})
-      : _rss = rssService ?? RssNewsService();
+      : _rss = rssService ?? RssNewsService() {
+    // Konstruktörde async'i tetikleyemeyiz ama disk cache'i hızlıca
+    // yükleyip gösterirsek splash sırasında bile bir şey görünür.
+    _restoreFromCache();
+  }
 
   final RssNewsService _rss;
 
   bool _loading = true;
   String? _lastError;
   bool _usingFallback = false;
+  bool _offline = false;
+  DateTime? _lastFetchAt;
   List<Article> _all = const [];
   String _selectedCategoryId = NewsCategory.all.id;
 
-  /// Aktif çekim sırasında kullanılan kaynak id'leri. UI bu seti chip
-  /// olarak gösterip altında "kaç kaynak" bilgisi verir.
   List<NewsSource> _activeSources = const [];
-
-  /// Aktif kaynak listesini set eden son komut (refresh sırasında kullanırız).
   List<NewsSource> _lastSourceList = const [];
 
+  // ─── Disk cache anahtarları ───
+  static const String _prefsCacheData = 'pref_news_cache_articles';
+  static const String _prefsCacheAt = 'pref_news_cache_at';
+  static const String _prefsCacheSources = 'pref_news_cache_sources';
+
+  // Public getters
   bool get loading => _loading;
   String? get lastError => _lastError;
   bool get hasError => _lastError != null;
   bool get usingFallback => _usingFallback;
+
+  /// Çevrimdışı modda mı? (Live çekim başarısız + disk cache'ten geldi)
+  bool get offline => _offline;
+
+  /// Mevcut listenin son başarılı çekim zamanı (null = hiç fetch yapılmadı).
+  DateTime? get lastFetchAt => _lastFetchAt;
 
   String get selectedCategoryId => _selectedCategoryId;
   NewsCategory get selectedCategory =>
@@ -71,7 +90,6 @@ class NewsProvider extends ChangeNotifier {
     return sorted.take(take).toList(growable: false);
   }
 
-  /// Aggregate'te view_count yok; en yeni + featured ağırlıklı.
   List<Article> trending({int take = 6}) {
     if (_all.isEmpty) return const [];
     final sorted = List<Article>.of(_all)
@@ -100,15 +118,11 @@ class NewsProvider extends ChangeNotifier {
     return null;
   }
 
-  /// Kullanıcının seçtiği kaynak listesini güncelleyip yeniden çek.
-  /// Onboarding bittikten sonra ve "Kaynak Tercihleri" ekranından
-  /// kaydedildikten sonra çağrılır.
   Future<void> applySources(List<NewsSource> sources) async {
     _lastSourceList = sources;
     await _load();
   }
 
-  /// İlk açılış — varsayılan olarak önerilenleri çek.
   Future<void> bootstrapIfNeeded() async {
     if (_lastSourceList.isNotEmpty || _all.isNotEmpty) return;
     _lastSourceList = NewsSourceCatalog.all
@@ -123,34 +137,152 @@ class NewsProvider extends ChangeNotifier {
     notifyListeners();
     try {
       if (_lastSourceList.isEmpty) {
-        _all = await _loadMockFallback();
+        // Disk cache → mock cascade
+        final restored = await _readCache();
+        if (restored.isNotEmpty) {
+          _all = restored;
+          _offline = true;
+          _usingFallback = false;
+        } else {
+          _all = await _loadMockFallback();
+          _usingFallback = true;
+          _offline = false;
+        }
         _activeSources = const [];
-        _usingFallback = true;
       } else {
         final fetched = await _rss.aggregate(_lastSourceList, perSource: 8);
         if (fetched.isNotEmpty) {
           _all = fetched;
           _activeSources = _lastSourceList;
           _usingFallback = false;
+          _offline = false;
+          _lastFetchAt = DateTime.now();
+          // Disk cache'i güncelle (await yok — UI bloklanmasın).
+          // ignore: unawaited_futures
+          _writeCache(fetched, _lastSourceList);
         } else {
-          _all = await _loadMockFallback();
-          _activeSources = _lastSourceList;
-          _usingFallback = true;
+          // RSS boş döndü → cache → mock
+          await _fallbackToCacheOrMock();
         }
       }
     } catch (e) {
       _lastError = 'Canlı haberler alınamadı: $e';
-      _all = await _loadMockFallback();
-      _usingFallback = true;
+      await _fallbackToCacheOrMock();
     } finally {
       _loading = false;
       notifyListeners();
     }
   }
 
+  /// Live çekim başarısız olduğunda disk cache'e bak; o da yoksa mock'a düş.
+  Future<void> _fallbackToCacheOrMock() async {
+    final restored = await _readCache();
+    if (restored.isNotEmpty) {
+      _all = restored;
+      _offline = true;
+      _usingFallback = false;
+    } else {
+      _all = await _loadMockFallback();
+      _offline = false;
+      _usingFallback = true;
+    }
+  }
+
   Future<List<Article>> _loadMockFallback() async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     return MockNewsData.articles;
+  }
+
+  // ─── Disk cache (SharedPreferences, JSON serialization) ───
+  Future<void> _writeCache(
+      List<Article> articles, List<NewsSource> sources) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = articles
+          .map((a) => {
+                'id': a.id,
+                'title': a.title,
+                'summary': a.summary,
+                'content': a.content,
+                'categoryId': a.categoryId,
+                'imageUrl': a.imageUrl,
+                'author': a.author,
+                'publishedAt': a.publishedAt.toIso8601String(),
+                'readMinutes': a.readMinutes,
+                'isFeatured': a.isFeatured,
+                'sourceUrl': a.sourceUrl,
+                'sourceName': a.sourceName,
+              })
+          .toList(growable: false);
+      await prefs.setString(_prefsCacheData, jsonEncode(list));
+      await prefs.setString(
+        _prefsCacheAt,
+        DateTime.now().toIso8601String(),
+      );
+      await prefs.setStringList(
+        _prefsCacheSources,
+        sources.map((s) => s.id).toList(),
+      );
+    } catch (e) {
+      debugPrint('[Pusula][NewsCache] yazma hatası: $e');
+    }
+  }
+
+  Future<List<Article>> _readCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_prefsCacheData);
+      if (raw == null || raw.isEmpty) return const [];
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      final cachedAt = prefs.getString(_prefsCacheAt);
+      if (cachedAt != null) {
+        _lastFetchAt = DateTime.tryParse(cachedAt);
+      }
+      return decoded
+          .whereType<Map>()
+          .map((m) => Article(
+                id: m['id']?.toString() ?? '',
+                title: m['title']?.toString() ?? '',
+                summary: m['summary']?.toString() ?? '',
+                content: m['content']?.toString() ?? '',
+                categoryId: m['categoryId']?.toString() ?? 'gundem',
+                imageUrl: m['imageUrl']?.toString() ?? '',
+                author: m['author']?.toString() ?? 'Anonim',
+                publishedAt: DateTime.tryParse(
+                        m['publishedAt']?.toString() ?? '') ??
+                    DateTime.now(),
+                readMinutes: (m['readMinutes'] as num?)?.toInt() ?? 1,
+                isFeatured: m['isFeatured'] == true,
+                sourceUrl: m['sourceUrl']?.toString() ?? '',
+                sourceName: m['sourceName']?.toString() ?? '',
+              ))
+          .toList(growable: false);
+    } catch (e) {
+      debugPrint('[Pusula][NewsCache] okuma hatası: $e');
+      return const [];
+    }
+  }
+
+  /// Konstruktör çağrısı sırasında — splash hızla bir şey gösterirken
+  /// disk'ten önceki haberi yükle. Live fetch sonra üzerine yazar.
+  Future<void> _restoreFromCache() async {
+    final cached = await _readCache();
+    if (cached.isEmpty) return;
+    if (_all.isNotEmpty) return; // live çekim çoktan tamamlandı
+    _all = cached;
+    _offline = true;
+    _loading = false;
+    notifyListeners();
+  }
+
+  Future<void> clearCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_prefsCacheData);
+      await prefs.remove(_prefsCacheAt);
+      await prefs.remove(_prefsCacheSources);
+    } catch (_) {}
   }
 
   Future<void> refresh() => _load();
