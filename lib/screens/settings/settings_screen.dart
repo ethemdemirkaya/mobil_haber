@@ -16,6 +16,7 @@ import 'ai_settings_screen.dart';
 import 'data_usage_screen.dart';
 import 'keyword_filters_screen.dart';
 import 'scheduled_briefings_screen.dart';
+import 'weather_location_screen.dart';
 import 'diagnostics_screen.dart';
 import 'notification_prefs_screen.dart';
 import 'reading_history_screen.dart';
@@ -76,6 +77,14 @@ class SettingsScreen extends StatelessWidget {
             title: 'Zamanlanmış Brifingler',
             subtitle: 'Sabah 7\'de spor, akşam 18\'de ekonomi…',
             page: ScheduledBriefingsScreen(),
+          ),
+          _Divider(),
+          _NavTile(
+            icon: Icons.wb_sunny_outlined,
+            title: 'Brifing Bölgesi',
+            subtitle:
+                'Brifingdeki hava durumu için şehir seçimi',
+            page: WeatherLocationScreen(),
           ),
           SizedBox(height: 12),
           _SectionTitle('Tercihler'),

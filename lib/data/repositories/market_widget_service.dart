@@ -104,7 +104,66 @@ class MarketWidgetService {
     return out;
   }
 
+  /// Open-Meteo geocoding API ile şehir adından lat/lon arar.
+  /// Türkçe sonuçlar öncelikli (`language=tr`); 5 sonuç döner.
+  Future<List<GeocodedCity>> searchCities(String query) async {
+    final q = query.trim();
+    if (q.length < 2) return const [];
+    final uri = Uri.parse(
+      'https://geocoding-api.open-meteo.com/v1/search'
+      '?name=${Uri.encodeQueryComponent(q)}'
+      '&count=8&language=tr&format=json',
+    );
+    try {
+      final response = await _client.get(uri).timeout(_timeout);
+      if (response.statusCode != 200) return const [];
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body is! Map || body['results'] is! List) return const [];
+      return (body['results'] as List)
+          .whereType<Map<String, dynamic>>()
+          .map((m) => GeocodedCity.fromJson(m))
+          .where((c) => c.name.isNotEmpty)
+          .toList(growable: false);
+    } catch (_) {
+      return const [];
+    }
+  }
+
   void close() => _client.close();
+}
+
+/// Open-Meteo geocoding sonucu — şehir + admin bölge + lat/lon.
+class GeocodedCity {
+  const GeocodedCity({
+    required this.name,
+    required this.country,
+    required this.admin,
+    required this.lat,
+    required this.lon,
+  });
+
+  final String name;
+  final String country;
+  final String admin; // ör: "Marmara Region", "İstanbul"
+  final double lat;
+  final double lon;
+
+  String get displayName {
+    final parts = <String>[name];
+    if (admin.isNotEmpty && admin != name) parts.add(admin);
+    if (country.isNotEmpty) parts.add(country);
+    return parts.join(', ');
+  }
+
+  factory GeocodedCity.fromJson(Map<String, dynamic> json) {
+    return GeocodedCity(
+      name: json['name']?.toString() ?? '',
+      country: json['country']?.toString() ?? '',
+      admin: json['admin1']?.toString() ?? '',
+      lat: (json['latitude'] as num?)?.toDouble() ?? 0,
+      lon: (json['longitude'] as num?)?.toDouble() ?? 0,
+    );
+  }
 }
 
 abstract class _MaybeWeather {

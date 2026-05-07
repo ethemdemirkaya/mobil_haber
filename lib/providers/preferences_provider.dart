@@ -17,6 +17,15 @@ class PreferencesProvider extends ChangeNotifier {
   bool _dataSaverImages = false;
   bool _dataSaverAutoplay = true;
 
+  // Hava durumu için kullanıcının seçtiği şehir.
+  // Default: İstanbul. Kullanıcı Ayarlar > Brifing Bölgesi'nden değiştirir.
+  String _weatherCityName = 'İstanbul';
+  double _weatherLat = 41.0082;
+  double _weatherLon = 28.9784;
+  static const String _prefsWeatherCity = 'pref_weather_city';
+  static const String _prefsWeatherLat = 'pref_weather_lat';
+  static const String _prefsWeatherLon = 'pref_weather_lon';
+
   /// Kullanıcının onboarding sırasında (veya ayarlardan) seçtiği kaynaklar.
   /// Boş set + onboarding bitmemişse "henüz seçilmemiş" demektir.
   /// Onboarding tamamlanınca burada en az 1 kaynak olur.
@@ -34,6 +43,10 @@ class PreferencesProvider extends ChangeNotifier {
   bool isCategorySubscribed(String id) => _categoryNotifs.contains(id);
   bool get dataSaverImages => _dataSaverImages;
   bool get dataSaverAutoplay => _dataSaverAutoplay;
+
+  String get weatherCityName => _weatherCityName;
+  double get weatherLat => _weatherLat;
+  double get weatherLon => _weatherLon;
 
   /// Kullanıcının seçtiği kaynaklar (whitelist).
   Set<String> get selectedSources => Set.unmodifiable(_selectedSources);
@@ -89,6 +102,10 @@ class PreferencesProvider extends ChangeNotifier {
           false;
       if (active) _categoryNotifs.add(c.id);
     }
+    _weatherCityName = prefs.getString(_prefsWeatherCity) ?? 'İstanbul';
+    _weatherLat = prefs.getDouble(_prefsWeatherLat) ?? 41.0082;
+    _weatherLon = prefs.getDouble(_prefsWeatherLon) ?? 28.9784;
+
     _selectedSources.clear();
     final stored = prefs.getStringList(_prefsSelectedSources);
     if (stored != null) {
@@ -196,5 +213,27 @@ class PreferencesProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(AppConstants.prefsDataSaverAutoplay, value);
+  }
+
+  /// Hava durumu için yeni şehir set et (lat/lon Open-Meteo geocoding'den
+  /// alınmış olmalı). UI tarafı önce search → bu method ile commit.
+  Future<void> setWeatherLocation({
+    required String cityName,
+    required double lat,
+    required double lon,
+  }) async {
+    if (_weatherCityName == cityName &&
+        _weatherLat == lat &&
+        _weatherLon == lon) {
+      return;
+    }
+    _weatherCityName = cityName;
+    _weatherLat = lat;
+    _weatherLon = lon;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsWeatherCity, cityName);
+    await prefs.setDouble(_prefsWeatherLat, lat);
+    await prefs.setDouble(_prefsWeatherLon, lon);
   }
 }

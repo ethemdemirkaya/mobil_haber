@@ -17,8 +17,10 @@ import '../../data/repositories/market_widget_service.dart';
 import '../../data/repositories/openai_tts_service.dart';
 import '../../providers/ai_settings_provider.dart';
 import '../../providers/news_provider.dart';
+import '../../providers/preferences_provider.dart';
 import '../../widgets/market_mini_widget.dart';
 import '../settings/ai_settings_screen.dart';
+import '../settings/weather_location_screen.dart';
 
 /// Bugünün haberlerinden AI ile yazılmış sesli brifingi okutan ekran.
 ///
@@ -138,6 +140,13 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   }
 
   Future<void> _bootstrap() async {
+    // ÖNEMLİ: AiSettingsProvider async _load() ile başlatılıyor; biz
+    // _generate'i ondan önce çağırırsak `_enabled = false` (default)
+    // okur ve "yapılandırılmamış" hatası verir. Provider initialized
+    // olana kadar bekle.
+    await _waitForAiInit();
+    if (!mounted) return;
+
     // TTS init + AI generate + market widget paralel başlasın.
     final ttsFuture = _initTts();
     final genFuture = _generate();
@@ -150,9 +159,56 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     }
   }
 
+  /// AiSettingsProvider'ın SharedPreferences'dan _load() tamamlamasını
+  /// bekle. Default 1.5 sn sonra timeout — splash gibi sonsuz polling
+  /// yapmasın.
+  Future<void> _waitForAiInit() async {
+    final ai = context.read<AiSettingsProvider>();
+    final deadline =
+        DateTime.now().add(const Duration(milliseconds: 1500));
+    while (!ai.initialized && DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      if (!mounted) return;
+    }
+  }
+
+  /// AI ready değilken net açıklama: hangi durumda olduğunu tespit edip
+  /// kullanıcının ne yapması gerektiğini söyler.
+  String _diagnoseAiNotReady(AiSettingsProvider ai) {
+    if (!ai.initialized) {
+      return 'Ayarlar yükleniyor… Bir saniye sonra tekrar deneyin.';
+    }
+    if (!ai.enabled) {
+      return 'Yapay zeka kapalı. Ayarlar > Yapay Zeka Özetleme'
+          ' bölümünden açın.';
+    }
+    if (ai.modelId.isEmpty) {
+      return 'Model seçilmedi. Ayarlar > Yapay Zeka > Model bölümünden '
+          'bir model seçin.';
+    }
+    // Mode'a göre net mesaj.
+    if (ai.apiKeyMode == ApiKeyMode.userProvided && !ai.hasUserApiKey) {
+      return 'Aktif mod: "Kendi anahtarım" — fakat anahtar girilmemiş.\n'
+          'Ayarlar > Yapay Zeka > Aktif Anahtar bölümünde OpenRouter '
+          'anahtarınızı yapıştırın veya "Varsayılan" moduna geçin.';
+    }
+    if (ai.apiKeyMode == ApiKeyMode.builtIn && !ai.hasBuiltInKey) {
+      return 'Aktif mod: "Varsayılan" — ama bu APK varsayılan anahtarsız '
+          'derlenmiş. Ayarlar > Yapay Zeka > "Kendi anahtarım" moduna '
+          'geçip OpenRouter anahtarınızı girin.';
+    }
+    return 'Yapay zeka yapılandırması eksik. Ayarlar > Yapay Zeka\'yı '
+        'kontrol edin.';
+  }
+
   Future<void> _loadMarket() async {
     try {
-      final snap = await _marketService.fetch();
+      final prefs = context.read<PreferencesProvider>();
+      final snap = await _marketService.fetch(
+        lat: prefs.weatherLat,
+        lon: prefs.weatherLon,
+        city: prefs.weatherCityName,
+      );
       if (!mounted) return;
       setState(() => _market = snap);
     } catch (e) {
@@ -342,8 +398,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
       if (!mounted) return;
       setState(() {
         _generating = false;
-        _error = 'Yapay zeka kapalı veya yapılandırılmamış. '
-            'Brifing için önce Ayarlar > Yapay Zeka\'yı tamamlayın.';
+        _error = _diagnoseAiNotReady(ai);
       });
       return;
     }
@@ -665,7 +720,25 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     final cs = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final news = context.watch<NewsProvider>();
+    // AI provider'ı watch ile dinle — kullanıcı Settings'te mode/key
+    // değiştirince ekran anında yeniden render olsun.
+    final ai = context.watch<AiSettingsProvider>();
     final topics = _availableTopics(news);
+
+    // AI provider hazır + ready ama _error "yapılandırılmamış" diyorsa,
+    // kullanıcı Settings'te düzeltmiş demektir → error'ı temizle.
+    if (_error != null &&
+        ai.initialized &&
+        ai.isReady() &&
+        _error!.contains('yapılandır')) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() => _error = null);
+          // Otomatik tekrar üret.
+          _refresh();
+        }
+      });
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -690,7 +763,20 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
             ),
             if (_market != null && _market!.hasAny) ...[
               const SizedBox(height: 4),
-              MarketMiniWidget(snapshot: _market),
+              MarketMiniWidget(
+                snapshot: _market,
+                onTap: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const WeatherLocationScreen(),
+                    ),
+                  );
+                  if (!mounted) return;
+                  // Geri döndüğünde yeni şehir için hava + brifing yenile.
+                  await _loadMarket();
+                  await _refresh();
+                },
+              ),
               const SizedBox(height: 4),
             ],
             if (_ttsWarning != null) _TtsWarningBanner(message: _ttsWarning!),
