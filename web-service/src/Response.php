@@ -13,10 +13,17 @@ final class Response
         header('Access-Control-Allow-Origin: *');
         header('Access-Control-Allow-Headers: Content-Type, X-Device-Id');
         header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-        echo json_encode(
+        // JSON_INVALID_UTF8_SUBSTITUTE: bozuk UTF-8 byte'ları U+FFFD ile yer
+        // değiştirir. JSON_PRETTY_PRINT kapalı: production trafiği için
+        // gereksiz boyut/chunk overhead'i.
+        $encoded = json_encode(
             $payload,
-            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT
+            JSON_UNESCAPED_UNICODE
+                | JSON_UNESCAPED_SLASHES
+                | JSON_INVALID_UTF8_SUBSTITUTE
         );
+        if ($encoded === false) $encoded = '{}';
+        echo $encoded;
     }
 
     public static function ok(mixed $data, array $meta = []): void

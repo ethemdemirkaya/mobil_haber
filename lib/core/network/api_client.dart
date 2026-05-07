@@ -19,7 +19,11 @@ class ApiClient {
 
   final http.Client _client;
 
-  Future<dynamic> get(String path, {Map<String, String>? query}) async {
+  Future<dynamic> get(
+    String path, {
+    Map<String, String>? query,
+    Duration? timeout,
+  }) async {
     if (!ApiConfig.useApi) {
       throw ApiException('API base URL tanımlı değil');
     }
@@ -27,7 +31,8 @@ class ApiClient {
       queryParameters: (query == null || query.isEmpty) ? null : query,
     );
     try {
-      final response = await _client.get(uri).timeout(ApiConfig.timeout);
+      final response =
+          await _client.get(uri).timeout(timeout ?? ApiConfig.timeout);
       return _decode(response);
     } catch (e) {
       if (e is ApiException) rethrow;

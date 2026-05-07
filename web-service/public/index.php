@@ -5,16 +5,26 @@ declare(strict_types=1);
 require_once __DIR__ . '/../src/Database.php';
 require_once __DIR__ . '/../src/Response.php';
 require_once __DIR__ . '/../src/Router.php';
+require_once __DIR__ . '/../src/Cache/FileCache.php';
+require_once __DIR__ . '/../src/External/HttpClient.php';
+require_once __DIR__ . '/../src/External/ExternalSourceInterface.php';
+foreach (glob(__DIR__ . '/../src/External/*Source.php') ?: [] as $f) {
+    require_once $f;
+}
+require_once __DIR__ . '/../src/External/SourceRegistry.php';
 require_once __DIR__ . '/../src/Repositories/CategoryRepository.php';
 require_once __DIR__ . '/../src/Repositories/ArticleRepository.php';
 require_once __DIR__ . '/../src/Repositories/BookmarkRepository.php';
 require_once __DIR__ . '/../src/Controllers/CategoryController.php';
 require_once __DIR__ . '/../src/Controllers/ArticleController.php';
 require_once __DIR__ . '/../src/Controllers/BookmarkController.php';
+require_once __DIR__ . '/../src/Controllers/ExternalNewsController.php';
 
 use MobilHaber\Controllers\ArticleController;
 use MobilHaber\Controllers\BookmarkController;
 use MobilHaber\Controllers\CategoryController;
+use MobilHaber\Controllers\ExternalNewsController;
+use MobilHaber\External\SourceRegistry;
 use MobilHaber\Repositories\ArticleRepository;
 use MobilHaber\Repositories\BookmarkRepository;
 use MobilHaber\Repositories\CategoryRepository;
@@ -29,6 +39,7 @@ set_exception_handler(static function (\Throwable $e): void {
 $categoryController = new CategoryController(new CategoryRepository());
 $articleController  = new ArticleController(new ArticleRepository());
 $bookmarkController = new BookmarkController(new BookmarkRepository());
+$externalController = new ExternalNewsController(new SourceRegistry());
 
 $router = new Router();
 
@@ -49,6 +60,12 @@ $router->get('/bookmarks', $bookmarkController->index(...));
 $router->post('/bookmarks', $bookmarkController->add(...));
 $router->delete('/bookmarks', $bookmarkController->clear(...));
 $router->delete('/bookmarks/{id}', static fn(array $p) => $bookmarkController->remove($p['id']));
+
+// Dış kaynaklar (RSS + ücretsiz API'ler + opsiyonel anahtarlı sağlayıcılar)
+$router->get('/external/sources',   $externalController->sources(...));
+$router->get('/external/health',    $externalController->health(...));
+$router->get('/external/articles',  $externalController->articles(...));
+$router->get('/external/aggregate', $externalController->aggregate(...));
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $uri    = $_SERVER['REQUEST_URI'] ?? '/';

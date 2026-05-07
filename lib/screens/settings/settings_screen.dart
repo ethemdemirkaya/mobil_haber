@@ -7,6 +7,7 @@ import '../../providers/bookmark_provider.dart';
 import '../../providers/reading_history_provider.dart';
 import '../../providers/search_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../live/live_news_screen.dart';
 import 'about_screen.dart';
 import 'data_usage_screen.dart';
 import 'notification_prefs_screen.dart';
@@ -26,6 +27,14 @@ class SettingsScreen extends StatelessWidget {
           _ThemeModeTile(),
           _Divider(),
           _FontScaleTile(),
+          SizedBox(height: 12),
+          _SectionTitle('Canlı içerik'),
+          _NavTile(
+            icon: Icons.podcasts_outlined,
+            title: 'Canlı Haberler',
+            subtitle: 'AA, TRT, NTV, Sözcü, BBC, Hacker News + dış API\'ler',
+            page: LiveNewsScreen(),
+          ),
           SizedBox(height: 12),
           _SectionTitle('Tercihler'),
           _NavTile(
