@@ -378,7 +378,8 @@ class _BookmarkButton extends StatelessWidget {
     final saved = bookmarks.isBookmarked(article.id);
     return InkResponse(
       radius: 22,
-      onTap: () => context.read<BookmarkProvider>().toggle(article.id),
+      onTap: () =>
+          context.read<BookmarkProvider>().toggleArticle(article),
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 220),
         transitionBuilder: (child, anim) =>

@@ -724,7 +724,7 @@ class _BookmarkAction extends StatelessWidget {
       activeAccent: saved,
       onTap: () {
         HapticFeedback.selectionClick();
-        context.read<BookmarkProvider>().toggle(article.id);
+        context.read<BookmarkProvider>().toggleArticle(article);
       },
     );
   }

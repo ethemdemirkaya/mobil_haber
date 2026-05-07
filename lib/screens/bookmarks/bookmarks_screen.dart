@@ -107,10 +107,30 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
     final bookmarks = context.watch<BookmarkProvider>();
     final news = context.watch<NewsProvider>();
 
-    final saved = bookmarks.ids
-        .map(news.byId)
-        .whereType<Article>()
-        .toList(growable: false);
+    // v2 bookmark mimarisi: önce snapshot listesini kullan (haber feed'den
+    // çıkmış olsa bile gözüksün); feed'de canlı varsa onun fresh kopyası
+    // tercih edilir (image url, summary güncel).
+    final snapshots = bookmarks.savedArticles;
+    final saved = snapshots.map((s) {
+      final live = news.byId(s.id);
+      return live ?? s;
+    }).toList(growable: false);
+
+    // V1 orphan'ları (sadece id, snapshot yok) feed'den eşleştirmeye çalış —
+    // eşleşen varsa BookmarkProvider'a snapshot'ı upgrade et.
+    if (bookmarks.ids.length > snapshots.length) {
+      final feedMatches = bookmarks.ids
+          .where((id) => !snapshots.any((s) => s.id == id))
+          .map(news.byId)
+          .whereType<Article>()
+          .toList(growable: false);
+      if (feedMatches.isNotEmpty) {
+        // Yan etki — frame sonrası persist.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) bookmarks.upgradeFromFeed(feedMatches);
+        });
+      }
+    }
 
     final usedCategoryIds = <String>{NewsCategory.all.id, ...saved.map((a) => a.categoryId)};
     final filterCategories = NewsCategory.values
@@ -389,7 +409,7 @@ class _DismissibleBookmark extends StatelessWidget {
             action: SnackBarAction(
               label: 'Geri al',
               onPressed: () =>
-                  context.read<BookmarkProvider>().toggle(removed.id),
+                  context.read<BookmarkProvider>().toggleArticle(removed),
             ),
           ));
       },
