@@ -33,9 +33,9 @@ class ArticleCard extends StatelessWidget {
       (t) => t.isCompact,
     );
 
-    final imageSize = compact ? 78.0 : 110.0;
-    final imageHeight = compact ? 64.0 : 90.0;
-    final verticalPad = compact ? 8.0 : 10.0;
+    final imageSize = compact ? 80.0 : 124.0;
+    final imageHeight = compact ? 66.0 : 100.0;
+    final verticalPad = compact ? 10.0 : 14.0;
 
     return Material(
       color: Colors.transparent,
@@ -46,12 +46,12 @@ class ArticleCard extends StatelessWidget {
           opacity: wasRead ? 0.62 : 1.0,
           child: Padding(
             padding: EdgeInsets.symmetric(
-                horizontal: 16, vertical: verticalPad),
+                horizontal: 18, vertical: verticalPad),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Hero(
-                  tag: 'article-img-${article.id}',
+                  tag: 'card-img-${article.id}',
                   child: ArticleImage(
                     url: article.imageUrl,
                     width: imageSize,
@@ -122,7 +122,8 @@ class ArticleCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
-                          height: 1.25,
+                          height: 1.28,
+                          letterSpacing: -0.2,
                           fontSize: compact ? 14 : null,
                         ),
                       ),
@@ -141,13 +142,14 @@ class ArticleCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 10),
                           Icon(
-                            Icons.menu_book_outlined,
+                            Icons.bolt_outlined,
                             size: 13,
                             color: cs.onSurfaceVariant,
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '${article.readMinutes} dk',
+                            // v2 (özetleyici): okuma süresi yerine özet uzunluğu.
+                            '${article.readMinutes} dk özet',
                             style: textTheme.bodySmall,
                           ),
                         ],
@@ -190,7 +192,7 @@ class FeaturedArticleCard extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               Hero(
-                tag: 'article-img-${article.id}',
+                tag: 'featured-img-${article.id}',
                 child: ArticleImage(
                   url: article.imageUrl,
                   fit: BoxFit.cover,
@@ -243,8 +245,9 @@ class FeaturedArticleCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: textTheme.titleLarge?.copyWith(
                         color: Colors.white,
-                        height: 1.2,
-                        fontWeight: FontWeight.w800,
+                        height: 1.22,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -263,7 +266,7 @@ class FeaturedArticleCard extends StatelessWidget {
                             size: 14, color: Colors.white70),
                         const SizedBox(width: 4),
                         Text(
-                          '${article.readMinutes} dk okuma',
+                          '${article.readMinutes} dk özet',
                           style: const TextStyle(
                               color: Colors.white70, fontSize: 12),
                         ),
