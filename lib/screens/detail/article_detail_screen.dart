@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../data/models/article.dart';
+import '../../providers/ai_settings_provider.dart';
 import '../../providers/bookmark_provider.dart';
 import '../../providers/news_provider.dart';
 import '../../providers/reading_history_provider.dart';
@@ -16,6 +17,7 @@ import '../../providers/theme_provider.dart';
 import '../../widgets/article_image.dart';
 import '../../widgets/author_profile_sheet.dart';
 import '../../widgets/section_header.dart';
+import '../settings/ai_settings_screen.dart';
 
 class ArticleDetailScreen extends StatefulWidget {
   const ArticleDetailScreen({
@@ -529,6 +531,14 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                         ),
                       ],
                       const SizedBox(height: 18),
+                      // AI özet bölümü — kullanıcı etkinleştirdiyse "Özetle"
+                      // butonu, üretilmiş bir özet varsa kart olarak gösterir.
+                      _AiSummarySection(
+                        article: article,
+                        isSepia: isSepia,
+                        sepiaText: sepiaText,
+                      ),
+                      const SizedBox(height: 18),
                       // CTA artık sticky alt kenarda — burada yalnızca
                       // harici kaynak yoksa bilgi rozeti gösteriliyor.
                       if (!article.hasOriginalUrl)
@@ -772,6 +782,241 @@ class _ScrimIconButton extends StatelessWidget {
     );
     if (tooltip == null) return button;
     return Tooltip(message: tooltip!, child: button);
+  }
+}
+
+/// Detay ekranında AI özet bölümü.
+///
+/// Üç durum:
+///   1. AI ayarları kapalı/eksik → kompakt CTA "Yapay zeka özetlerini etkinleştir"
+///   2. Etkin ama bu makale için cache yok → "Yapay zekayla özetle" butonu
+///   3. Cache var → AI özet kartı + "yeniden özetle" küçük aksiyonu
+class _AiSummarySection extends StatelessWidget {
+  const _AiSummarySection({
+    required this.article,
+    required this.isSepia,
+    required this.sepiaText,
+  });
+
+  final Article article;
+  final bool isSepia;
+  final Color sepiaText;
+
+  @override
+  Widget build(BuildContext context) {
+    final ai = context.watch<AiSettingsProvider>();
+    final cs = Theme.of(context).colorScheme;
+
+    if (!ai.isReady()) {
+      return _DisabledHint(
+        reason: !ai.enabled
+            ? 'Yapay zeka özetleri kapalı.'
+            : 'API anahtarı veya model eksik.',
+      );
+    }
+
+    final cached = ai.cachedSummary(article.id);
+    final loading = ai.loadingArticleId == article.id;
+
+    if (cached == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (ai.lastError != null && !loading)
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: cs.errorContainer.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline,
+                      size: 16, color: cs.onErrorContainer),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      ai.lastError!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: cs.onErrorContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: loading
+                  ? null
+                  : () {
+                      HapticFeedback.selectionClick();
+                      context
+                          .read<AiSettingsProvider>()
+                          .summarize(article);
+                    },
+              icon: loading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.auto_awesome, size: 18),
+              label: Text(
+                loading
+                    ? 'Özet üretiliyor…'
+                    : 'Yapay zekayla özetle • ${ai.currentModelLabel}',
+              ),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            cs.primary.withValues(alpha: 0.10),
+            cs.primary.withValues(alpha: 0.04),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: cs.primary.withValues(alpha: 0.25),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.auto_awesome, size: 16, color: cs.primary),
+              const SizedBox(width: 6),
+              Text(
+                'YAPAY ZEKA ÖZETİ',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                  color: cs.primary,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                ai.currentModelLabel,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: 4),
+              InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () async {
+                  HapticFeedback.selectionClick();
+                  final ai = context.read<AiSettingsProvider>();
+                  await ai.invalidate(article.id);
+                  if (context.mounted) {
+                    // ignore: use_build_context_synchronously
+                    context
+                        .read<AiSettingsProvider>()
+                        .summarize(article);
+                  }
+                },
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(Icons.refresh, size: 16),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SelectableText(
+            cached,
+            style: TextStyle(
+              color: isSepia ? sepiaText : cs.onSurface,
+              fontSize: 14,
+              height: 1.55,
+              fontFamily: isSepia ? 'serif' : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DisabledHint extends StatelessWidget {
+  const _DisabledHint({required this.reason});
+  final String reason;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const AiSettingsScreen()),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: cs.outlineVariant.withValues(alpha: 0.6),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.auto_awesome,
+                size: 18, color: cs.onSurfaceVariant),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Yapay zeka özetlemesini etkinleştir',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: cs.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    reason,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: cs.onSurfaceVariant),
+          ],
+        ),
+      ),
+    );
   }
 }
 

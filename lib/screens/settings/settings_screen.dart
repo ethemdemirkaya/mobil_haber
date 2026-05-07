@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
+import '../../providers/ai_settings_provider.dart';
 import '../../providers/bookmark_provider.dart';
 import '../../providers/reading_history_provider.dart';
 import '../../providers/reading_theme_provider.dart';
@@ -10,6 +11,7 @@ import '../../providers/search_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../live/live_news_screen.dart';
 import 'about_screen.dart';
+import 'ai_settings_screen.dart';
 import 'data_usage_screen.dart';
 import 'diagnostics_screen.dart';
 import 'notification_prefs_screen.dart';
@@ -49,6 +51,8 @@ class SettingsScreen extends StatelessWidget {
             subtitle: 'Canlı ekranda hangi kaynaklar gösterilsin',
             page: SourcePreferencesScreen(),
           ),
+          _Divider(),
+          _AiSettingsNavTile(),
           SizedBox(height: 12),
           _SectionTitle('Tercihler'),
           _NavTile(
@@ -294,6 +298,41 @@ class _ReadingModeTile extends StatelessWidget {
         onSelectionChanged: (set) =>
             context.read<ReadingThemeProvider>().setReadingMode(set.first),
       ),
+    );
+  }
+}
+
+class _AiSettingsNavTile extends StatelessWidget {
+  const _AiSettingsNavTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final ai = context.watch<AiSettingsProvider>();
+    final cs = Theme.of(context).colorScheme;
+    final subtitle = !ai.enabled
+        ? 'Kapalı — etkinleştirmek için dokun'
+        : ai.hasApiKey
+            ? '${ai.currentModelLabel} • OpenRouter'
+            : 'Etkin ama API anahtarı gerekiyor';
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: cs.primary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(Icons.auto_awesome, color: cs.primary, size: 20),
+      ),
+      title: const Text('Yapay Zeka Özetleme'),
+      subtitle: Text(subtitle),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const AiSettingsScreen()),
+        );
+      },
     );
   }
 }
