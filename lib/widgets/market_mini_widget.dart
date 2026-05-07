@@ -50,51 +50,70 @@ class MarketMiniWidget extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
           onTap: onTap,
-          child: Row(
-            children: [
-              if (s.weather != null) ...[
-                Text(
-                  s.weather!.emoji,
-                  style: const TextStyle(fontSize: 18),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '${s.weather!.temperatureC.toStringAsFixed(0)}°',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 15,
-                    color: cs.onSurface,
+          // Tek Row + horizontal scroll: küçük telefonlarda taşma yerine
+          // dokunarak kaydırma. Şehir adı + döviz oranları yan yana
+          // sığmadığında otomatik scroll edilebilir.
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const ClampingScrollPhysics(),
+            child: Row(
+              children: [
+                if (s.weather != null) ...[
+                  Text(
+                    s.weather!.emoji,
+                    style: const TextStyle(fontSize: 18),
                   ),
-                ),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    s.weather!.description,
-                    overflow: TextOverflow.ellipsis,
+                  const SizedBox(width: 6),
+                  Text(
+                    '${s.weather!.temperatureC.toStringAsFixed(0)}°',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      color: cs.onSurface,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    s.city,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                      color: cs.onSurface,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '· ${s.weather!.description}',
                     style: TextStyle(
                       fontWeight: FontWeight.w500,
                       fontSize: 12,
                       color: cs.onSurfaceVariant,
                     ),
                   ),
-                ),
-                if (s.tryRates.isNotEmpty)
-                  Container(
-                    width: 1,
-                    height: 14,
-                    margin: const EdgeInsets.symmetric(horizontal: 10),
-                    color: cs.outlineVariant.withValues(alpha: 0.6),
+                  if (s.tryRates.isNotEmpty)
+                    Container(
+                      width: 1,
+                      height: 14,
+                      margin:
+                          const EdgeInsets.symmetric(horizontal: 10),
+                      color: cs.outlineVariant.withValues(alpha: 0.6),
+                    ),
+                ],
+                for (final entry in s.tryRates.entries) ...[
+                  _Chip(
+                    label: entry.key,
+                    value: '₺${entry.value.toStringAsFixed(2)}',
+                    color: _accentFor(entry.key),
                   ),
+                  const SizedBox(width: 6),
+                ],
+                // Sağ tarafta küçük scroll-hint ipucu (yalnızca ilk
+                // render'da, child'lar Row uzunluğunu aşıyorsa kullanıcı
+                // kaydırmayı keşfeder).
+                Icon(Icons.chevron_right,
+                    size: 14, color: cs.onSurfaceVariant),
               ],
-              for (final entry in s.tryRates.entries) ...[
-                _Chip(
-                  label: entry.key,
-                  value: '₺${entry.value.toStringAsFixed(2)}',
-                  color: _accentFor(entry.key),
-                ),
-                const SizedBox(width: 6),
-              ],
-            ],
+            ),
           ),
         ),
       ),
