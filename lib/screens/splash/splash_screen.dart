@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../providers/news_provider.dart';
 import '../../providers/onboarding_provider.dart';
+import '../../providers/preferences_provider.dart';
 import '../main_navigation.dart';
 import '../onboarding/onboarding_screen.dart';
 
@@ -44,10 +46,20 @@ class _SplashScreenState extends State<SplashScreen>
     await Future<void>.delayed(const Duration(milliseconds: 1600));
     if (!mounted) return;
     final onboarding = context.read<OnboardingProvider>();
-    // Onboarding state'inin yüklenmesini bekle
-    while (!onboarding.initialized) {
+    final prefs = context.read<PreferencesProvider>();
+    // Onboarding ve tercih state'inin yüklenmesini bekle (önce gelen kazanır
+    // ama her ikisinin de hazır olması gerekiyor — kaynak seçimleri haber
+    // çekiminden önce bilinmeli).
+    while (!onboarding.initialized || !prefs.initialized) {
       await Future<void>.delayed(const Duration(milliseconds: 50));
       if (!mounted) return;
+    }
+    // Onboarding tamamlandıysa kullanıcı seçimlerini NewsProvider'a uygula.
+    // İlk açılışsa onboarding ekranına yönlenecek; orası kendi kaynaklarını
+    // yazacak ve bittiğinde tekrar applySources tetikleyecek.
+    if (onboarding.completed && mounted) {
+      // ignore: use_build_context_synchronously
+      context.read<NewsProvider>().applySources(prefs.effectiveSources);
     }
     final next = onboarding.completed
         ? const MainNavigation()

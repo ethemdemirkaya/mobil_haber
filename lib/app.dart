@@ -25,8 +25,15 @@ class MobilHaberApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => OnboardingProvider()),
+        // PreferencesProvider önce gelmeli — NewsProvider seçili kaynakları
+        // ondan okuyor. lazy:false ile splash sırasında initialize ediyoruz.
+        ChangeNotifierProvider(
+          create: (_) => PreferencesProvider(),
+          lazy: false,
+        ),
         // News'i splash sırasında eager yükle — ana ekrana geldiğinde
-        // veriler hazır olsun.
+        // veriler hazır olsun. Kaynaklar onboarding bitince/uygulama açılınca
+        // MainNavigation tarafından `applySources` ile gönderiliyor.
         ChangeNotifierProvider(
           create: (_) => NewsProvider(),
           lazy: false,
@@ -34,7 +41,6 @@ class MobilHaberApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BookmarkProvider()),
         ChangeNotifierProvider(create: (_) => SearchProvider()),
         ChangeNotifierProvider(create: (_) => ReadingHistoryProvider()),
-        ChangeNotifierProvider(create: (_) => PreferencesProvider()),
         ChangeNotifierProvider(create: (_) => ExternalNewsProvider()),
         ChangeNotifierProvider(create: (_) => ReadingProgressProvider()),
         ChangeNotifierProvider(create: (_) => ReadingThemeProvider()),

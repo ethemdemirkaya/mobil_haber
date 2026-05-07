@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/bookmark_provider.dart';
+import '../providers/news_provider.dart';
+import '../providers/preferences_provider.dart';
 import 'bookmarks/bookmarks_screen.dart';
 import 'home/home_screen.dart';
 import 'search/search_screen.dart';
@@ -24,6 +26,22 @@ class _MainNavigationState extends State<MainNavigation> {
     BookmarksScreen(),
     SettingsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Splash bypass edilirse veya hot reload sonrası MainNavigation'a
+    // doğrudan girilirse de kaynakların `NewsProvider`'a uygulandığından
+    // emin olalım. NewsProvider zaten yüklü ise bootstrap no-op olur.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final news = context.read<NewsProvider>();
+      final prefs = context.read<PreferencesProvider>();
+      if (news.activeSourceCount == 0) {
+        news.applySources(prefs.effectiveSources);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

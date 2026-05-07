@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:cached_network_image/cached_network_image.dart';
+
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../data/models/article.dart';
 import '../../data/models/category.dart';
+import '../../data/models/news_source.dart';
 import '../../providers/news_provider.dart';
 import '../../providers/reading_history_provider.dart';
 import '../../providers/reading_progress_provider.dart';
@@ -20,6 +23,7 @@ import '../../widgets/shimmer_loading.dart';
 import '../category/category_articles_screen.dart';
 import '../detail/article_detail_screen.dart';
 import '../search/search_screen.dart';
+import '../settings/source_preferences_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -348,6 +352,50 @@ class _HomeScreenState extends State<HomeScreen> {
                           rank: index + 1,
                           onTap: () => _openArticle(a),
                         );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+              if (news.activeSources.isNotEmpty) ...[
+                SliverToBoxAdapter(
+                  child: SectionHeader(
+                    title: 'Kaynaklarınız',
+                    subtitle:
+                        '${news.activeSources.length} aktif kaynak — '
+                        'düzenle',
+                    actionLabel: 'Düzenle',
+                    onAction: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const SourcePreferencesScreen(),
+                      ),
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 76,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: news.activeSources.length + 1,
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(width: 10),
+                      itemBuilder: (context, index) {
+                        if (index == news.activeSources.length) {
+                          return _AddSourcesChip(
+                            onTap: () =>
+                                Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const SourcePreferencesScreen(),
+                              ),
+                            ),
+                          );
+                        }
+                        final s = news.activeSources[index];
+                        return _SourceMiniCard(source: s);
                       },
                     ),
                   ),
@@ -840,6 +888,142 @@ class _SearchShortcutBar extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Aktif kaynak rozeti (logo + kısa ad). Üzerine dokunmak haber listesini
+/// o kaynağa göre filtreliyor — şu an basit gösterim için pop-up.
+class _SourceMiniCard extends StatelessWidget {
+  const _SourceMiniCard({required this.source});
+
+  final NewsSource source;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      width: 96,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: source.brandColor.withValues(alpha: 0.18),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              width: 32,
+              height: 32,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: source.brandColor.withValues(alpha: 0.10),
+              ),
+              child: CachedNetworkImage(
+                imageUrl: source.logoUrl,
+                width: 32,
+                height: 32,
+                fit: BoxFit.contain,
+                placeholder: (_, _) => _LogoFallback(source: source),
+                errorWidget: (_, _, _) => _LogoFallback(source: source),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            source.shortName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: cs.onSurface,
+              letterSpacing: -0.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LogoFallback extends StatelessWidget {
+  const _LogoFallback({required this.source});
+  final NewsSource source;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 32,
+      height: 32,
+      alignment: Alignment.center,
+      color: source.brandColor.withValues(alpha: 0.14),
+      child: Text(
+        source.shortName.substring(0, 1).toUpperCase(),
+        style: TextStyle(
+          color: source.brandColor,
+          fontWeight: FontWeight.w800,
+          fontSize: 14,
+        ),
+      ),
+    );
+  }
+}
+
+class _AddSourcesChip extends StatelessWidget {
+  const _AddSourcesChip({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: cs.surface,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(
+          color: cs.outlineVariant.withValues(alpha: 0.6),
+          width: 1,
+        ),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: SizedBox(
+          width: 96,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: cs.primary.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.add, color: cs.primary, size: 18),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Düzenle',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: cs.onSurface,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

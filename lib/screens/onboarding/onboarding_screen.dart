@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../data/models/news_source.dart';
+import '../../providers/news_provider.dart';
 import '../../providers/onboarding_provider.dart';
+import '../../providers/preferences_provider.dart';
 import '../main_navigation.dart';
+import 'source_picker_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -65,10 +69,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
-  Future<void> _finish() async {
+  /// İntro slider'ından "Atla" denirse: önerilen kaynaklarla doğrudan
+  /// MainNavigation'a geçeriz. Kullanıcı yine ayarlardan değiştirebilir.
+  Future<void> _skip() async {
     HapticFeedback.lightImpact();
-    await context.read<OnboardingProvider>().complete();
+    final prefs = context.read<PreferencesProvider>();
+    final news = context.read<NewsProvider>();
+    final onboarding = context.read<OnboardingProvider>();
+    if (prefs.selectedSources.isEmpty) {
+      await prefs.setSelectedSources(
+        NewsSourceCatalog.recommendedIds.toSet(),
+      );
+    }
+    await onboarding.complete();
     if (!mounted) return;
+    // ignore: unawaited_futures
+    news.applySources(prefs.effectiveSources);
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 450),
@@ -79,9 +95,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
+  /// Son intro sayfasından devam: kaynak seçim ekranına yönlendirir.
+  /// SourcePickerScreen kendi `_finish()` içinde onboarding'i tamamlayıp
+  /// MainNavigation'a geçer.
+  void _continueToPicker() {
+    HapticFeedback.lightImpact();
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 350),
+        pageBuilder: (_, _, _) => const SourcePickerScreen(),
+        transitionsBuilder: (_, animation, _, child) {
+          final tween = Tween<Offset>(
+            begin: const Offset(0, 0.05),
+            end: Offset.zero,
+          ).chain(CurveTween(curve: Curves.easeOutCubic));
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: FadeTransition(opacity: animation, child: child),
+          );
+        },
+      ),
+    );
+  }
+
   void _next() {
     if (_index >= _pages.length - 1) {
-      _finish();
+      _continueToPicker();
       return;
     }
     _controller.nextPage(
@@ -116,7 +155,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   children: [
                     if (!last)
                       TextButton(
-                        onPressed: _finish,
+                        onPressed: _skip,
                         style: TextButton.styleFrom(
                           foregroundColor: Colors.white,
                         ),
@@ -223,7 +262,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             fontSize: 15,
                           ),
                         ),
-                        child: Text(last ? 'Başlayalım' : 'Devam'),
+                        child: Text(last ? 'Kaynakları seç' : 'Devam'),
                       ),
                     ),
                   ],
