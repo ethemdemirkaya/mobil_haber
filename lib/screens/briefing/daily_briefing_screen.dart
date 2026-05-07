@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/ai/openrouter_client.dart';
 import '../../core/tts/briefing_audio_cache.dart';
+import '../../core/tts/briefing_audio_handler.dart';
 import '../../data/models/article.dart';
 import '../../data/models/category.dart';
 import '../../data/repositories/daily_briefing_service.dart';
@@ -45,10 +46,18 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   final FlutterTts _tts = FlutterTts();
   final DailyBriefingService _service = DailyBriefingService();
   final OpenAiTtsService _openaiTts = OpenAiTtsService();
-  final AudioPlayer _audioPlayer = AudioPlayer();
   final MarketWidgetService _marketService = MarketWidgetService();
   StreamSubscription<void>? _audioCompleteSub;
+  StreamSubscription<BriefingLockAction>? _lockActionSub;
   MarketSnapshot? _market;
+
+  /// Lock-screen kontrolü için audio_service handler'ı varsa onun
+  /// player'ını kullanırız (notification'a state yansır); yoksa local
+  /// player. Hem mobile hem desktop'ta çalışır.
+  AudioPlayer get _audioPlayer => BriefingAudioHandler.isBooted
+      ? BriefingAudioHandler.instance.player
+      : _localAudioPlayer;
+  final AudioPlayer _localAudioPlayer = AudioPlayer();
 
   // Akış durumu — başlangıçta brifing üretiliyor → spinner gösterilsin.
   bool _generating = true;
@@ -91,6 +100,41 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     super.initState();
     _topic = const BriefingTopic(); // Genel
     _bootstrap();
+    _wireLockScreenActions();
+  }
+
+  /// Lock screen / bildirim panel butonlarını dinle. Kullanıcı oradan
+  /// play/pause/stop/next/prev'e basınca bizim screen state'inde
+  /// tetikle.
+  void _wireLockScreenActions() {
+    if (!BriefingAudioHandler.isBooted) return;
+    _lockActionSub =
+        BriefingAudioHandler.instance.actions.listen((action) {
+      if (!mounted) return;
+      switch (action) {
+        case BriefingLockAction.play:
+          _play();
+          break;
+        case BriefingLockAction.pause:
+          _pause();
+          break;
+        case BriefingLockAction.stop:
+          _stop();
+          break;
+        case BriefingLockAction.skipNext:
+          if (_utteranceIndex < _utterances.length - 1) {
+            _utteranceIndex++;
+            _stop().then((_) => _play());
+          }
+          break;
+        case BriefingLockAction.skipPrev:
+          if (_utteranceIndex > 0) {
+            _utteranceIndex--;
+            _stop().then((_) => _play());
+          }
+          break;
+      }
+    });
   }
 
   Future<void> _bootstrap() async {
@@ -277,7 +321,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   void dispose() {
     _tts.stop();
     _audioCompleteSub?.cancel();
-    _audioPlayer.dispose();
+    _lockActionSub?.cancel();
+    _localAudioPlayer.dispose();
     super.dispose();
   }
 
@@ -377,6 +422,14 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
         _utteranceIndex = 0;
         _generating = false;
       });
+      // Lock screen "Now Playing" başlığını set et.
+      if (BriefingAudioHandler.isBooted) {
+        // ignore: unawaited_futures
+        BriefingAudioHandler.instance.setBriefingItem(
+          title: _topic.displayName,
+          artist: 'Pusula • ${parts.length} cümle',
+        );
+      }
     } on OpenRouterException catch (e) {
       if (!mounted) return;
       setState(() {

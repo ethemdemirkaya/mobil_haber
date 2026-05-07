@@ -85,6 +85,10 @@ dependencies:
   # ayarı. audio_service'e nazaran çok daha hafif setup.
   audio_session: ^0.1.21
 
+  # Lock screen + bildirim panel medya kontrolü (play/pause/skip).
+  # iOS Now Playing center'a ve Android MediaSession notif'a entegre.
+  audio_service: ^0.18.16
+
   # Push bildirimi (Firebase Cloud Messaging) — son dakika haberleri.
   # Konfigürasyon: docs/FIREBASE_SETUP.md
   firebase_core: ^3.6.0

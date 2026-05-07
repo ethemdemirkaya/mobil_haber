@@ -6,6 +6,7 @@ import 'app.dart';
 import 'core/notifications/push_notification_service.dart';
 import 'core/notifications/scheduled_briefing_service.dart';
 import 'core/tts/audio_session_setup.dart';
+import 'core/tts/briefing_audio_handler.dart';
 import 'core/utils/date_formatter.dart';
 
 Future<void> main() async {
@@ -14,6 +15,9 @@ Future<void> main() async {
   // Sesli brifing arka planda da çalışsın diye iOS/Android audio session
   // ayarı (speech preset). Bu olmadan iOS'ta ekran kilitlenince ses durur.
   await AudioSessionSetup.configure();
+  // Lock screen + bildirim panel medya kontrolü için audio_service.
+  // Bootstrap başarısız olursa (desktop) sessizce skip eder.
+  await BriefingAudioHandler.bootstrap();
   // Yerel bildirim servisi — zamanlanmış brifing tap callback'i için
   // erken init şart.
   await ScheduledBriefingService.init();
