@@ -1,7 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../data/repositories/og_image_resolver.dart';
+import '../providers/preferences_provider.dart';
 
 /// Haber kartı/detayı için görsel widget'ı.
 ///
@@ -89,10 +91,18 @@ class _ArticleImageState extends State<ArticleImage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final dataSaver =
+        context.watch<PreferencesProvider>().dataSaverImages;
     final useFallback =
         widget.url.isEmpty || (_primaryFailed && _resolvedFallback != null);
-    final activeUrl =
+    final rawUrl =
         useFallback ? (_resolvedFallback ?? '') : widget.url;
+    final activeUrl = dataSaver ? _downscale(rawUrl) : rawUrl;
+
+    // Data saver açıkken cached_network_image'in kendi memCacheWidth/Height
+    // limitlerini de küçültüyoruz (decode aşamasında bellek).
+    final memWidth = dataSaver ? 480 : null;
+    final memHeight = dataSaver ? 320 : null;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.borderRadius),
@@ -103,6 +113,8 @@ class _ArticleImageState extends State<ArticleImage> {
               fit: widget.fit,
               height: widget.height,
               width: widget.width,
+              memCacheWidth: memWidth,
+              memCacheHeight: memHeight,
               fadeInDuration: const Duration(milliseconds: 220),
               placeholder: (_, _) => Container(
                 color: cs.surfaceContainerHighest,
@@ -110,7 +122,6 @@ class _ArticleImageState extends State<ArticleImage> {
                 width: widget.width,
               ),
               errorWidget: (_, _, _) {
-                // Primary başarısız → og:image fallback'i tetikle.
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (mounted) _onPrimaryError();
                 });
@@ -118,6 +129,41 @@ class _ArticleImageState extends State<ArticleImage> {
               },
             ),
     );
+  }
+
+  /// Data saver açıkken bilinen kaynaklarda URL'in büyük varyantını
+  /// küçük thumbnail'a geri çeviriyoruz — RSS'ten geleni rsv'le büyütmüştük,
+  /// burada tersi: kullanıcının veri planını korumak için minimal indir.
+  String _downscale(String url) {
+    if (url.isEmpty) return url;
+    var u = url;
+    if (u.contains('cdnuploads.aa.com.tr') &&
+        !u.contains('thumbs_b_c_')) {
+      // hash → thumbs_b_c_hash
+      u = u.replaceFirstMapped(
+        RegExp(r'(/Contents/\d{4}/\d{2}/\d{2}/)'),
+        (m) => '${m.group(1)}thumbs_b_c_',
+      );
+      return u;
+    }
+    if (u.contains('image.hurimg.com')) {
+      return u.replaceFirst(RegExp(r'/\d{2,4}x\d{2,4}/'), '/640x360/');
+    }
+    if (u.contains('image.cnnturk.com')) {
+      return u.replaceFirst(RegExp(r'/\d{2,4}x\d{2,4}/'), '/640x360/');
+    }
+    if (u.contains('ichef.bbci.co.uk')) {
+      return u.replaceFirst(
+          RegExp(r'/\d+/cps'), '/480/cps');
+    }
+    if (u.contains('images.ntv.com.tr')) {
+      return u.replaceFirst(RegExp(r'width=\d+'), 'width=640');
+    }
+    if (u.contains('i.gazeteduvar.com.tr') ||
+        u.contains('i.artigercek.com')) {
+      return u.replaceFirst(RegExp(r'/2/\d+/\d+/'), '/2/640/360/');
+    }
+    return u;
   }
 
   Widget _buildPlaceholderOrLoading(ColorScheme cs) {

@@ -363,26 +363,6 @@ class NewsSourceCatalog {
     ),
 
     NewsSource(
-      id: 'birgun',
-      name: 'BirGün',
-      shortName: 'BirGün',
-      tagline: 'Sol-bağımsız günlük gazete',
-      domain: 'birgun.net',
-      brandColor: Color(0xFFE30613),
-      primaryFeed: 'https://www.birgun.net/rss',
-    ),
-
-    NewsSource(
-      id: 'evrensel',
-      name: 'Evrensel',
-      shortName: 'Evrensel',
-      tagline: 'İşçi-emek odaklı haber',
-      domain: 'evrensel.net',
-      brandColor: Color(0xFFE60012),
-      primaryFeed: 'https://www.evrensel.net/rss/?do=rss',
-    ),
-
-    NewsSource(
       id: 'artigercek',
       name: 'Artı Gerçek',
       shortName: 'Artı Gerçek',
@@ -391,6 +371,9 @@ class NewsSourceCatalog {
       brandColor: Color(0xFFFE0000),
       primaryFeed: 'https://artigercek.com/export/rss',
     ),
+    // NOT: BirGün, Evrensel, Onedio Mayıs 2026 itibariyle publik RSS
+    // yayını yapmıyor (404 / HTML döner). Aboneliksiz API yok; bu yüzden
+    // kataloğa eklenmedi.
 
     // ───── Teknoloji ─────
     NewsSource(
@@ -465,15 +448,6 @@ class NewsSourceCatalog {
       primaryFeed: 'https://www.takvim.com.tr/rss/anasayfa.xml',
     ),
 
-    NewsSource(
-      id: 'onedio',
-      name: 'Onedio',
-      shortName: 'Onedio',
-      tagline: 'Genç odaklı genel içerik',
-      domain: 'onedio.com',
-      brandColor: Color(0xFF2196F3),
-      primaryFeed: 'https://onedio.com/rss',
-    ),
   ];
 
   static NewsSource? byId(String id) {

@@ -373,9 +373,14 @@ class RssNewsService {
     }
     if (u.contains('images.ntv.com.tr')) {
       var fixed = u.replaceFirst(RegExp(r'width=\d+'), 'width=1600');
-      // Format webp bazen rendererda sorun çıkarıyor — JPEG'e çevirme şart
-      // değil, bırakıyoruz.
       return fixed;
+    }
+    // Gazete Duvar + Artı Gerçek aynı CDN şemasını kullanıyor:
+    // `i.<domain>/2/W/H/storage/...` — W=150, H=84 default thumb (~8 KB).
+    // 1280x720'a swap ile ~310 KB tam kalite (38x büyüme test edildi).
+    if (u.contains('i.gazeteduvar.com.tr') ||
+        u.contains('i.artigercek.com')) {
+      return u.replaceFirst(RegExp(r'/2/\d+/\d+/'), '/2/1280/720/');
     }
 
     return u;
