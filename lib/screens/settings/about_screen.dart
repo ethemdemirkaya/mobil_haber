@@ -88,10 +88,10 @@ class AboutScreen extends StatelessWidget {
             title: 'Uygulama hakkında',
             child: Text(
               'Pusula bir haber özetleyicisidir: AA, TRT, NTV, Sözcü, BBC '
-              'Türkçe gibi 13+ kaynaktan başlıkları birleştirir, kısa özetler '
-              'halinde sunar. İsterseniz yapay zeka ile detaylı özet üretir, '
-              'sesli olarak okutabilirsiniz. Tam habere ulaşmak için orijinal '
-              'kaynağa tek dokunuşla atlarsınız.',
+              'Türkçe, DW, Euronews, Webrazzi gibi 27+ kaynaktan başlıkları '
+              'birleştirir, kısa özetler halinde sunar. İsterseniz yapay zeka '
+              'ile detaylı özet üretir, sesli olarak okutabilirsiniz. Tam '
+              'habere ulaşmak için orijinal kaynağa tek dokunuşla atlarsınız.',
               style: textTheme.bodyMedium?.copyWith(height: 1.5),
             ),
           ),

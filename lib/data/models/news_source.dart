@@ -305,7 +305,7 @@ class NewsSourceCatalog {
       primaryFeed: 'https://www.diken.com.tr/feed/',
     ),
 
-    // ───── Uluslararası (Türkçe) ─────
+    // ───── Uluslararası (Türkçe yayın) ─────
     NewsSource(
       id: 'bbcturkce',
       name: 'BBC Türkçe',
@@ -316,6 +316,163 @@ class NewsSourceCatalog {
       primaryFeed: 'https://feeds.bbci.co.uk/turkce/rss.xml',
       country: 'GB',
       recommended: true,
+    ),
+
+    NewsSource(
+      id: 'dwturkce',
+      name: 'DW Türkçe',
+      shortName: 'DW Türkçe',
+      tagline: 'Deutsche Welle — Avrupa odaklı analiz',
+      domain: 'dw.com',
+      brandColor: Color(0xFF003E8E),
+      primaryFeed: 'https://rss.dw.com/rdf/rss-tur-all',
+      country: 'DE',
+    ),
+
+    NewsSource(
+      id: 'euronews',
+      name: 'Euronews Türkçe',
+      shortName: 'Euronews',
+      tagline: 'Avrupa\'dan ve dünyadan haberler',
+      domain: 'euronews.com',
+      brandColor: Color(0xFF005CFF),
+      primaryFeed: 'https://tr.euronews.com/rss',
+      country: 'FR',
+    ),
+
+    NewsSource(
+      id: 'indyturkce',
+      name: 'Independent Türkçe',
+      shortName: 'Indy Türkçe',
+      tagline: 'Bağımsız uluslararası perspektif',
+      domain: 'indyturk.com',
+      brandColor: Color(0xFFEF3340),
+      primaryFeed: 'https://www.indyturk.com/rss.xml',
+      country: 'GB',
+    ),
+
+    // ───── Bağımsız Türk medyası ─────
+    NewsSource(
+      id: 'gazeteduvar',
+      name: 'Gazete Duvar',
+      shortName: 'Duvar',
+      tagline: 'Bağımsız haber ve yorum',
+      domain: 'gazeteduvar.com.tr',
+      brandColor: Color(0xFF111111),
+      primaryFeed: 'https://www.gazeteduvar.com.tr/rss',
+    ),
+
+    NewsSource(
+      id: 'birgun',
+      name: 'BirGün',
+      shortName: 'BirGün',
+      tagline: 'Sol-bağımsız günlük gazete',
+      domain: 'birgun.net',
+      brandColor: Color(0xFFE30613),
+      primaryFeed: 'https://www.birgun.net/rss',
+    ),
+
+    NewsSource(
+      id: 'evrensel',
+      name: 'Evrensel',
+      shortName: 'Evrensel',
+      tagline: 'İşçi-emek odaklı haber',
+      domain: 'evrensel.net',
+      brandColor: Color(0xFFE60012),
+      primaryFeed: 'https://www.evrensel.net/rss/?do=rss',
+    ),
+
+    NewsSource(
+      id: 'artigercek',
+      name: 'Artı Gerçek',
+      shortName: 'Artı Gerçek',
+      tagline: 'Bağımsız haber ve analiz',
+      domain: 'artigercek.com',
+      brandColor: Color(0xFFFE0000),
+      primaryFeed: 'https://artigercek.com/export/rss',
+    ),
+
+    // ───── Teknoloji ─────
+    NewsSource(
+      id: 'webrazzi',
+      name: 'Webrazzi',
+      shortName: 'Webrazzi',
+      tagline: 'Türkiye\'nin teknoloji yayını',
+      domain: 'webrazzi.com',
+      brandColor: Color(0xFFFF6B35),
+      primaryFeed: 'https://webrazzi.com/feed/',
+    ),
+
+    NewsSource(
+      id: 'shiftdelete',
+      name: 'ShiftDelete.Net',
+      shortName: 'ShiftDelete',
+      tagline: 'Teknoloji incelemeleri ve haberleri',
+      domain: 'shiftdelete.net',
+      brandColor: Color(0xFFE91E63),
+      primaryFeed: 'https://shiftdelete.net/feed/',
+    ),
+
+    NewsSource(
+      id: 'donanimhaber',
+      name: 'Donanım Haber',
+      shortName: 'DH',
+      tagline: 'Donanım ve teknoloji haberleri',
+      domain: 'donanimhaber.com',
+      brandColor: Color(0xFFFF3300),
+      primaryFeed: 'https://www.donanimhaber.com/rss/tum/',
+    ),
+
+    // ───── Spor ─────
+    NewsSource(
+      id: 'fotomac',
+      name: 'Fotomaç',
+      shortName: 'Fotomaç',
+      tagline: 'Spor — Türkiye\'nin önde gelen spor gazetesi',
+      domain: 'fotomac.com.tr',
+      brandColor: Color(0xFF1E88E5),
+      primaryFeed: 'https://www.fotomac.com.tr/rss/anasayfa.xml',
+    ),
+
+    // ───── Genel / magazin ─────
+    NewsSource(
+      id: 'posta',
+      name: 'Posta',
+      shortName: 'Posta',
+      tagline: 'Gündem, magazin ve yaşam',
+      domain: 'posta.com.tr',
+      brandColor: Color(0xFFE2231A),
+      primaryFeed: 'https://www.posta.com.tr/rss/anasayfa.xml',
+    ),
+
+    NewsSource(
+      id: 'aksam',
+      name: 'Akşam',
+      shortName: 'Akşam',
+      tagline: 'Genel haber, yorum',
+      domain: 'aksam.com.tr',
+      brandColor: Color(0xFF003366),
+      primaryFeed: 'https://www.aksam.com.tr/rss/rss.asp',
+    ),
+
+    NewsSource(
+      id: 'takvim',
+      name: 'Takvim',
+      shortName: 'Takvim',
+      tagline: 'Gündem, magazin, spor',
+      domain: 'takvim.com.tr',
+      brandColor: Color(0xFFEC1C24),
+      primaryFeed: 'https://www.takvim.com.tr/rss/anasayfa.xml',
+    ),
+
+    NewsSource(
+      id: 'onedio',
+      name: 'Onedio',
+      shortName: 'Onedio',
+      tagline: 'Genç odaklı genel içerik',
+      domain: 'onedio.com',
+      brandColor: Color(0xFF2196F3),
+      primaryFeed: 'https://onedio.com/rss',
     ),
   ];
 
