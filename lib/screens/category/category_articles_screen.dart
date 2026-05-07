@@ -18,9 +18,9 @@ extension on _CategorySort {
       case _CategorySort.oldest:
         return 'En eski';
       case _CategorySort.shortRead:
-        return 'En kısa okuma';
+        return 'En kısa özet';
       case _CategorySort.longRead:
-        return 'En uzun okuma';
+        return 'En uzun özet';
       case _CategorySort.title:
         return 'Başlık (A-Z)';
     }
@@ -212,8 +212,10 @@ class _CategoryArticlesScreenState extends State<CategoryArticlesScreen> {
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) =>
-                                  ArticleDetailScreen(article: a),
+                              builder: (_) => ArticleDetailScreen(
+                                article: a,
+                                heroTag: 'card-img-${a.id}',
+                              ),
                             ),
                           );
                         },

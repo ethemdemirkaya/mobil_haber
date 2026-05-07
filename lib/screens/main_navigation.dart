@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/bookmark_provider.dart';
@@ -34,7 +35,12 @@ class _MainNavigationState extends State<MainNavigation> {
       body: IndexedStack(index: _index, children: _screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: (i) {
+          if (i != _index) {
+            HapticFeedback.selectionClick();
+          }
+          setState(() => _index = i);
+        },
         destinations: [
           const NavigationDestination(
             icon: Icon(Icons.home_outlined),

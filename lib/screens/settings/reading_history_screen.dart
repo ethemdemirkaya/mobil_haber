@@ -96,8 +96,10 @@ class ReadingHistoryScreen extends StatelessWidget {
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) =>
-                              ArticleDetailScreen(article: a),
+                          builder: (_) => ArticleDetailScreen(
+                            article: a,
+                            heroTag: 'card-img-${a.id}',
+                          ),
                         ),
                       );
                     },

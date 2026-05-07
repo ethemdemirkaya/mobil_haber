@@ -58,7 +58,10 @@ class _LiveNewsScreenState extends State<LiveNewsScreen> {
   void _openArticle(Article a) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ArticleDetailScreen(article: a),
+        builder: (_) => ArticleDetailScreen(
+          article: a,
+          heroTag: 'card-img-${a.id}',
+        ),
       ),
     );
   }

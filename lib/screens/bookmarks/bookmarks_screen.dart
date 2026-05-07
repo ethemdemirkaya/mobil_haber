@@ -54,7 +54,10 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
   void _openDetail(Article a) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ArticleDetailScreen(article: a),
+        builder: (_) => ArticleDetailScreen(
+          article: a,
+          heroTag: 'card-img-${a.id}',
+        ),
       ),
     );
   }
@@ -151,9 +154,9 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       body: saved.isEmpty
           ? IllustratedEmptyState(
               icon: Icons.bookmark_outline,
-              title: 'Henüz haber kaydetmediniz',
+              title: 'Kayıtlı haber yok',
               subtitle:
-                  'Beğendiğiniz haberlerdeki kaydet simgesine dokunarak listenize ekleyebilirsiniz.',
+                  'Daha sonra okumak istediğin haberlerdeki yer-imi ikonuna dokun — burada toplanırlar.',
             )
           : Column(
               children: [

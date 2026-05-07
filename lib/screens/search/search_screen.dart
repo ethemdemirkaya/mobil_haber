@@ -6,7 +6,7 @@ import '../../data/models/category.dart';
 import '../../providers/news_provider.dart';
 import '../../providers/search_provider.dart';
 import '../../widgets/article_card.dart';
-import '../../widgets/empty_state.dart';
+import '../../widgets/illustrated_empty_state.dart';
 import '../detail/article_detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -55,7 +55,10 @@ class _SearchScreenState extends State<SearchScreen> {
   void _openArticle(Article article) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ArticleDetailScreen(article: article),
+        builder: (_) => ArticleDetailScreen(
+          article: article,
+          heroTag: 'card-img-${article.id}',
+        ),
       ),
     );
   }
@@ -155,11 +158,11 @@ class _SearchScreenState extends State<SearchScreen> {
                           context.read<SearchProvider>().removeFromHistory(q),
                     )
                   : results.isEmpty
-                      ? EmptyState(
+                      ? IllustratedEmptyState(
                           icon: Icons.search_off_outlined,
-                          title: 'Sonuç bulunamadı',
+                          title: 'Eşleşen haber yok',
                           subtitle:
-                              'Farklı kelimeler veya kategori deneyin.',
+                              'Farklı kelimeler veya başka bir kategori dene.',
                           actionLabel: 'Filtreyi temizle',
                           onAction: () {
                             _controller.clear();
@@ -227,11 +230,11 @@ class _SearchSuggestions extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     if (history.isEmpty) {
-      return EmptyState(
+      return IllustratedEmptyState(
         icon: Icons.travel_explore_outlined,
-        title: 'Aramaya başlayın',
+        title: 'Ne aramak istersin?',
         subtitle:
-            'Yukarıdan kelime veya kategori seçerek istediğiniz haberi bulun.',
+            'Başlık, yazar veya kategori adı yaz — sonuçlar anında listelensin.',
       );
     }
 
