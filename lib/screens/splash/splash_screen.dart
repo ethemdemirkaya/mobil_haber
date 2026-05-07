@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../providers/onboarding_provider.dart';
 import '../main_navigation.dart';
+import '../onboarding/onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -40,10 +43,20 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _scheduleNavigate() async {
     await Future<void>.delayed(const Duration(milliseconds: 1600));
     if (!mounted) return;
+    final onboarding = context.read<OnboardingProvider>();
+    // Onboarding state'inin yüklenmesini bekle
+    while (!onboarding.initialized) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      if (!mounted) return;
+    }
+    final next = onboarding.completed
+        ? const MainNavigation()
+        : const OnboardingScreen();
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (_, _, _) => const MainNavigation(),
+        pageBuilder: (_, _, _) => next,
         transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(opacity: animation, child: child);
         },
