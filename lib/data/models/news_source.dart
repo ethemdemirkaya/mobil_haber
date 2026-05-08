@@ -371,9 +371,219 @@ class NewsSourceCatalog {
       brandColor: Color(0xFFFE0000),
       primaryFeed: 'https://artigercek.com/export/rss',
     ),
-    // NOT: BirGün, Evrensel, Onedio Mayıs 2026 itibariyle publik RSS
-    // yayını yapmıyor (404 / HTML döner). Aboneliksiz API yok; bu yüzden
-    // kataloğa eklenmedi.
+
+    NewsSource(
+      id: 'karar',
+      name: 'Karar',
+      shortName: 'Karar',
+      tagline: 'Geniş yelpazede yorum ve haber',
+      domain: 'karar.com',
+      brandColor: Color(0xFF0E5DAA),
+      primaryFeed: 'https://www.karar.com/rss',
+      // Karar'ın `?cat=...` parametresi anasayfa feed'ine dönüyor;
+      // gerçek kategori filtrelemesi yok. Tek feed yeterli.
+    ),
+
+    NewsSource(
+      id: 'halktv',
+      name: 'Halk TV',
+      shortName: 'Halk TV',
+      tagline: 'Muhalefete yakın haber kanalı ve yorumlar',
+      domain: 'halktv.com.tr',
+      brandColor: Color(0xFFCC0033),
+      primaryFeed: 'https://halktv.com.tr/service/rss.php',
+    ),
+
+    NewsSource(
+      id: 'tele1',
+      name: 'TELE1',
+      shortName: 'TELE1',
+      tagline: 'Bağımsız haber kanalı — politika ağırlıklı',
+      domain: 'tele1.com.tr',
+      brandColor: Color(0xFF1976D2),
+      primaryFeed: 'https://www.tele1.com.tr/rss',
+    ),
+
+    NewsSource(
+      id: 'odatv',
+      name: 'OdaTV',
+      shortName: 'OdaTV',
+      tagline: 'Bağımsız internet gazetesi',
+      domain: 'odatv4.com',
+      brandColor: Color(0xFFC8232A),
+      primaryFeed: 'https://www.odatv4.com/rss.xml',
+    ),
+
+    NewsSource(
+      id: 'aydinlik',
+      name: 'Aydınlık',
+      shortName: 'Aydınlık',
+      tagline: 'Ulusalcı çizgide günlük gazete',
+      domain: 'aydinlik.com.tr',
+      brandColor: Color(0xFFD32F2F),
+      primaryFeed: 'https://www.aydinlik.com.tr/rss',
+    ),
+
+    NewsSource(
+      id: 'yenicag',
+      name: 'Yeniçağ',
+      shortName: 'Yeniçağ',
+      tagline: 'Milliyetçi/muhalif çizgide gazete',
+      domain: 'yenicaggazetesi.com.tr',
+      brandColor: Color(0xFF00528E),
+      primaryFeed: 'https://www.yenicaggazetesi.com.tr/rss',
+    ),
+
+    NewsSource(
+      id: 'veryansintv',
+      name: 'Veryansın TV',
+      shortName: 'Veryansın',
+      tagline: 'Bağımsız haber — siyaset ve dış politika',
+      domain: 'veryansintv.com',
+      brandColor: Color(0xFFB71C1C),
+      primaryFeed: 'https://www.veryansintv.com/feed/',
+    ),
+
+    NewsSource(
+      id: 'medyascope',
+      name: 'Medyascope',
+      shortName: 'Medyascope',
+      tagline: 'Bağımsız internet TV ve podcast haberciliği',
+      domain: 'medyascope.tv',
+      brandColor: Color(0xFF00897B),
+      primaryFeed: 'https://medyascope.tv/feed/',
+    ),
+
+    NewsSource(
+      id: 'gercekgundem',
+      name: 'Gerçek Gündem',
+      shortName: 'Gerçek Gündem',
+      tagline: 'Bağımsız haber portalı',
+      domain: 'gercekgundem.com',
+      brandColor: Color(0xFF0066CC),
+      primaryFeed: 'https://www.gercekgundem.com/feed/',
+    ),
+
+    // ───── Ek ulusal gazeteler ─────
+    NewsSource(
+      id: 'vatan',
+      name: 'Vatan',
+      shortName: 'Vatan',
+      tagline: 'Demirören grubu ulusal gazete',
+      domain: 'gazetevatan.com',
+      brandColor: Color(0xFFFF3300),
+      primaryFeed: 'https://www.gazetevatan.com/rss/sondakika.xml',
+      categoryFeeds: {
+        'gundem': 'https://www.gazetevatan.com/rss/gundem.xml',
+        'ekonomi': 'https://www.gazetevatan.com/rss/ekonomi.xml',
+        'spor': 'https://www.gazetevatan.com/rss/spor.xml',
+        'dunya': 'https://www.gazetevatan.com/rss/dunya.xml',
+      },
+    ),
+
+    NewsSource(
+      id: 'turkiyegazetesi',
+      name: 'Türkiye Gazetesi',
+      shortName: 'Türkiye',
+      tagline: 'Muhafazakar günlük gazete',
+      domain: 'turkiyegazetesi.com.tr',
+      brandColor: Color(0xFF003366),
+      primaryFeed: 'https://www.turkiyegazetesi.com.tr/rss',
+      categoryFeeds: {
+        'gundem': 'https://www.turkiyegazetesi.com.tr/rss/gundem',
+        'ekonomi': 'https://www.turkiyegazetesi.com.tr/rss/ekonomi',
+        'spor': 'https://www.turkiyegazetesi.com.tr/rss/spor',
+      },
+    ),
+
+    // ───── Genel internet portalları ─────
+    NewsSource(
+      id: 'internethaber',
+      name: 'İnternethaber',
+      shortName: 'İnternethaber',
+      tagline: 'Geniş yelpazeli haber portalı',
+      domain: 'internethaber.com',
+      brandColor: Color(0xFFC62828),
+      primaryFeed: 'https://www.internethaber.com/rss',
+    ),
+
+    NewsSource(
+      id: 'nethaber',
+      name: 'Nethaber',
+      shortName: 'Nethaber',
+      tagline: 'Anlık haber ve gündem portalı',
+      domain: 'nethaber.com',
+      brandColor: Color(0xFF1565C0),
+      primaryFeed: 'https://www.nethaber.com/rss',
+    ),
+
+    // ───── Ekonomi / Finans ─────
+    // Yeni kullanıcının özellikle istediği finans kaynakları + sektörün
+    // önde gelen gazete/portalları. Bigpara Hürriyet bünyesinde olsa da
+    // içerik üretimi farklı, ayrı kaynak olarak listelendi.
+    NewsSource(
+      id: 'investingtr',
+      name: 'Investing.com Türkçe',
+      shortName: 'Investing TR',
+      tagline: 'Borsa, döviz, kripto ve emtia haberleri',
+      domain: 'tr.investing.com',
+      brandColor: Color(0xFF1F73B7),
+      primaryFeed: 'https://tr.investing.com/rss/news.rss',
+      categoryFeeds: {
+        // Investing'in `news_<id>.rss` pattern'ı her kategori için ayrı
+        // feed döndürüyor (web fetch ile teyit edildi, Mayıs 2026).
+        'ekonomi': 'https://tr.investing.com/rss/news.rss',
+        'finans': 'https://tr.investing.com/rss/news_357.rss', // Borsa
+      },
+      recommended: true,
+    ),
+
+    NewsSource(
+      id: 'bloomberght',
+      name: 'Bloomberg HT',
+      shortName: 'Bloomberg HT',
+      tagline: 'Türkiye\'nin uluslararası finans kanalı',
+      domain: 'bloomberght.com',
+      brandColor: Color(0xFFFA8C16),
+      primaryFeed: 'https://www.bloomberght.com/rss',
+      recommended: true,
+    ),
+
+    NewsSource(
+      id: 'dunyagazetesi',
+      name: 'Dünya Gazetesi',
+      shortName: 'Dünya',
+      tagline: 'Ekonomi ve iş dünyası gazetesi',
+      domain: 'dunya.com',
+      brandColor: Color(0xFF143263),
+      primaryFeed: 'https://www.dunya.com/rss',
+    ),
+
+    NewsSource(
+      id: 'bigpara',
+      name: 'Bigpara',
+      shortName: 'Bigpara',
+      tagline: 'Hürriyet bünyesinde finans portalı',
+      domain: 'bigpara.hurriyet.com.tr',
+      brandColor: Color(0xFF015B9F),
+      primaryFeed: 'https://bigpara.hurriyet.com.tr/rss/',
+    ),
+
+    NewsSource(
+      id: 'ekonomim',
+      name: 'Ekonomim',
+      shortName: 'Ekonomim',
+      tagline: 'Eski "Dünya online" — ekonomi haberleri',
+      domain: 'ekonomim.com',
+      brandColor: Color(0xFF1A3D7D),
+      primaryFeed: 'https://www.ekonomim.com/rss',
+    ),
+
+    // NOT: BirGün, Evrensel, Onedio, Haber7, Sporx, TGRT Haber, Yeni Akit,
+    // T24, Kanal 7, Patronlar Dünyası, Forbes Türkiye Mayıs 2026 itibariyle
+    // publik RSS yayını yapmıyor (404 ya da feed yerine HTML dönüyor).
+    // DHA ve İHA sadece kurumsal abonelikle veriliyor — `mobil_haber` demo
+    // aşamasında atlandılar.
 
     // ───── Teknoloji ─────
     NewsSource(
@@ -406,6 +616,37 @@ class NewsSourceCatalog {
       primaryFeed: 'https://www.donanimhaber.com/rss/tum/',
     ),
 
+    NewsSource(
+      id: 'webtekno',
+      name: 'Webtekno',
+      shortName: 'Webtekno',
+      tagline: 'Türkiye\'nin teknoloji ve bilim portalı',
+      domain: 'webtekno.com',
+      brandColor: Color(0xFF00C853),
+      primaryFeed: 'https://www.webtekno.com/rss.xml',
+      recommended: true,
+    ),
+
+    NewsSource(
+      id: 'chiponline',
+      name: 'CHIP Online',
+      shortName: 'CHIP',
+      tagline: 'Teknoloji incelemeleri ve dergi içeriği',
+      domain: 'chip.com.tr',
+      brandColor: Color(0xFFE60000),
+      primaryFeed: 'https://www.chip.com.tr/rss',
+    ),
+
+    NewsSource(
+      id: 'tamindir',
+      name: 'Tamindir',
+      shortName: 'Tamindir',
+      tagline: 'Teknoloji haberleri ve uygulama incelemeleri',
+      domain: 'tamindir.com',
+      brandColor: Color(0xFF4CAF50),
+      primaryFeed: 'https://www.tamindir.com/feed/',
+    ),
+
     // ───── Spor ─────
     NewsSource(
       id: 'fotomac',
@@ -415,6 +656,19 @@ class NewsSourceCatalog {
       domain: 'fotomac.com.tr',
       brandColor: Color(0xFF1E88E5),
       primaryFeed: 'https://www.fotomac.com.tr/rss/anasayfa.xml',
+    ),
+
+    NewsSource(
+      id: 'aspor',
+      name: 'A Spor',
+      shortName: 'A Spor',
+      tagline: 'Futbol, basketbol ve diğer spor branşları',
+      domain: 'aspor.com.tr',
+      brandColor: Color(0xFFE30613),
+      primaryFeed: 'https://www.aspor.com.tr/rss/anasayfa.xml',
+      categoryFeeds: {
+        'spor': 'https://www.aspor.com.tr/rss/futbol.xml',
+      },
     ),
 
     // ───── Genel / magazin ─────
