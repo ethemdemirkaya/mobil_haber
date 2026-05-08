@@ -448,6 +448,121 @@ class NewsSourceCatalog {
       primaryFeed: 'https://www.takvim.com.tr/rss/anasayfa.xml',
     ),
 
+    // ───── A Haber (TV + portal) ─────
+    NewsSource(
+      id: 'ahaber',
+      name: 'A Haber',
+      shortName: 'A Haber',
+      tagline: 'Türkiye\'nin ilk HD haber kanalı',
+      domain: 'ahaber.com.tr',
+      brandColor: Color(0xFFE30613),
+      primaryFeed: 'https://www.ahaber.com.tr/rss/news.xml',
+      categoryFeeds: {
+        'gundem': 'https://www.ahaber.com.tr/rss/gundem.xml',
+        'ekonomi': 'https://www.ahaber.com.tr/rss/ekonomi.xml',
+        'spor': 'https://www.ahaber.com.tr/rss/spor.xml',
+        'dunya': 'https://www.ahaber.com.tr/rss/dunya.xml',
+        'teknoloji': 'https://www.ahaber.com.tr/rss/teknoloji.xml',
+        'yasam': 'https://www.ahaber.com.tr/rss/yasam.xml',
+      },
+      recommended: true,
+    ),
+
+    // ───── Star ─────
+    NewsSource(
+      id: 'star',
+      name: 'Star',
+      shortName: 'Star',
+      tagline: 'Genel haber portalı',
+      domain: 'star.com.tr',
+      brandColor: Color(0xFF003366),
+      primaryFeed: 'https://www.star.com.tr/rss/rss.asp',
+    ),
+
+    // ───── Bianet — bağımsız iletişim ağı ─────
+    NewsSource(
+      id: 'bianet',
+      name: 'Bianet',
+      shortName: 'Bianet',
+      tagline: 'Bağımsız iletişim ağı — insan hakları odaklı',
+      domain: 'bianet.org',
+      brandColor: Color(0xFF008C8C),
+      primaryFeed: 'https://bianet.org/bianet.rss',
+      categoryFeeds: {
+        'kultur': 'https://bianet.org/biamag.rss',
+        'sanat': 'https://bianet.org/biamag.rss',
+      },
+    ),
+
+    // ───── Mynet ─────
+    NewsSource(
+      id: 'mynet',
+      name: 'Mynet',
+      shortName: 'Mynet',
+      tagline: 'Türkiye\'nin internet portalı',
+      domain: 'mynet.com',
+      brandColor: Color(0xFFE2231A),
+      primaryFeed: 'https://www.mynet.com/haber/rss/sondakika',
+    ),
+
+    // ───── Haber Global ─────
+    NewsSource(
+      id: 'haberglobal',
+      name: 'Haber Global',
+      shortName: 'Haber Global',
+      tagline: 'Küresel haber kanalı',
+      domain: 'haberglobal.com.tr',
+      brandColor: Color(0xFF0093D0),
+      primaryFeed: 'https://haberglobal.com.tr/rss',
+    ),
+
+    // ───── Habertürk Genç ─────
+    NewsSource(
+      id: 'haberturkgenc',
+      name: 'Habertürk Genç',
+      shortName: 'HT Genç',
+      tagline: 'Gençlere özel içerik akışı',
+      domain: 'haberturk.com',
+      brandColor: Color(0xFFFF6F00),
+      primaryFeed: 'https://www.haberturk.com/rss/genc.xml',
+    ),
+
+    // ───── Uluslararası TR-English (Türkiye haberlerine yabancı bakış) ─────
+    NewsSource(
+      id: 'dailysabah',
+      name: 'Daily Sabah',
+      shortName: 'Daily Sabah',
+      tagline: 'Turkey\'s English-language daily',
+      domain: 'dailysabah.com',
+      brandColor: Color(0xFFCC0000),
+      primaryFeed: 'https://www.dailysabah.com/rss/homepage.xml',
+      language: 'en',
+      categoryFeeds: {
+        'gundem': 'https://www.dailysabah.com/rss/category/politics',
+      },
+    ),
+
+    NewsSource(
+      id: 'hurriyetdaily',
+      name: 'Hürriyet Daily News',
+      shortName: 'HDN',
+      tagline: 'Turkey in English — Hürriyet\'s int\'l edition',
+      domain: 'hurriyetdailynews.com',
+      brandColor: Color(0xFFE30613),
+      primaryFeed: 'https://www.hurriyetdailynews.com/rss',
+      language: 'en',
+    ),
+
+    NewsSource(
+      id: 'aaenglish',
+      name: 'AA English',
+      shortName: 'AA EN',
+      tagline: 'Anadolu Agency English service',
+      domain: 'aa.com.tr',
+      brandColor: Color(0xFF002B5C),
+      primaryFeed: 'https://www.aa.com.tr/en/rss/default?cat=guncel',
+      language: 'en',
+    ),
   ];
 
   static NewsSource? byId(String id) {

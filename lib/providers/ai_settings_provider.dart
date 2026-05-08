@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/ai/openrouter_client.dart';
 import '../data/models/article.dart';
+import '../data/models/bias_report.dart';
 import '../data/repositories/ai_summary_service.dart';
 import '../data/repositories/openrouter_models_repository.dart';
 
@@ -154,8 +155,17 @@ class AiSettingsProvider extends ChangeNotifier {
   /// articleId → özet metni
   final Map<String, String> _cache = <String, String>{};
 
+  /// articleId → bias raporu (kalıcı, JSON olarak SharedPreferences).
+  final Map<String, BiasReport> _biasCache = <String, BiasReport>{};
+
+  /// "${articleId}::${question}" → cevap. In-memory only — kullanıcı her
+  /// soru her oturumda taze çağrılsın diye.
+  final Map<String, String> _qaCache = <String, String>{};
+
   /// Aktif çağrı durumu — UI loading indicator için. Aynı anda 1 çağrı.
   String? _loadingArticleId;
+  String? _loadingBiasId;
+  String? _loadingQaId;
   String? _lastError;
 
   static const String _prefsEnabled = 'pref_ai_enabled';
@@ -163,6 +173,7 @@ class AiSettingsProvider extends ChangeNotifier {
   static const String _prefsKeyMode = 'pref_ai_key_mode';
   static const String _prefsModel = 'pref_ai_model';
   static const String _prefsCache = 'pref_ai_cache';
+  static const String _prefsBiasCache = 'pref_ai_bias_cache';
   static const String _prefsTtsEngine = 'pref_ai_tts_engine';
   static const String _prefsOpenaiTtsKey = 'pref_ai_openai_tts_key';
   static const String _prefsOpenaiTtsVoice = 'pref_ai_openai_tts_voice';
@@ -331,6 +342,21 @@ class AiSettingsProvider extends ChangeNotifier {
   /// Belirli bir makale için cache'lenmiş özet (yoksa null).
   String? cachedSummary(String articleId) => _cache[articleId];
 
+  /// Cache'lenmiş bias raporu — yoksa null. Yeniden çağırma ücret
+  /// üretmesin diye kalıcı cache'liyoruz.
+  BiasReport? cachedBias(String articleId) => _biasCache[articleId];
+
+  /// In-memory Q&A cache. Aynı oturumda tekrar açılırsa hızlıca dönsün
+  /// diye. Kalıcı değil — token israfını önlemek için disk'e yazmıyoruz.
+  String? cachedAnswer(String articleId, String question) =>
+      _qaCache['$articleId::${question.trim()}'];
+
+  /// Aktif bias çağrısının makale id'si — UI loading state.
+  String? get loadingBiasId => _loadingBiasId;
+
+  /// Aktif Q&A çağrısının makale id'si — UI loading state.
+  String? get loadingQaId => _loadingQaId;
+
   /// Kullanıcıya bu makale için "Özetle" butonu gösterilmeli mi?
   bool isReady() => _enabled && hasAnyKey && _modelId.isNotEmpty;
 
@@ -385,6 +411,23 @@ class AiSettingsProvider extends ChangeNotifier {
           _cache.clear();
           decoded.forEach((k, v) {
             if (k is String && v is String) _cache[k] = v;
+          });
+        }
+      } catch (_) {
+        // Bozuk cache: yok say.
+      }
+    }
+    final biasRaw = prefs.getString(_prefsBiasCache);
+    if (biasRaw != null && biasRaw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(biasRaw);
+        if (decoded is Map) {
+          _biasCache.clear();
+          decoded.forEach((k, v) {
+            if (k is String) {
+              final report = BiasReport.tryParse(v);
+              if (report != null) _biasCache[k] = report;
+            }
           });
         }
       } catch (_) {
@@ -471,6 +514,13 @@ class AiSettingsProvider extends ChangeNotifier {
   Future<void> _persistCache() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefsCache, jsonEncode(_cache));
+  }
+
+  Future<void> _persistBiasCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    final m = <String, Object?>{};
+    _biasCache.forEach((k, v) => m[k] = v.toJson());
+    await prefs.setString(_prefsBiasCache, jsonEncode(m));
   }
 
   // ─────────── Setters ───────────
@@ -612,4 +662,187 @@ class AiSettingsProvider extends ChangeNotifier {
       maxTokens: maxTokens,
     );
   }
+
+  // ─────────── Bias / Yönlülük Analizi ───────────
+  /// Bir makaleyi LLM ile bias açısından analiz eder. Cache'lidir; aynı
+  /// makale için ikinci çağrı diskten döner. `force=true` yeniden hesaplatır.
+  ///
+  /// **Not:** Bias detection ≠ fact checking. Burada sadece **dil
+  /// özellikleri** (duygu yüklü kelime, tek-perspektif, yorum) puanlanır;
+  /// içeriğin doğruluğu test edilmez.
+  Future<BiasReport?> analyzeBias(Article article, {bool force = false}) async {
+    if (!force && _biasCache.containsKey(article.id)) {
+      return _biasCache[article.id];
+    }
+    if (!isReady()) {
+      _lastError =
+          'Yapay zeka kapalı veya API anahtarı/model eksik — Ayarlar > Yapay Zeka.';
+      notifyListeners();
+      return null;
+    }
+    _loadingBiasId = article.id;
+    _lastError = null;
+    notifyListeners();
+    try {
+      final raw = await _service.generate(
+        apiKey: effectiveApiKey,
+        model: _modelId,
+        systemPrompt: _biasSystemPrompt,
+        userPrompt: _composeBiasUserPrompt(article),
+        maxTokens: 400,
+      );
+      final report = _parseBiasJson(raw);
+      if (report == null) {
+        _lastError = 'Yönlülük analizi anlaşılamadı (geçersiz JSON).';
+      } else {
+        _biasCache[article.id] = report;
+        // ignore: unawaited_futures
+        _persistBiasCache();
+      }
+      return report;
+    } on OpenRouterException catch (e) {
+      _lastError = e.message;
+      return null;
+    } catch (e) {
+      _lastError = 'Beklenmeyen hata: $e';
+      return null;
+    } finally {
+      _loadingBiasId = null;
+      notifyListeners();
+    }
+  }
+
+  static const String _biasSystemPrompt = '''
+Sen Türkçe haber metinlerinde dil yönlülüğü tespit eden bir analizcisin.
+Görevin SADECE manşetin/metnin dil özelliklerini değerlendirmektir
+— olgu doğruluğunu değil.
+
+Sinyaller:
+- Duygu yüklü kelimeler (rezalet, skandal, muhteşem)
+- Yorum içeren ifadeler (açıkça başarısız oldu)
+- Tek perspektif (karşı tarafa söz hakkı vermeyen anlatım)
+- Mübalağa, vurgulu ünlem, BÜYÜK HARF
+- Yan tutan sıfatlar (sözde, güya)
+
+Çıktı SADECE şu JSON formatında olmalı (başka metin yok):
+{
+  "score": 0-100 arası tam sayı,
+  "label": "Nötr" | "Hafif yönlü" | "Belirgin yönlü" | "Yüksek yönlü",
+  "cues": ["max 5 kısa örnek ifade"],
+  "summary": "1-2 cümle nesnel açıklama"
+}
+
+Skor bantları:
+- 0-25: Nötr
+- 26-50: Hafif yönlü
+- 51-75: Belirgin yönlü
+- 76-100: Yüksek yönlü
+''';
+
+  String _composeBiasUserPrompt(Article article) {
+    final body = article.content.trim().isNotEmpty
+        ? (article.content.length > 1500
+            ? '${article.content.substring(0, 1500)}…'
+            : article.content)
+        : article.summary;
+    return '''
+KAYNAK: ${article.sourceName.isNotEmpty ? article.sourceName : "Bilinmeyen"}
+MANŞET: ${article.title}
+İÇERİK:
+$body
+
+Yukarıdaki haber metninin dil yönlülüğünü değerlendir.
+Yalnızca JSON döndür.
+''';
+  }
+
+  BiasReport? _parseBiasJson(String raw) {
+    final cleaned = _stripCodeFence(raw).trim();
+    final start = cleaned.indexOf('{');
+    final end = cleaned.lastIndexOf('}');
+    if (start < 0 || end <= start) return null;
+    final jsonStr = cleaned.substring(start, end + 1);
+    try {
+      final decoded = jsonDecode(jsonStr);
+      return BiasReport.tryParse(decoded);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _stripCodeFence(String s) {
+    final fence = RegExp(r'```(?:json)?\s*([\s\S]*?)\s*```');
+    final m = fence.firstMatch(s);
+    return m != null ? m.group(1)! : s;
+  }
+
+  // ─────────── Haber Asistanı (Q&A) ───────────
+  /// Bir makale hakkında kullanıcının özgürce sorduğu soruya cevap.
+  /// In-memory cache'lidir (id+question key); kalıcı değildir.
+  Future<String?> askQuestion(Article article, String question) async {
+    final q = question.trim();
+    if (q.isEmpty) return null;
+    final cacheKey = '${article.id}::$q';
+    final cached = _qaCache[cacheKey];
+    if (cached != null) return cached;
+    if (!isReady()) {
+      _lastError =
+          'Yapay zeka kapalı veya API anahtarı/model eksik — Ayarlar > Yapay Zeka.';
+      notifyListeners();
+      return null;
+    }
+    _loadingQaId = article.id;
+    _lastError = null;
+    notifyListeners();
+    try {
+      final body = article.content.trim().isNotEmpty
+          ? (article.content.length > 2500
+              ? '${article.content.substring(0, 2500)}…'
+              : article.content)
+          : article.summary;
+      final answer = await _service.generate(
+        apiKey: effectiveApiKey,
+        model: _modelId,
+        systemPrompt: _qaSystemPrompt,
+        userPrompt: '''
+HABER BAŞLIK: ${article.title}
+KAYNAK: ${article.sourceName.isNotEmpty ? article.sourceName : "Bilinmeyen"}
+
+HABER METNİ:
+$body
+
+KULLANICI SORUSU:
+$q
+
+Lütfen yukarıdaki kurallara uyarak yanıtla.
+''',
+        maxTokens: 600,
+      );
+      _qaCache[cacheKey] = answer;
+      return answer;
+    } on OpenRouterException catch (e) {
+      _lastError = e.message;
+      return null;
+    } catch (e) {
+      _lastError = 'Beklenmeyen hata: $e';
+      return null;
+    } finally {
+      _loadingQaId = null;
+      notifyListeners();
+    }
+  }
+
+  static const String _qaSystemPrompt = '''
+Sen Türkçe haber okuma asistanısın. Kullanıcının verilen haber metni
+hakkındaki sorusunu yanıtlarsın.
+
+Kurallar:
+- Sadece verilen haber metnindeki bilgilere dayan; metinde yoksa
+  "Bu bilgi haber metninde geçmiyor" de.
+- 100 kelimeyi geçme — kısa ve net.
+- Spekülasyon, yorum, tahmin yapma.
+- Sayıları ve özel isimleri olduğu gibi koru.
+- Türkçe yanıtla.
+- Madde işareti ya da başlık koyma — düz metin yaz.
+''';
 }

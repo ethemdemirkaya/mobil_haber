@@ -8,9 +8,9 @@ import '../providers/news_provider.dart';
 import '../providers/preferences_provider.dart';
 import 'bookmarks/bookmarks_screen.dart';
 import 'briefing/daily_briefing_screen.dart';
+import 'cluster/cluster_screen.dart';
 import 'home/home_screen.dart';
 import 'personalized/personalized_feed_screen.dart';
-import 'search/search_screen.dart';
 import 'settings/settings_screen.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -25,8 +25,8 @@ class _MainNavigationState extends State<MainNavigation> {
 
   static const List<Widget> _screens = [
     HomeScreen(),
+    ClusterScreen(),
     PersonalizedFeedScreen(),
-    SearchScreen(),
     BookmarksScreen(),
     SettingsScreen(),
   ];
@@ -103,14 +103,14 @@ class _MainNavigationState extends State<MainNavigation> {
             label: 'Ana Sayfa',
           ),
           const NavigationDestination(
+            icon: Icon(Icons.hub_outlined),
+            selectedIcon: Icon(Icons.hub),
+            label: 'Çapraz Bakış',
+          ),
+          const NavigationDestination(
             icon: Icon(Icons.tune_outlined),
             selectedIcon: Icon(Icons.tune),
             label: 'Sana Özel',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.search_outlined),
-            selectedIcon: Icon(Icons.search),
-            label: 'Arama',
           ),
           NavigationDestination(
             icon: Badge(

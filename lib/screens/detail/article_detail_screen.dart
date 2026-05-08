@@ -17,7 +17,9 @@ import '../../providers/reading_progress_provider.dart';
 import '../../providers/reading_theme_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../widgets/article_image.dart';
+import '../../widgets/article_qa_sheet.dart';
 import '../../widgets/author_profile_sheet.dart';
+import '../../widgets/bias_indicator.dart';
 import '../../widgets/section_header.dart';
 import '../settings/ai_settings_screen.dart';
 
@@ -305,6 +307,15 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: _ScrimIconButton(
+                      icon: Icons.psychology_alt_rounded,
+                      tooltip: 'Haber Asistanı',
+                      onTap: () => ArticleQaSheet.show(context, article),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: _ScrimIconButton(
                       icon: Icons.text_fields_rounded,
                       tooltip: 'Okuma seçenekleri',
                       onTap: _showReadingOptions,
@@ -536,6 +547,25 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                         isSepia: isSepia,
                         sepiaText: sepiaText,
                       ),
+                      const SizedBox(height: 6),
+                      // Yönlülük analizi — manşetin dil tarafsızlığı.
+                      // Margin sıfırla çünkü zaten parent'ta padding var.
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 0),
+                        child: Transform.translate(
+                          offset: const Offset(-16, 0),
+                          child: SizedBox(
+                            width: MediaQuery.of(context).size.width,
+                            child: BiasIndicator(article: article),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      // Haber asistanı CTA — alt kenarda zarif promo
+                      _AskAiCta(
+                        article: article,
+                        accent: cat.color,
+                      ),
                       const SizedBox(height: 18),
                       // CTA artık sticky alt kenarda — burada yalnızca
                       // harici kaynak yoksa bilgi rozeti gösteriliyor.
@@ -700,6 +730,85 @@ class _OriginalLinkCta extends StatelessWidget {
                   ),
                 ),
               ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Bu haber hakkında AI'ya sor" CTA — özet bölümünün altında
+/// gösterilen, dikkat çekici ama hafif bir promo. Tıklayınca
+/// `ArticleQaSheet` bottom sheet'i açar.
+class _AskAiCta extends StatelessWidget {
+  const _AskAiCta({required this.article, required this.accent});
+
+  final Article article;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => ArticleQaSheet.show(context, article),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                accent.withValues(alpha: 0.13),
+                accent.withValues(alpha: 0.04),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: accent.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.18),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.psychology_alt,
+                    size: 19, color: accent),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Bu haberi AI\'ya sor',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13.5,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                    Text(
+                      'TL;DR, neden önemli, çocuğa nasıl anlatılır…',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: cs.onSurfaceVariant,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: accent),
             ],
           ),
         ),
