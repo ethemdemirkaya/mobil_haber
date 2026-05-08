@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -132,6 +133,10 @@ class AiSettingsProvider extends ChangeNotifier {
   String? _modelsError;
 
   bool _initialized = false;
+  // SharedPreferences yüklemesi tamamlanınca complete edilir. Beklemek
+  // isteyen ekranlar (ör. DailyBriefingScreen) `whenInitialized`'i await
+  // eder — polling yerine event-driven bekleme.
+  final Completer<void> _initCompleter = Completer<void>();
   bool _enabled = false;
   String _apiKey = '';
   String _modelId = defaultModelId;
@@ -251,6 +256,10 @@ class AiSettingsProvider extends ChangeNotifier {
 
   // ─────────── Getters ───────────
   bool get initialized => _initialized;
+
+  /// SharedPreferences yüklemesi tamamlandığında resolve olan future.
+  /// Polling alternatifi — splash veya brifing init bunu bekler.
+  Future<void> get whenInitialized => _initCompleter.future;
   bool get enabled => _enabled;
 
   /// Kullanıcının Ayarlar'dan girdiği anahtar. Build-time default'tan ayrı.
@@ -308,6 +317,7 @@ class AiSettingsProvider extends ChangeNotifier {
   }
 
   String? get loadingArticleId => _loadingArticleId;
+  bool isLoadingFor(String articleId) => _loadingArticleId == articleId;
   String? get lastError => _lastError;
 
   // ─── Live OpenRouter modeller ───
@@ -435,6 +445,7 @@ class AiSettingsProvider extends ChangeNotifier {
       }
     }
     _initialized = true;
+    if (!_initCompleter.isCompleted) _initCompleter.complete();
     notifyListeners();
   }
 

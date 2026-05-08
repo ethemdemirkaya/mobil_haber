@@ -52,6 +52,10 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   StreamSubscription<void>? _audioCompleteSub;
   StreamSubscription<BriefingLockAction>? _lockActionSub;
   MarketSnapshot? _market;
+  // Aktif OpenAI playback'in completer'ı. Pause/stop bunu manuel olarak
+  // complete eder; aksi halde subscription cancel edilince completer
+  // resolved olmaz ve `await` 3 dk timeout'a kadar asılır.
+  Completer<void>? _openaiPlaybackCompleter;
 
   /// Lock-screen kontrolü için audio_service handler'ı varsa onun
   /// player'ını kullanırız (notification'a state yansır); yoksa local
@@ -73,7 +77,15 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   bool _speaking = false;
   bool _paused = false;
   double _speechRate = 0.50; // 0.0-1.0; flutter_tts'te 0.5 ≈ normal hız
-  static const double _pitch = 1.0;
+  // Ton ayarı: 0.5 (kalın) — 2.0 (ince), 1.0 = nötr.
+  double _pitch = 1.0;
+
+  // ─── Uyku zamanlayıcısı ───
+  // Belirlenen sürenin sonunda playback otomatik durur. UI dropdown'unda
+  // "Kapalı / 15 / 30 / 60 dk" seçilebilir; null = kapalı.
+  Timer? _sleepTimer;
+  Duration? _sleepDuration;
+  DateTime? _sleepEndsAt;
 
   // Cümle parçaları + ilerleme.
   List<String> _utterances = const [];
@@ -160,15 +172,17 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   }
 
   /// AiSettingsProvider'ın SharedPreferences'dan _load() tamamlamasını
-  /// bekle. Default 1.5 sn sonra timeout — splash gibi sonsuz polling
-  /// yapmasın.
+  /// bekle. Polling yerine provider'ın `whenInitialized` Completer'ına
+  /// abone oluyoruz — pil/CPU israfı yok. Provider takılırsa 2 sn'lik
+  /// timeout splash'a sıkışmamızı engeller.
   Future<void> _waitForAiInit() async {
     final ai = context.read<AiSettingsProvider>();
-    final deadline =
-        DateTime.now().add(const Duration(milliseconds: 1500));
-    while (!ai.initialized && DateTime.now().isBefore(deadline)) {
-      await Future<void>.delayed(const Duration(milliseconds: 30));
-      if (!mounted) return;
+    if (ai.initialized) return;
+    try {
+      await ai.whenInitialized
+          .timeout(const Duration(milliseconds: 2000));
+    } on TimeoutException {
+      debugPrint('[Pusula][Briefing] AI init timeout — devam ediliyor');
     }
   }
 
@@ -378,8 +392,42 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     _tts.stop();
     _audioCompleteSub?.cancel();
     _lockActionSub?.cancel();
+    _sleepTimer?.cancel();
     _localAudioPlayer.dispose();
     super.dispose();
+  }
+
+  /// Uyku zamanlayıcısını ayarlar. null = iptal et.
+  void _setSleepTimer(Duration? duration) {
+    _sleepTimer?.cancel();
+    if (duration == null) {
+      setState(() {
+        _sleepTimer = null;
+        _sleepDuration = null;
+        _sleepEndsAt = null;
+      });
+      return;
+    }
+    setState(() {
+      _sleepDuration = duration;
+      _sleepEndsAt = DateTime.now().add(duration);
+      _sleepTimer = Timer(duration, () async {
+        if (!mounted) return;
+        await _stop();
+        if (!mounted) return;
+        setState(() {
+          _sleepTimer = null;
+          _sleepDuration = null;
+          _sleepEndsAt = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Uyku zamanlayıcısı sona erdi.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      });
+    });
   }
 
   /// Ayarlardan seçili motor — UI build sırasında okunup playback'te
@@ -621,8 +669,11 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     }
 
     // 3) Çal + sonraki cümleye geç completion ile.
+    // Race fix: `_openaiPlaybackCompleter` state field; pause/stop bunu
+    // manuel complete edince `await` hemen sonlanır, 3 dk asılı kalmaz.
     await _audioCompleteSub?.cancel();
     final completer = Completer<void>();
+    _openaiPlaybackCompleter = completer;
     _audioCompleteSub = _audioPlayer.onPlayerComplete.listen((_) {
       if (!completer.isCompleted) completer.complete();
     });
@@ -638,6 +689,10 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     } finally {
       await _audioCompleteSub?.cancel();
       _audioCompleteSub = null;
+      // Aynı completer artık aktif değil — referansı temizle.
+      if (identical(_openaiPlaybackCompleter, completer)) {
+        _openaiPlaybackCompleter = null;
+      }
     }
   }
 
@@ -658,7 +713,10 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     setState(() => _paused = true);
     if (_activeEngine == TtsEngineKind.openai) {
       await _audioPlayer.stop();
-      // Completer'ı tetikle ki döngü break etsin.
+      // Aktif completer'ı manuel complete et — `_speakViaOpenAi`'deki
+      // `await completer.future` döner, döngü `_paused` üzerinden break eder.
+      final c = _openaiPlaybackCompleter;
+      if (c != null && !c.isCompleted) c.complete();
       _audioCompleteSub?.cancel();
       _audioCompleteSub = null;
     } else {
@@ -675,6 +733,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     });
     if (_activeEngine == TtsEngineKind.openai) {
       await _audioPlayer.stop();
+      final c = _openaiPlaybackCompleter;
+      if (c != null && !c.isCompleted) c.complete();
       _audioCompleteSub?.cancel();
       _audioCompleteSub = null;
     } else {
@@ -744,6 +804,34 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
       appBar: AppBar(
         title: const Text('Sesli Brifing'),
         actions: [
+          // Uyku zamanlayıcısı menüsü — saat ikonu, aktifse rengi değişir.
+          PopupMenuButton<int>(
+            tooltip: _sleepDuration == null
+                ? 'Uyku zamanlayıcısı'
+                : 'Uyku: ${_sleepDuration!.inMinutes} dk',
+            icon: Icon(
+              _sleepDuration == null
+                  ? Icons.bedtime_outlined
+                  : Icons.bedtime,
+              color: _sleepDuration == null
+                  ? null
+                  : Theme.of(context).colorScheme.primary,
+            ),
+            onSelected: (minutes) {
+              HapticFeedback.selectionClick();
+              if (minutes == 0) {
+                _setSleepTimer(null);
+              } else {
+                _setSleepTimer(Duration(minutes: minutes));
+              }
+            },
+            itemBuilder: (ctx) => [
+              const PopupMenuItem(value: 0, child: Text('Kapalı')),
+              const PopupMenuItem(value: 15, child: Text('15 dakika')),
+              const PopupMenuItem(value: 30, child: Text('30 dakika')),
+              const PopupMenuItem(value: 60, child: Text('1 saat')),
+            ],
+          ),
           IconButton(
             tooltip: 'Bu konu için yeniden oluştur',
             onPressed: _generating ? null : _refresh,
@@ -793,6 +881,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
                       (_activeEngine == TtsEngineKind.openai &&
                           context.watch<AiSettingsProvider>().hasOpenaiTtsKey)),
               speechRate: _speechRate,
+              pitch: _pitch,
+              sleepEndsAt: _sleepEndsAt,
               progress: _utterances.isEmpty
                   ? 0.0
                   : (_utteranceIndex / _utterances.length).clamp(0.0, 1.0),
@@ -808,6 +898,14 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
                   await _tts.stop();
                   await _play();
                 }
+              },
+              onPitchChanged: (p) async {
+                setState(() => _pitch = p);
+                await _safeCall(
+                    'setPitch', () async => _tts.setPitch(p));
+                // Sistem TTS ses tonunu hot-update etmez; konuşma sürerken
+                // şu anki cümleyi durdurup tekrar başlatmak yerine
+                // kullanıcıya bir sonraki cümleden itibaren etki etsin.
               },
             ),
           ],
@@ -1105,34 +1203,91 @@ class _HighlightedText extends StatelessWidget {
   }
 }
 
-class _PlayerBar extends StatelessWidget {
+class _PlayerBar extends StatefulWidget {
   const _PlayerBar({
     required this.speaking,
     required this.paused,
     required this.hasBriefing,
     required this.speechRate,
+    required this.pitch,
+    required this.sleepEndsAt,
     required this.progress,
     required this.onPlay,
     required this.onPause,
     required this.onStop,
     required this.onRestart,
     required this.onRateChanged,
+    required this.onPitchChanged,
   });
 
   final bool speaking;
   final bool paused;
   final bool hasBriefing;
   final double speechRate;
+  final double pitch;
+  final DateTime? sleepEndsAt;
   final double progress;
   final VoidCallback onPlay;
   final VoidCallback onPause;
   final VoidCallback onStop;
   final VoidCallback onRestart;
   final ValueChanged<double> onRateChanged;
+  final ValueChanged<double> onPitchChanged;
+
+  @override
+  State<_PlayerBar> createState() => _PlayerBarState();
+}
+
+class _PlayerBarState extends State<_PlayerBar> {
+  // Gelişmiş kontroller (pitch) varsayılanda kapalı; expand'te açılır.
+  bool _showAdvanced = false;
+  // Uyku zamanlayıcısı kalan süre tickeri.
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _maybeStartTicker();
+  }
+
+  @override
+  void didUpdateWidget(covariant _PlayerBar old) {
+    super.didUpdateWidget(old);
+    if (widget.sleepEndsAt != old.sleepEndsAt) {
+      _ticker?.cancel();
+      _ticker = null;
+      _maybeStartTicker();
+    }
+  }
+
+  void _maybeStartTicker() {
+    if (widget.sleepEndsAt == null) return;
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  String _sleepCountdown() {
+    final ends = widget.sleepEndsAt;
+    if (ends == null) return '';
+    final remaining = ends.difference(DateTime.now());
+    if (remaining.isNegative) return '';
+    final m = remaining.inMinutes;
+    final s = remaining.inSeconds % 60;
+    return '${m.toString().padLeft(2, '0')}:'
+        '${s.toString().padLeft(2, '0')}';
+  }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final sleepText = _sleepCountdown();
     return Container(
       decoration: BoxDecoration(
         color: cs.surface,
@@ -1148,19 +1303,38 @@ class _PlayerBar extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(2),
             child: LinearProgressIndicator(
-              value: progress,
+              value: widget.progress,
               minHeight: 3,
               backgroundColor: cs.outlineVariant.withValues(alpha: 0.4),
               valueColor: AlwaysStoppedAnimation(cs.primary),
             ),
           ),
+          if (sleepText.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.bedtime, size: 13, color: cs.primary),
+                const SizedBox(width: 4),
+                Text(
+                  'Uyku: $sleepText',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: cs.primary,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 10),
           Row(
             children: [
               Icon(Icons.speed, size: 16, color: cs.onSurfaceVariant),
               const SizedBox(width: 6),
               Text(
-                'Hız: ${_rateLabel(speechRate)}',
+                'Hız: ${_rateLabel(widget.speechRate)}',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -1169,21 +1343,70 @@ class _PlayerBar extends StatelessWidget {
               ),
               Expanded(
                 child: Slider(
-                  value: speechRate,
+                  value: widget.speechRate,
                   min: 0.30,
                   max: 0.70,
                   divisions: 8,
-                  onChanged: hasBriefing ? onRateChanged : null,
+                  onChanged: widget.hasBriefing ? widget.onRateChanged : null,
+                ),
+              ),
+              IconButton(
+                tooltip: _showAdvanced
+                    ? 'Gelişmiş ayarları gizle'
+                    : 'Ton ayarı',
+                iconSize: 18,
+                visualDensity: VisualDensity.compact,
+                onPressed: () => setState(
+                  () => _showAdvanced = !_showAdvanced,
+                ),
+                icon: Icon(
+                  _showAdvanced
+                      ? Icons.tune
+                      : Icons.tune_outlined,
+                  color: _showAdvanced ? cs.primary : cs.onSurfaceVariant,
                 ),
               ),
             ],
+          ),
+          // Gelişmiş: ton (pitch) sürgüsü.
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            child: _showAdvanced
+                ? Row(
+                    children: [
+                      Icon(Icons.graphic_eq,
+                          size: 16, color: cs.onSurfaceVariant),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Ton: ${_pitchLabel(widget.pitch)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                      Expanded(
+                        child: Slider(
+                          value: widget.pitch,
+                          min: 0.5,
+                          max: 1.8,
+                          divisions: 13,
+                          onChanged: widget.hasBriefing
+                              ? widget.onPitchChanged
+                              : null,
+                        ),
+                      ),
+                    ],
+                  )
+                : const SizedBox.shrink(),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton.filledTonal(
                 tooltip: 'Durdur',
-                onPressed: hasBriefing ? onStop : null,
+                onPressed: widget.hasBriefing ? widget.onStop : null,
                 icon: const Icon(Icons.stop_rounded),
               ),
               const SizedBox(width: 14),
@@ -1195,11 +1418,11 @@ class _PlayerBar extends StatelessWidget {
                     shape: const CircleBorder(),
                     padding: EdgeInsets.zero,
                   ),
-                  onPressed: !hasBriefing
+                  onPressed: !widget.hasBriefing
                       ? null
-                      : (speaking ? onPause : onPlay),
+                      : (widget.speaking ? widget.onPause : widget.onPlay),
                   child: Icon(
-                    speaking
+                    widget.speaking
                         ? Icons.pause_rounded
                         : Icons.play_arrow_rounded,
                     size: 32,
@@ -1209,7 +1432,7 @@ class _PlayerBar extends StatelessWidget {
               const SizedBox(width: 14),
               IconButton.filledTonal(
                 tooltip: 'Yeniden başlat',
-                onPressed: hasBriefing ? onRestart : null,
+                onPressed: widget.hasBriefing ? widget.onRestart : null,
                 icon: const Icon(Icons.replay_rounded),
               ),
             ],
@@ -1225,5 +1448,13 @@ class _PlayerBar extends StatelessWidget {
     if (r <= 0.55) return 'Normal';
     if (r <= 0.62) return 'Hızlı';
     return 'Çok hızlı';
+  }
+
+  String _pitchLabel(double p) {
+    if (p <= 0.7) return 'Çok kalın';
+    if (p <= 0.9) return 'Kalın';
+    if (p <= 1.1) return 'Nötr';
+    if (p <= 1.4) return 'İnce';
+    return 'Çok ince';
   }
 }

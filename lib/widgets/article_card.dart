@@ -5,6 +5,7 @@ import '../core/utils/date_formatter.dart';
 import '../data/models/article.dart';
 import '../providers/bookmark_provider.dart';
 import '../providers/keyword_filter_provider.dart';
+import '../providers/news_provider.dart';
 import '../providers/reading_history_provider.dart';
 import '../providers/reading_theme_provider.dart';
 import 'article_image.dart';
@@ -33,12 +34,30 @@ class ArticleCard extends StatelessWidget {
     final compact = context.select<ReadingThemeProvider, bool>(
       (t) => t.isCompact,
     );
+    // Çoklu-kaynak gündem rozetinin görünürlüğü için sadece trending
+    // bilgisini select et — tüm liste değişiminde rebuild olmasın.
+    final trendingSources = context.select<NewsProvider, int>(
+      (n) => n.trendingSourceCount(article.id),
+    );
 
     final imageSize = compact ? 80.0 : 124.0;
     final imageHeight = compact ? 66.0 : 100.0;
     final verticalPad = compact ? 10.0 : 14.0;
 
-    return Material(
+    // Erişilebilirlik: ekran okuyucu için tek-cümlelik özet.
+    final semanticsLabel = [
+      cat.name,
+      article.title,
+      if (article.sourceName.isNotEmpty) 'kaynak ${article.sourceName}',
+      DateFormatter.relative(article.publishedAt),
+      if (trendingSources >= 2) '$trendingSources kaynakta gündem',
+      if (wasRead) 'okundu',
+    ].join(', ');
+
+    return Semantics(
+      button: true,
+      label: semanticsLabel,
+      child: Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
@@ -112,6 +131,10 @@ class ArticleCard extends StatelessWidget {
                               ),
                             ),
                           ],
+                          // Çoklu-kaynak gündem rozeti — aynı olayı en az
+                          // 2 kaynakta yayınlıyor → 🔥 ile vurgula.
+                          if (trendingSources >= 2)
+                            _TrendingBadge(sourceCount: trendingSources),
                           // Keyword match rozeti — kullanıcının ilgi
                           // duyduğu kelimelerden birine eşleşiyorsa
                           // primary renkte vurgulayıcı badge.
@@ -190,6 +213,51 @@ class ArticleCard extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    ),
+    );
+  }
+}
+
+class _TrendingBadge extends StatelessWidget {
+  const _TrendingBadge({required this.sourceCount});
+  final int sourceCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    // Sıcak renkler — gündem hissi.
+    const hotBg = Color(0x33FF6B35);
+    const hotBorder = Color(0x66FF6B35);
+    const hotFg = Color(0xFFFF6B35);
+    return Padding(
+      padding: const EdgeInsets.only(left: 6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          color: hotBg,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: hotBorder, width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.local_fire_department,
+                size: 11, color: hotFg),
+            const SizedBox(width: 3),
+            Text(
+              'Gündem · ${sourceCount}x',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: cs.brightness == Brightness.dark
+                    ? hotFg
+                    : const Color(0xFFC54B1F),
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -1127,20 +1127,30 @@ class _AiSummarySection extends StatelessWidget {
               const SizedBox(width: 4),
               InkWell(
                 borderRadius: BorderRadius.circular(20),
-                onTap: () async {
-                  HapticFeedback.selectionClick();
-                  final ai = context.read<AiSettingsProvider>();
-                  await ai.invalidate(article.id);
-                  if (context.mounted) {
-                    // ignore: use_build_context_synchronously
-                    context
-                        .read<AiSettingsProvider>()
-                        .summarize(article);
-                  }
-                },
-                child: const Padding(
-                  padding: EdgeInsets.all(4),
-                  child: Icon(Icons.refresh, size: 16),
+                // Tıklama anında zaten yükleme varsa yoksay — "yeniden
+                // özetle" basıldıkça paralel istek başlatma riskini
+                // kaldırır.
+                onTap: ai.isLoadingFor(article.id)
+                    ? null
+                    : () async {
+                        HapticFeedback.selectionClick();
+                        final aiRef = context.read<AiSettingsProvider>();
+                        await aiRef.invalidate(article.id);
+                        if (!context.mounted) return;
+                        // invalidate sonrası senkron summarize başlat —
+                        // provider içindeki `_loadingArticleId` guard
+                        // ikinci paralel çağrıyı engeller.
+                        await aiRef.summarize(article);
+                      },
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: ai.isLoadingFor(article.id)
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh, size: 16),
                 ),
               ),
             ],

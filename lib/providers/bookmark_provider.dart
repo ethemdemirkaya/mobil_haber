@@ -30,6 +30,11 @@ class BookmarkProvider extends ChangeNotifier {
   final Map<String, Article> _articles = <String, Article>{};
   final Set<String> _orphanIds = <String>{};
 
+  /// Memoized sort sonucu — `_articles` her değiştiğinde geçersiz kılınır.
+  /// Liste sık watch edilir (Bookmarks ekranı + ArticleCard); her watch'te
+  /// O(n log n) sort yapılmasını engeller.
+  List<Article>? _sortedCache;
+
   static const String _prefsV2 = 'pref_bookmarks_v2';
 
   Set<String> get ids =>
@@ -38,11 +43,15 @@ class BookmarkProvider extends ChangeNotifier {
 
   /// Saved listenin tam Article'ları (en yeni kaydedilen önce).
   List<Article> get savedArticles {
+    final cached = _sortedCache;
+    if (cached != null) return cached;
     final list = _articles.values.toList(growable: false);
-    // Snapshot içinde "kaydetme tarihi" yok; publishedAt'a göre sırala
-    // (en yeni habere göre).
-    return list..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+    list.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+    _sortedCache = list;
+    return list;
   }
+
+  void _invalidateSortedCache() => _sortedCache = null;
 
   bool isBookmarked(String articleId) =>
       _articles.containsKey(articleId) || _orphanIds.contains(articleId);
@@ -85,6 +94,7 @@ class BookmarkProvider extends ChangeNotifier {
         if (!_articles.containsKey(id)) _orphanIds.add(id);
       }
     }
+    _invalidateSortedCache();
     notifyListeners();
   }
 
@@ -110,6 +120,7 @@ class BookmarkProvider extends ChangeNotifier {
       _articles[article.id] = article;
       _orphanIds.remove(article.id);
     }
+    _invalidateSortedCache();
     notifyListeners();
     await _persist();
   }
@@ -125,6 +136,7 @@ class BookmarkProvider extends ChangeNotifier {
     } else {
       _orphanIds.add(articleId);
     }
+    _invalidateSortedCache();
     notifyListeners();
     await _persist();
   }
@@ -141,6 +153,7 @@ class BookmarkProvider extends ChangeNotifier {
       }
     }
     if (changed) {
+      _invalidateSortedCache();
       notifyListeners();
       await _persist();
     }
@@ -150,6 +163,7 @@ class BookmarkProvider extends ChangeNotifier {
     final removedFromArticles = _articles.remove(articleId) != null;
     final removedFromOrphans = _orphanIds.remove(articleId);
     if (!removedFromArticles && !removedFromOrphans) return;
+    _invalidateSortedCache();
     notifyListeners();
     await _persist();
   }
@@ -158,6 +172,7 @@ class BookmarkProvider extends ChangeNotifier {
     if (_articles.isEmpty && _orphanIds.isEmpty) return;
     _articles.clear();
     _orphanIds.clear();
+    _invalidateSortedCache();
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefsV2);

@@ -112,7 +112,8 @@ class BriefingAudioCache {
         }
       }
       return CacheStats(count: count, bytes: bytes);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Pusula][AudioCache] stats error: $e');
       return const CacheStats(count: 0, bytes: 0);
     }
   }
@@ -158,7 +159,8 @@ class BriefingAudioCache {
         }
       }
       return removed;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Pusula][AudioCache] evictOlderThan error: $e');
       return 0;
     }
   }

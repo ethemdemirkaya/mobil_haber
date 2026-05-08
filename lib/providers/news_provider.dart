@@ -7,6 +7,7 @@ import '../data/mock/mock_news_data.dart';
 import '../data/models/article.dart';
 import '../data/models/category.dart';
 import '../data/models/news_source.dart';
+import '../data/repositories/news_cluster_service.dart';
 import '../data/repositories/rss_news_service.dart';
 
 /// Pusula — birincil veri kaynağı doğrudan RSS, ikincil olarak offline cache.
@@ -25,6 +26,7 @@ class NewsProvider extends ChangeNotifier {
   }
 
   final RssNewsService _rss;
+  final NewsClusterService _clusterer = NewsClusterService();
 
   bool _loading = true;
   String? _lastError;
@@ -33,6 +35,14 @@ class NewsProvider extends ChangeNotifier {
   DateTime? _lastFetchAt;
   List<Article> _all = const [];
   String _selectedCategoryId = NewsCategory.all.id;
+
+  /// Birden fazla kaynakta görülen ve son saatlerde yayınlanan haberlerin
+  /// id seti. ArticleCard "🔥 Gündem" badge göstermek için kullanır.
+  /// Cluster servisinden türetilir; her _load() sonrası tazelenir.
+  Set<String> _trendingIds = const <String>{};
+
+  /// Her id için kaç kaynakta göründüğü — badge sayısı için (ör. "5×").
+  Map<String, int> _trendingSourceCount = const <String, int>{};
 
   List<NewsSource> _activeSources = const [];
   List<NewsSource> _lastSourceList = const [];
@@ -118,6 +128,42 @@ class NewsProvider extends ChangeNotifier {
     return null;
   }
 
+  /// Bu makale çoklu-kaynak gündem mi? (≥2 kaynakta yayınlanmış son
+  /// 36 saatlik bir küme içinde)
+  bool isTrending(String articleId) => _trendingIds.contains(articleId);
+
+  /// Trending kümelenmesinde kaç kaynak yer alıyor (badge sayısı).
+  int trendingSourceCount(String articleId) =>
+      _trendingSourceCount[articleId] ?? 0;
+
+  /// Trending kümelerini yeniden hesapla. Yüklü makalelere bakar.
+  /// _load sonrası ve cache restore sonrası çağrılır.
+  void _recomputeTrending() {
+    if (_all.length < 4) {
+      _trendingIds = const <String>{};
+      _trendingSourceCount = const <String, int>{};
+      return;
+    }
+    try {
+      final clusters = _clusterer.findClusters(_all);
+      final ids = <String>{};
+      final counts = <String, int>{};
+      for (final c in clusters) {
+        // 2+ kaynak → trending. Tüm üye makaleler işaretlenir.
+        for (final a in c.articles) {
+          ids.add(a.id);
+          counts[a.id] = c.sourceCount;
+        }
+      }
+      _trendingIds = ids;
+      _trendingSourceCount = counts;
+    } catch (e) {
+      debugPrint('[Pusula][Trending] cluster hatası: $e');
+      _trendingIds = const <String>{};
+      _trendingSourceCount = const <String, int>{};
+    }
+  }
+
   Future<void> applySources(List<NewsSource> sources) async {
     _lastSourceList = sources;
     await _load();
@@ -169,6 +215,7 @@ class NewsProvider extends ChangeNotifier {
       _lastError = 'Canlı haberler alınamadı: $e';
       await _fallbackToCacheOrMock();
     } finally {
+      _recomputeTrending();
       _loading = false;
       notifyListeners();
     }
@@ -273,6 +320,7 @@ class NewsProvider extends ChangeNotifier {
     _all = cached;
     _offline = true;
     _loading = false;
+    _recomputeTrending();
     notifyListeners();
   }
 
@@ -282,7 +330,9 @@ class NewsProvider extends ChangeNotifier {
       await prefs.remove(_prefsCacheData);
       await prefs.remove(_prefsCacheAt);
       await prefs.remove(_prefsCacheSources);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Pusula][NewsCache] temizlik hatası: $e');
+    }
   }
 
   Future<void> refresh() => _load();
