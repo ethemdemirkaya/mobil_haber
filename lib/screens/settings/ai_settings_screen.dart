@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/tts/briefing_audio_cache.dart';
+import '../../data/repositories/elevenlabs_tts_service.dart';
 import '../../data/repositories/openai_tts_service.dart';
 import '../../data/repositories/openrouter_models_repository.dart';
 import '../../providers/ai_settings_provider.dart';
@@ -19,8 +20,10 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
   late final TextEditingController _keyController;
   late final TextEditingController _customModelController;
   late final TextEditingController _openaiTtsKeyController;
+  late final TextEditingController _elTtsKeyController;
   bool _obscureKey = true;
   bool _obscureTtsKey = true;
+  bool _obscureElTtsKey = true;
   bool _testing = false;
 
   @override
@@ -35,6 +38,8 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
         TextEditingController(text: isPreset ? '' : ai.modelId);
     _openaiTtsKeyController =
         TextEditingController(text: ai.openaiTtsKey);
+    _elTtsKeyController =
+        TextEditingController(text: ai.elevenLabsApiKey);
 
     // Ekran açıldığında live OpenRouter listesini bir kez çekelim.
     // Cache valid ise tekrar çağrı yapmaz.
@@ -48,6 +53,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     _keyController.dispose();
     _customModelController.dispose();
     _openaiTtsKeyController.dispose();
+    _elTtsKeyController.dispose();
     super.dispose();
   }
 
@@ -90,6 +96,32 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
         content: Text('OpenAI TTS anahtarı kaydedildi.'),
         behavior: SnackBarBehavior.floating,
       ));
+  }
+
+  Future<void> _saveElTtsKey() async {
+    HapticFeedback.selectionClick();
+    final ai = context.read<AiSettingsProvider>();
+    await ai.setElevenLabsApiKey(_elTtsKeyController.text);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(
+        content: Text('ElevenLabs API anahtarı kaydedildi.'),
+        behavior: SnackBarBehavior.floating,
+      ));
+  }
+
+  Future<void> _openElevenLabsPage() async {
+    final uri = Uri.parse('https://elevenlabs.io/app/settings/api-keys');
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text('Tarayıcı açılamadı'),
+        ),
+      );
+    }
   }
 
   Future<void> _test() async {
@@ -554,6 +586,241 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                     .read<AiSettingsProvider>()
                     .setOpenaiTtsModel(m.id),
               ),
+            const SizedBox(height: 12),
+          ],
+          // ─────────── ElevenLabs TTS yapılandırması ───────────
+          if (ai.ttsEngine == TtsEngineKind.elevenlabs) ...[
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: cs.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.graphic_eq,
+                            size: 16, color: cs.primary),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'ElevenLabs TTS yapılandırması',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Son derece doğal ses kalitesi. Multilingual v2 ile '
+                      'Türkçe dahil 29 dil. Anahtar '
+                      'elevenlabs.io/app/settings/api-keys adresinden alınır.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: cs.onSurfaceVariant,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        style: TextButton.styleFrom(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 8),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: _openElevenLabsPage,
+                        icon: const Icon(Icons.open_in_new, size: 14),
+                        label: const Text('ElevenLabs API anahtarı al'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: TextField(
+                controller: _elTtsKeyController,
+                obscureText: _obscureElTtsKey,
+                decoration: InputDecoration(
+                  labelText: 'ElevenLabs API anahtarı',
+                  hintText: 'sk_...',
+                  prefixIcon: const Icon(Icons.vpn_key_outlined),
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscureElTtsKey
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined),
+                    onPressed: () => setState(
+                        () => _obscureElTtsKey = !_obscureElTtsKey),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onSubmitted: (_) => _saveElTtsKey(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton.tonalIcon(
+                  onPressed: _saveElTtsKey,
+                  icon: const Icon(Icons.save_outlined, size: 18),
+                  label: const Text('ElevenLabs anahtarını kaydet'),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                'Ses karakteri',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ),
+            for (final v in ElevenLabsTtsService.voices)
+              _SimpleRadioTile(
+                title: v.label,
+                subtitle: v.description,
+                selected: ai.elevenLabsVoiceId == v.id,
+                onTap: () => context
+                    .read<AiSettingsProvider>()
+                    .setElevenLabsVoiceId(v.id),
+              ),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                'Model',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ),
+            for (final m in ElevenLabsTtsService.models)
+              _SimpleRadioTile(
+                title: m.label,
+                subtitle: m.description,
+                selected: ai.elevenLabsModelId == m.id,
+                onTap: () => context
+                    .read<AiSettingsProvider>()
+                    .setElevenLabsModelId(m.id),
+              ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+              child: Text(
+                'Ses sabitliği (Stability)',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  const Icon(Icons.graphic_eq, size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    ai.elevenLabsStability.toStringAsFixed(2),
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                  Expanded(
+                    child: Slider(
+                      value: ai.elevenLabsStability,
+                      min: 0.0,
+                      max: 1.0,
+                      divisions: 20,
+                      onChanged: (v) => context
+                          .read<AiSettingsProvider>()
+                          .setElevenLabsStability(v),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+              child: Text(
+                'Düşük = daha dramatik, değişken. Yüksek = tutarlı, sakin.',
+                style: TextStyle(
+                    fontSize: 11,
+                    color: cs.onSurfaceVariant,
+                    height: 1.4),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+              child: Text(
+                'Ses benzerliği (Similarity Boost)',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  const Icon(Icons.person_outline, size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    ai.elevenLabsSimilarityBoost.toStringAsFixed(2),
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                  Expanded(
+                    child: Slider(
+                      value: ai.elevenLabsSimilarityBoost,
+                      min: 0.0,
+                      max: 1.0,
+                      divisions: 20,
+                      onChanged: (v) => context
+                          .read<AiSettingsProvider>()
+                          .setElevenLabsSimilarityBoost(v),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+              child: Text(
+                'Yüksek = sesin orijinaline sadık, düşük = daha esnek.',
+                style: TextStyle(
+                    fontSize: 11,
+                    color: cs.onSurfaceVariant,
+                    height: 1.4),
+              ),
+            ),
             const SizedBox(height: 12),
           ],
           const SizedBox(height: 16),
@@ -1233,9 +1500,11 @@ class _TtsEngineTile extends StatelessWidget {
       title: Row(
         children: [
           Icon(
-            kind == TtsEngineKind.system
-                ? Icons.smartphone_outlined
-                : Icons.cloud_outlined,
+            switch (kind) {
+              TtsEngineKind.system => Icons.smartphone_outlined,
+              TtsEngineKind.openai => Icons.cloud_outlined,
+              TtsEngineKind.elevenlabs => Icons.graphic_eq,
+            },
             size: 16,
             color: cs.onSurfaceVariant,
           ),

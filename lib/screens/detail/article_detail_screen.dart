@@ -753,62 +753,105 @@ class _AskAiCta extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         onTap: () => ArticleQaSheet.show(context, article),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+          padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                accent.withValues(alpha: 0.13),
+                accent.withValues(alpha: 0.16),
+                cs.primary.withValues(alpha: 0.06),
                 accent.withValues(alpha: 0.04),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
+              stops: const [0.0, 0.5, 1.0],
             ),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: accent.withValues(alpha: 0.3),
-            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: accent.withValues(alpha: 0.35)),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withValues(alpha: 0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 44,
+                height: 44,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.18),
+                  color: accent.withValues(alpha: 0.20),
                   shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.25),
+                      blurRadius: 12,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
-                child: Icon(Icons.psychology_alt,
-                    size: 19, color: accent),
+                child: Icon(Icons.auto_awesome, size: 21, color: accent),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Bu haberi AI\'ya sor',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13.5,
-                        color: cs.onSurface,
-                      ),
+                    Row(
+                      children: [
+                        Text('AI\'ya sor',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                              color: cs.onSurface,
+                              letterSpacing: -0.2,
+                            )),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: accent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Text('BETA',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                color: accent,
+                                letterSpacing: 0.8,
+                              )),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 3),
                     Text(
-                      'TL;DR, neden önemli, çocuğa nasıl anlatılır…',
+                      'Neden önemli? Arkaplan? Özet?',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 11.5,
                         color: cs.onSurfaceVariant,
-                        height: 1.35,
+                        height: 1.3,
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: accent),
+              Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.arrow_forward_ios_rounded,
+                    size: 14, color: accent),
+              ),
             ],
           ),
         ),

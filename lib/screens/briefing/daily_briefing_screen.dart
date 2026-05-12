@@ -13,6 +13,7 @@ import '../../core/tts/briefing_audio_handler.dart';
 import '../../data/models/article.dart';
 import '../../data/models/category.dart';
 import '../../data/repositories/daily_briefing_service.dart';
+import '../../data/repositories/elevenlabs_tts_service.dart';
 import '../../data/repositories/market_widget_service.dart';
 import '../../data/repositories/openai_tts_service.dart';
 import '../../providers/ai_settings_provider.dart';
@@ -48,6 +49,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   final FlutterTts _tts = FlutterTts();
   final DailyBriefingService _service = DailyBriefingService();
   final OpenAiTtsService _openaiTts = OpenAiTtsService();
+  final ElevenLabsTtsService _elevenLabsTts = ElevenLabsTtsService();
   final MarketWidgetService _marketService = MarketWidgetService();
   StreamSubscription<void>? _audioCompleteSub;
   StreamSubscription<BriefingLockAction>? _lockActionSub;
@@ -168,7 +170,10 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     final marketFuture = _loadMarket();
     await Future.wait([ttsFuture, genFuture, marketFuture]);
     if (!mounted) return;
-    if (_briefing != null && _briefing!.isNotEmpty && _ttsReady) {
+    final canPlay = _ttsReady ||
+        _activeEngine == TtsEngineKind.openai ||
+        _activeEngine == TtsEngineKind.elevenlabs;
+    if (_briefing != null && _briefing!.isNotEmpty && canPlay) {
       await Future<void>.delayed(const Duration(milliseconds: 300));
       if (mounted) _play();
     }
@@ -396,6 +401,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     _lockActionSub?.cancel();
     _sleepTimer?.cancel();
     _localAudioPlayer.dispose();
+    _elevenLabsTts.close();
     super.dispose();
   }
 
@@ -568,6 +574,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   Future<void> _playFromIndex(int startIndex) async {
     if (_utterances.isEmpty) return;
     final engine = _activeEngine;
+    // Sistem TTS hazır değilse sadece sistem motoru engellensin;
+    // OpenAI ve ElevenLabs API tabanlı olduğu için sistem TTS'e ihtiyaç duymaz.
     if (engine == TtsEngineKind.system && !_ttsReady) return;
 
     final generation = _playGeneration;
@@ -584,6 +592,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
       try {
         if (engine == TtsEngineKind.openai) {
           await _speakViaOpenAi(_utterances[i]);
+        } else if (engine == TtsEngineKind.elevenlabs) {
+          await _speakViaElevenLabs(_utterances[i]);
         } else {
           await _speakViaSystem(_utterances[i]);
         }
@@ -701,9 +711,83 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     }
   }
 
+  Future<void> _speakViaElevenLabs(String text) async {
+    final ai = context.read<AiSettingsProvider>();
+    if (ai.elevenLabsApiKey.isEmpty) {
+      throw const ElevenLabsException(
+        'ElevenLabs API anahtarı yok. Ayarlar > Yapay Zeka > Sesli Okuma '
+        'Motoru bölümünden girin.',
+      );
+    }
+
+    // ElevenLabs hız aralığı: 0.7–1.2 (dar aralık).
+    // Bizim slider 0.30–0.70 flutter_tts skalasına dayanıyor.
+    // 0.30 → 0.7, 0.50 → 1.0, 0.70 → 1.2 olacak şekilde lineer eşliyoruz.
+    const double speedForCache = 1.0;
+
+    // 1) Disk cache kontrolü — aynı (text + voice + model + speed)
+    //    kombinasyonu için MP3 varsa API'ye gitmeden direkt çal.
+    final cached = await BriefingAudioCache.find(
+      text: text,
+      voice: ai.elevenLabsVoiceId,
+      model: ai.elevenLabsModelId,
+      speed: speedForCache,
+    );
+
+    Source playerSource;
+    if (cached != null) {
+      debugPrint('[Pusula][ElevenLabs TTS] cache hit: ${cached.path}');
+      playerSource = DeviceFileSource(cached.path);
+    } else {
+      // 2) Cache miss → API çağrısı + disk'e kaydet.
+      final bytes = await _elevenLabsTts.synthesize(
+        apiKey: ai.elevenLabsApiKey,
+        text: text,
+        voiceId: ai.elevenLabsVoiceId,
+        modelId: ai.elevenLabsModelId,
+        stability: ai.elevenLabsStability,
+        similarityBoost: ai.elevenLabsSimilarityBoost,
+      );
+      // ignore: unawaited_futures
+      BriefingAudioCache.store(
+        text: text,
+        voice: ai.elevenLabsVoiceId,
+        model: ai.elevenLabsModelId,
+        speed: speedForCache,
+        bytes: bytes,
+      );
+      playerSource = BytesSource(bytes);
+    }
+
+    // 3) Çal + sonraki cümleye geç completion ile.
+    await _audioCompleteSub?.cancel();
+    final completer = Completer<void>();
+    _openaiPlaybackCompleter = completer;
+    _audioCompleteSub = _audioPlayer.onPlayerComplete.listen((_) {
+      if (!completer.isCompleted) completer.complete();
+    });
+    try {
+      await _audioPlayer.stop();
+      await _audioPlayer.play(playerSource);
+      await completer.future.timeout(
+        const Duration(minutes: 3),
+        onTimeout: () {
+          debugPrint('[Pusula][ElevenLabs TTS] playback timeout');
+        },
+      );
+    } finally {
+      await _audioCompleteSub?.cancel();
+      _audioCompleteSub = null;
+      if (identical(_openaiPlaybackCompleter, completer)) {
+        _openaiPlaybackCompleter = null;
+      }
+    }
+  }
+
   Future<void> _play() async {
     if (_utterances.isEmpty) return;
     final engine = _activeEngine;
+    // API-tabanlı motorlar sistem TTS'e ihtiyaç duymaz.
     if (engine == TtsEngineKind.system && !_ttsReady) return;
     HapticFeedback.selectionClick();
     if (_paused) {
@@ -717,9 +801,11 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     HapticFeedback.selectionClick();
     _playGeneration++;
     setState(() => _paused = true);
-    if (_activeEngine == TtsEngineKind.openai) {
+    final engine = _activeEngine;
+    if (engine == TtsEngineKind.openai ||
+        engine == TtsEngineKind.elevenlabs) {
       await _audioPlayer.stop();
-      // Aktif completer'ı manuel complete et — `_speakViaOpenAi`'deki
+      // Aktif completer'ı manuel complete et — `_speakVia*`'deki
       // `await completer.future` döner, döngü `_paused` üzerinden break eder.
       final c = _openaiPlaybackCompleter;
       if (c != null && !c.isCompleted) c.complete();
@@ -738,7 +824,9 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
       _utteranceIndex = 0;
       _speaking = false;
     });
-    if (_activeEngine == TtsEngineKind.openai) {
+    final engine = _activeEngine;
+    if (engine == TtsEngineKind.openai ||
+        engine == TtsEngineKind.elevenlabs) {
       await _audioPlayer.stop();
       final c = _openaiPlaybackCompleter;
       if (c != null && !c.isCompleted) c.complete();
@@ -766,7 +854,10 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     });
     await _generate();
     if (!mounted) return;
-    if (_briefing != null && _ttsReady) {
+    final canPlayAfterSelect = _ttsReady ||
+        _activeEngine == TtsEngineKind.openai ||
+        _activeEngine == TtsEngineKind.elevenlabs;
+    if (_briefing != null && canPlayAfterSelect) {
       await Future<void>.delayed(const Duration(milliseconds: 300));
       if (mounted) _play();
     }
@@ -777,7 +868,10 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     await _stop();
     await _generate(forceRefresh: true);
     if (!mounted) return;
-    if (_briefing != null && _ttsReady) _play();
+    final canPlayAfterRefresh = _ttsReady ||
+        _activeEngine == TtsEngineKind.openai ||
+        _activeEngine == TtsEngineKind.elevenlabs;
+    if (_briefing != null && canPlayAfterRefresh) _play();
   }
 
   // ─────────────── Build ───────────────
@@ -886,7 +980,9 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
                           _ttsReady &&
                           _ttsSupported) ||
                       (_activeEngine == TtsEngineKind.openai &&
-                          context.watch<AiSettingsProvider>().hasOpenaiTtsKey)),
+                          context.watch<AiSettingsProvider>().hasOpenaiTtsKey) ||
+                      (_activeEngine == TtsEngineKind.elevenlabs &&
+                          context.watch<AiSettingsProvider>().hasElevenLabsKey)),
               speechRate: _speechRate,
               pitch: _pitch,
               sleepEndsAt: _sleepEndsAt,
@@ -905,7 +1001,9 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
                   final idx = _utteranceIndex;
                   _playGeneration++;
                   if (!mounted) return;
-                  if (_activeEngine == TtsEngineKind.openai) {
+                  final engine = _activeEngine;
+                  if (engine == TtsEngineKind.openai ||
+                      engine == TtsEngineKind.elevenlabs) {
                     await _audioPlayer.stop();
                     final c = _openaiPlaybackCompleter;
                     if (c != null && !c.isCompleted) c.complete();

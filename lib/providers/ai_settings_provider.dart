@@ -79,12 +79,19 @@ enum TtsEngineKind {
   /// Kullanıcı kendi OpenAI API anahtarını girer (OpenRouter'dan ayrı).
   /// Maliyet: \$15/1M karakter (~brifing başına \$0.015).
   openai,
+
+  /// ElevenLabs `text-to-speech`: son derece doğal ses kalitesi.
+  /// Multilingual v2 ile Türkçe dahil 29 dil destekler.
+  /// Kullanıcı kendi ElevenLabs API anahtarını girer.
+  /// Maliyet: ~\$0.30/1K karakter (~brifing başına \$0.03–0.05).
+  elevenlabs,
 }
 
 extension TtsEngineKindLabel on TtsEngineKind {
   String get label => switch (this) {
         TtsEngineKind.system => 'Sistem TTS (varsayılan)',
         TtsEngineKind.openai => 'OpenAI TTS (yüksek kalite)',
+        TtsEngineKind.elevenlabs => 'ElevenLabs (en doğal ses)',
       };
 
   String get description => switch (this) {
@@ -92,6 +99,9 @@ extension TtsEngineKindLabel on TtsEngineKind {
             'ücretsiz ve çevrimdışı, kalite cihaza bağlı.',
         TtsEngineKind.openai => 'OpenAI sunucularında üretilen MP3, '
             'doğal ses. OpenAI API anahtarı + ücret gerekir.',
+        TtsEngineKind.elevenlabs =>
+          'ElevenLabs AI sesleri — son derece doğal, '
+              'Türkçe multilingual v2 modeli. ElevenLabs API anahtarı gerekir.',
       };
 }
 
@@ -152,6 +162,13 @@ class AiSettingsProvider extends ChangeNotifier {
   String _openaiTtsVoice = 'nova';
   String _openaiTtsModel = 'tts-1';
 
+  // ─── ElevenLabs TTS ───
+  String _elevenLabsApiKey = '';
+  String _elevenLabsVoiceId = 'pNInz6obpgDQGcFmaJgB'; // Adam
+  String _elevenLabsModelId = 'eleven_multilingual_v2';
+  double _elevenLabsStability = 0.45;
+  double _elevenLabsSimilarityBoost = 0.75;
+
   // ─── First-run banner ───
   /// Build-time anahtar ile gelen yeni kullanıcı için "AI hazır" bildirimi
   /// bir kez gösterildi mi?
@@ -184,6 +201,11 @@ class AiSettingsProvider extends ChangeNotifier {
   static const String _prefsOpenaiTtsVoice = 'pref_ai_openai_tts_voice';
   static const String _prefsOpenaiTtsModel = 'pref_ai_openai_tts_model';
   static const String _prefsFirstRunNotice = 'pref_ai_first_run_notice';
+  static const String _prefsElKey = 'elevenlabs_key';
+  static const String _prefsElVoice = 'elevenlabs_voice';
+  static const String _prefsElModel = 'elevenlabs_model';
+  static const String _prefsElStability = 'elevenlabs_stability';
+  static const String _prefsElSimilarity = 'elevenlabs_similarity';
 
   /// Default — OpenAI'ın açık-ağırlıklı 20B modeli, OpenRouter'da
   /// :free tier'da rate-limit ile ücretsiz. Yedek olarak Gemini 2.0 Flash
@@ -335,10 +357,21 @@ class AiSettingsProvider extends ChangeNotifier {
   String get openaiTtsVoice => _openaiTtsVoice;
   String get openaiTtsModel => _openaiTtsModel;
 
-  /// Seçili TTS motoru kullanılabilir durumda mı? OpenAI seçildiyse
-  /// anahtar girilmiş olmalı.
+  // ─── ElevenLabs getters ───
+  String get elevenLabsApiKey => _elevenLabsApiKey;
+  bool get hasElevenLabsKey => _elevenLabsApiKey.isNotEmpty;
+  String get elevenLabsVoiceId => _elevenLabsVoiceId;
+  String get elevenLabsModelId => _elevenLabsModelId;
+  double get elevenLabsStability => _elevenLabsStability;
+  double get elevenLabsSimilarityBoost => _elevenLabsSimilarityBoost;
+
+  /// Seçili TTS motoru kullanılabilir durumda mı? OpenAI/ElevenLabs
+  /// seçildiyse ilgili anahtar girilmiş olmalı.
   bool get isTtsEngineUsable {
     if (_ttsEngine == TtsEngineKind.system) return true;
+    if (_ttsEngine == TtsEngineKind.elevenlabs) {
+      return _elevenLabsApiKey.isNotEmpty;
+    }
     return _openaiTtsKey.isNotEmpty;
   }
 
@@ -410,6 +443,15 @@ class AiSettingsProvider extends ChangeNotifier {
     _openaiTtsKey = prefs.getString(_prefsOpenaiTtsKey) ?? '';
     _openaiTtsVoice = prefs.getString(_prefsOpenaiTtsVoice) ?? 'nova';
     _openaiTtsModel = prefs.getString(_prefsOpenaiTtsModel) ?? 'tts-1';
+
+    _elevenLabsApiKey = prefs.getString(_prefsElKey) ?? '';
+    _elevenLabsVoiceId =
+        prefs.getString(_prefsElVoice) ?? 'pNInz6obpgDQGcFmaJgB';
+    _elevenLabsModelId =
+        prefs.getString(_prefsElModel) ?? 'eleven_multilingual_v2';
+    _elevenLabsStability = prefs.getDouble(_prefsElStability) ?? 0.45;
+    _elevenLabsSimilarityBoost =
+        prefs.getDouble(_prefsElSimilarity) ?? 0.75;
 
     _firstRunNoticeShown = prefs.getBool(_prefsFirstRunNotice) ?? false;
 
@@ -485,6 +527,54 @@ class AiSettingsProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefsOpenaiTtsModel, model);
+  }
+
+  // ─────────── ElevenLabs TTS setters ───────────
+  Future<void> setElevenLabsApiKey(String value) async {
+    final trimmed = value.trim();
+    if (_elevenLabsApiKey == trimmed) return;
+    _elevenLabsApiKey = trimmed;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    if (trimmed.isEmpty) {
+      await prefs.remove(_prefsElKey);
+    } else {
+      await prefs.setString(_prefsElKey, trimmed);
+    }
+  }
+
+  Future<void> setElevenLabsVoiceId(String voiceId) async {
+    if (_elevenLabsVoiceId == voiceId) return;
+    _elevenLabsVoiceId = voiceId;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsElVoice, voiceId);
+  }
+
+  Future<void> setElevenLabsModelId(String modelId) async {
+    if (_elevenLabsModelId == modelId) return;
+    _elevenLabsModelId = modelId;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsElModel, modelId);
+  }
+
+  Future<void> setElevenLabsStability(double value) async {
+    final clamped = value.clamp(0.0, 1.0);
+    if (_elevenLabsStability == clamped) return;
+    _elevenLabsStability = clamped;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_prefsElStability, clamped);
+  }
+
+  Future<void> setElevenLabsSimilarityBoost(double value) async {
+    final clamped = value.clamp(0.0, 1.0);
+    if (_elevenLabsSimilarityBoost == clamped) return;
+    _elevenLabsSimilarityBoost = clamped;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_prefsElSimilarity, clamped);
   }
 
   // ─────────── Live model listesi ───────────
@@ -818,14 +908,14 @@ Yalnızca JSON döndür.
         userPrompt: '''
 HABER BAŞLIK: ${article.title}
 KAYNAK: ${article.sourceName.isNotEmpty ? article.sourceName : "Bilinmeyen"}
+TARİH: ${article.publishedAt != null ? article.publishedAt.toString().substring(0, 10) : "bilinmiyor"}
 
 HABER METNİ:
 $body
 
-KULLANICI SORUSU:
-$q
+KULLANICI SORUSU: $q
 
-Lütfen yukarıdaki kurallara uyarak yanıtla.
+Soruyu sınıflandır ve kurallara uygun yanıtla.
 ''',
         maxTokens: 600,
       );
@@ -844,16 +934,26 @@ Lütfen yukarıdaki kurallara uyarak yanıtla.
   }
 
   static const String _qaSystemPrompt = '''
-Sen Türkçe haber okuma asistanısın. Kullanıcının verilen haber metni
-hakkındaki sorusunu yanıtlarsın.
+Sen Türkçe haber okuma asistanısın. Kullanıcı sana bir haber ve soru veriyor.
 
-Kurallar:
-- Sadece verilen haber metnindeki bilgilere dayan; metinde yoksa
-  "Bu bilgi haber metninde geçmiyor" de.
-- 100 kelimeyi geçme — kısa ve net.
-- Spekülasyon, yorum, tahmin yapma.
-- Sayıları ve özel isimleri olduğu gibi koru.
+ÖNCE SORUYU SINIFLANDIR, SONRA YANIT VER:
+
+▸ TİP A — Metinden yanıtlanabilir (sayılar, isimler, olayın detayları, özet):
+  Sadece verilen haber metnindeki bilgilere dayan.
+
+▸ TİP B — Bağlam ve önem soruları ("neden önemli?", "arkaplan", "ne anlama geliyor?", 
+  "neden oldu?", "kim etkileniyor?", "bu olayın tarihi bağlamı nedir?"):
+  Haberi referans al ama genel bilgini de kullan. Haberin konusundan hareketle
+  açıklayıcı, zengin bir cevap ver.
+
+▸ TİP C — Haberle tamamen alakasız sorular:
+  Kısa yanıt: "Bu soru haberle ilgili değil."
+
+GENEL KURALLAR:
+- 150 kelimeyi geçme — kısa ve net.
 - Türkçe yanıtla.
-- Madde işareti ya da başlık koyma — düz metin yaz.
+- Madde işareti veya başlık koyma — düz metin yaz.
+- Tip A: spekülasyon yapma. Tip B: kamuya açık bağlamsal bilgiyi kullanabilirsin.
+- Sayıları ve özel isimleri olduğu gibi koru.
 ''';
 }
