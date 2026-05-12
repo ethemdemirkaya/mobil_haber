@@ -32,6 +32,11 @@ class _SourceLogoState extends State<SourceLogo> {
   // Hangi fallback denenmiş — primary fail → secondary.
   bool _primaryFailed = false;
   bool _secondaryFailed = false;
+  // CachedNetworkImage aynı frame'de errorWidget'ı birden çok kez çağırabilir
+  // (başka provider'lar rebuild tetiklediğinde). Tek bir postFrameCallback
+  // sıralanmasını garanti eder — aksi hâlde iki callback art arda ateşlenip
+  // hem _primaryFailed hem _secondaryFailed set eder, hiçbir URL denenmez.
+  bool _errorScheduled = false;
 
   String get _primaryUrl =>
       'https://www.google.com/s2/favicons?domain=${widget.source.domain}&sz=128';
@@ -73,16 +78,23 @@ class _SourceLogoState extends State<SourceLogo> {
           placeholder: (_, _) => placeholder,
           errorWidget: (_, _, _) {
             // İlk fail → DuckDuckGo'ya geç. Onun da fail'i → harf.
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              setState(() {
-                if (!_primaryFailed) {
-                  _primaryFailed = true;
-                } else {
-                  _secondaryFailed = true;
-                }
+            // _errorScheduled guard: aynı frame içinde birden fazla
+            // postFrameCallback sıralanmasını engeller; yoksa iki callback
+            // art arda ateşlenip primary+secondary birlikte fail'lenebilir.
+            if (!_errorScheduled) {
+              _errorScheduled = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _errorScheduled = false;
+                if (!mounted) return;
+                setState(() {
+                  if (!_primaryFailed) {
+                    _primaryFailed = true;
+                  } else {
+                    _secondaryFailed = true;
+                  }
+                });
               });
-            });
+            }
             return placeholder;
           },
         ),

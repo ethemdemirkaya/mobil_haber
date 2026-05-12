@@ -90,6 +90,9 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   // Cümle parçaları + ilerleme.
   List<String> _utterances = const [];
   int _utteranceIndex = 0;
+  // Her play/pause/stop eyleminde artar; _playFromIndex bu değeri yakalar.
+  // Eski döngüler nesil uyuşmazlığı görünce erken çıkar — race condition yok.
+  int _playGeneration = 0;
   Completer<void>? _utteranceCompleter;
 
   // Kategori state + cache (in-memory; ekran kapanınca temizlenir).
@@ -368,10 +371,9 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     _utteranceCompleter = null;
     if (completer != null && !completer.isCompleted) completer.complete();
     if (!mounted) return;
-    setState(() {
-      _speaking = false;
-      _paused = false;
-    });
+    // _paused kasıtlı olarak sıfırlanmıyor — _pause()/_stop() yönetir.
+    // Sıfırlansaydı _pause() sonrası loop devam ederdi (race condition).
+    setState(() => _speaking = false);
   }
 
   void _onSpeechError(dynamic msg) {
@@ -568,6 +570,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     final engine = _activeEngine;
     if (engine == TtsEngineKind.system && !_ttsReady) return;
 
+    final generation = _playGeneration;
     setState(() {
       _utteranceIndex = startIndex;
       _paused = false;
@@ -576,7 +579,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
 
     for (var i = startIndex; i < _utterances.length; i++) {
       if (!mounted) return;
-      if (_paused) break;
+      if (generation != _playGeneration) return;
       _utteranceIndex = i;
       try {
         if (engine == TtsEngineKind.openai) {
@@ -593,10 +596,12 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
         break;
       }
       if (!mounted) return;
-      if (_paused) break;
+      if (generation != _playGeneration) return;
     }
     if (!mounted) return;
-    setState(() => _speaking = false);
+    if (generation == _playGeneration) {
+      setState(() => _speaking = false);
+    }
   }
 
   Future<void> _speakViaSystem(String text) async {
@@ -710,6 +715,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
 
   Future<void> _pause() async {
     HapticFeedback.selectionClick();
+    _playGeneration++;
     setState(() => _paused = true);
     if (_activeEngine == TtsEngineKind.openai) {
       await _audioPlayer.stop();
@@ -726,6 +732,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
 
   Future<void> _stop() async {
     HapticFeedback.selectionClick();
+    _playGeneration++;
     setState(() {
       _paused = false;
       _utteranceIndex = 0;
@@ -895,8 +902,20 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
                 await _safeCall(
                     'setSpeechRate', () async => _tts.setSpeechRate(r));
                 if (_speaking) {
-                  await _tts.stop();
-                  await _play();
+                  final idx = _utteranceIndex;
+                  _playGeneration++;
+                  if (!mounted) return;
+                  if (_activeEngine == TtsEngineKind.openai) {
+                    await _audioPlayer.stop();
+                    final c = _openaiPlaybackCompleter;
+                    if (c != null && !c.isCompleted) c.complete();
+                    _audioCompleteSub?.cancel();
+                    _audioCompleteSub = null;
+                  } else {
+                    await _tts.stop();
+                  }
+                  if (!mounted) return;
+                  await _playFromIndex(idx);
                 }
               },
               onPitchChanged: (p) async {

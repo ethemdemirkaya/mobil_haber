@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'app.dart';
@@ -28,6 +29,11 @@ Future<void> main() async {
 
   // Tüm yan-servis init'leri timeout'lu — bir tanesi takılsa bile splash'tan
   // çıkıp ana ekrana geçilir. Haber çekimi tamamen ayrı yolda çalışıyor.
+  // İlk kurulumda flutter_cache_manager SQLite DB'sini widget tree kurulmadan
+  // önce hazır hale getirir — aksi hâlde ilk açılışta resimler yüklenemez.
+  await _safeInit('ImageCacheManager',
+      () async => DefaultCacheManager().getFileFromCache('__warmup__'));
+
   await _safeInit('AudioSessionSetup', AudioSessionSetup.configure);
   await _safeInit('BriefingAudioHandler', BriefingAudioHandler.bootstrap);
   await _safeInit('ScheduledBriefingService', ScheduledBriefingService.init);

@@ -325,43 +325,46 @@ class _OnboardingPage extends StatelessWidget {
           const SizedBox(height: 8),
           Expanded(
             flex: 4,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Sayfa accent renginde minik etiket — "anahtar kelime".
-                _AccentTag(accent: data.accent, label: _eyebrow(data)),
-                const SizedBox(height: 12),
-                Text(
-                  data.title,
-                  style: tt.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    height: 1.15,
-                    letterSpacing: -0.6,
-                    color: cs.onSurface,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Sayfa accent renginde minik etiket — "anahtar kelime".
+                  _AccentTag(accent: data.accent, label: _eyebrow(data)),
+                  const SizedBox(height: 12),
+                  Text(
+                    data.title,
+                    style: tt.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      height: 1.15,
+                      letterSpacing: -0.6,
+                      color: cs.onSurface,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  data.subtitle,
-                  style: tt.bodyMedium?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    height: 1.5,
-                    fontSize: 14.5,
+                  const SizedBox(height: 12),
+                  Text(
+                    data.subtitle,
+                    style: tt.bodyMedium?.copyWith(
+                      color: cs.onSurfaceVariant,
+                      height: 1.5,
+                      fontSize: 14.5,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final h in data.highlights)
-                      _HighlightChip(
-                        data: h,
-                        accent: data.accent,
-                      ),
-                  ],
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final h in data.highlights)
+                        _HighlightChip(
+                          data: h,
+                          accent: data.accent,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
             ),
           ),
         ],

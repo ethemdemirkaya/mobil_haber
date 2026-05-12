@@ -49,6 +49,10 @@ YAPILACAKLAR.md
 # Claude Code harness state (local only)
 .claude/
 
+# Gradle build tarafından .env.json'dan otomatik üretilen Dart dosyası.
+# Koda gömülmez, her build'de yeniden oluşturulur.
+lib/core/generated/
+
 # Environment / secrets — Flutter --dart-define-from-file beklediği JSON.
 # Şablon `.env.json.example` committed; `.env.json` her geliştiricinin
 # kendi yerel kopyası, asla commit edilmez.

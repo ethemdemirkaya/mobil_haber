@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../generated/secrets.g.dart';
+
 /// OpenRouter API ile konuşan ham HTTP istemcisi.
 ///
 /// OpenRouter (https://openrouter.ai/) tek bir API anahtarıyla 100+ farklı
@@ -41,10 +43,9 @@ class OpenRouterClient {
   /// **kazara push edilmez**. CI/CD'de secret olarak saklanır. Kullanıcı
   /// Ayarlar'dan kendi anahtarını girerse o öncelikli olur (kişisel
   /// rate-limit avantajı).
-  static const String defaultApiKey = String.fromEnvironment(
-    'OPENROUTER_API_KEY',
-    defaultValue: '',
-  );
+  // Gradle build sırasında .env.json'dan üretilen secrets.g.dart'tan gelir.
+  // Kullanıcı Ayarlar'dan kendi anahtarını girerse o önceliklidir.
+  static const String defaultApiKey = kBuiltInOpenRouterApiKey;
 
   /// Build-time'da default key sağlanmış mı? UI tarafı buna göre "kendi
   /// keyini girmek zorunda değilsin" mesajı gösterebilir.
