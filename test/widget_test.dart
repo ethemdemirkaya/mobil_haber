@@ -1,30 +1,24 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:mobil_haber/main.dart';
+import 'package:pusula_news/app.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  setUp(() {
+    // Splash, OnboardingProvider ve PreferencesProvider SharedPreferences'tan
+    // veri okuyor; mock initial values vermezsek `getInstance` hiç dönmez ve
+    // splash'taki `initialized` polling sonsuza kadar tıklar.
+    SharedPreferences.setMockInitialValues({});
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+  testWidgets('App boots with splash screen', (WidgetTester tester) async {
+    await tester.pumpWidget(const MobilHaberApp());
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Pusula'), findsWidgets);
+
+    // Splash 1.6 sn timer'ını ileri sarıp Onboarding'e geçişi tamamla.
+    // Onboarding'in PageView animasyonları periyodik değildir → settle eder.
+    await tester.pumpAndSettle(const Duration(seconds: 6));
   });
 }

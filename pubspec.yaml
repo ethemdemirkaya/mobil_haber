@@ -1,5 +1,5 @@
-name: mobil_haber
-description: "A new Flutter project."
+name: pusula_news
+description: "Pusula — yapay zeka destekli, sesli özetli haber okuyucu."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -34,6 +34,65 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+
+  # State management
+  provider: ^6.1.2
+
+  # Local persistence (bookmarks, theme prefs, search history)
+  shared_preferences: ^2.3.2
+
+  # Date / number formatting & localization
+  intl: ^0.19.0
+
+  # Network image with caching and placeholder support
+  cached_network_image: ^3.4.1
+
+  # HTTP client for the mobil_haber REST API
+  http: ^1.2.2
+
+  # System share sheet integration (article share button)
+  share_plus: ^10.1.2
+
+  # Open external links in system browser (orijinal kaynak)
+  url_launcher: ^6.3.1
+
+  # RSS / Atom feed parsing — doğrudan istemci tarafında haber kaynaklarını
+  # parse etmek için. Backend gerektirmez.
+  xml: ^6.5.0
+
+  # Sesli haber brifingi için native TTS — Android: Google TTS,
+  # iOS: AVSpeechSynthesizer. Türkçe (tr-TR) varsayılanda destekleniyor.
+  flutter_tts: ^4.2.0
+
+  # OpenAI TTS gibi MP3 üreten alternatif sesli okuma motorlarını
+  # oynatmak için. BytesSource desteklenir (in-memory MP3).
+  audioplayers: ^6.1.0
+
+  # MP3 cache (OpenAI TTS) ve diğer dosya yolları için. Hem Android hem iOS.
+  path_provider: ^2.1.5
+
+  # SHA-256 hash — brifing metni + voice + model + speed kombinasyonunu
+  # cache anahtarı olarak kullanmak için.
+  crypto: ^3.0.6
+
+  # Yerel zamanlanmış bildirimler — "sabah 7'de spor brifingi" vb.
+  flutter_local_notifications: ^17.2.4
+
+  # flutter_local_notifications zaman dilimi ayarı.
+  timezone: ^0.9.4
+
+  # Sesli brifing arka planda da çalsın diye iOS/Android audio session
+  # ayarı. audio_service'e nazaran çok daha hafif setup.
+  audio_session: ^0.1.21
+
+  # Lock screen + bildirim panel medya kontrolü (play/pause/skip).
+  # iOS Now Playing center'a ve Android MediaSession notif'a entegre.
+  audio_service: ^0.18.16
+
+  # Push bildirimi (Firebase Cloud Messaging) — son dakika haberleri.
+  # Konfigürasyon: docs/FIREBASE_SETUP.md
+  firebase_core: ^3.6.0
+  firebase_messaging: ^15.1.3
 
 dev_dependencies:
   flutter_test:

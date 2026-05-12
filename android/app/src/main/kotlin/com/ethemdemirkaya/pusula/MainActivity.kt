@@ -1,4 +1,4 @@
-package com.example.mobil_haber
+package com.ethemdemirkaya.pusula
 
 import io.flutter.embedding.android.FlutterActivity
 

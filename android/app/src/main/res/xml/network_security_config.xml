@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Pusula network security config — geliştirme dostu.
+
+  Default: HTTPS + cleartext HTTP her domain için izinli.
+  Trust anchors: system (Android güvenilir CA listesi).
+
+  Production'da daraltılması önerilir: base-config cleartextTrafficPermitted=
+  false yapılıp yalnızca gerekli HTTP domain'lerine domain-config istisnası
+  verilebilir. Şu an haber CDN'leri (özellikle bazı eski TR siteler) HTTP
+  redirect kullandığı için açık tutuyoruz.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
