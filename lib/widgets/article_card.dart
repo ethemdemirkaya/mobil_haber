@@ -320,27 +320,42 @@ class FeaturedArticleCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: cat.color,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        cat.name.toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                          color: Colors.white,
+                    // Kategori + kaynak satırı
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: cat.color,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            cat.name.toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        if (article.sourceName.isNotEmpty)
+                          Text(
+                            article.sourceName,
+                            style: const TextStyle(
+                              color: Colors.white60,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                      ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Text(
                       article.title,
-                      maxLines: 3,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: textTheme.titleLarge?.copyWith(
                         color: Colors.white,
@@ -352,22 +367,13 @@ class FeaturedArticleCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        const Icon(Icons.person_outline,
-                            size: 14, color: Colors.white70),
-                        const SizedBox(width: 4),
-                        Text(
-                          article.author,
-                          style: const TextStyle(
-                              color: Colors.white70, fontSize: 12),
-                        ),
-                        const SizedBox(width: 12),
                         const Icon(Icons.schedule_outlined,
-                            size: 14, color: Colors.white70),
+                            size: 13, color: Colors.white60),
                         const SizedBox(width: 4),
                         Text(
-                          '${article.readMinutes} dk özet',
+                          '${article.readMinutes} dk',
                           style: const TextStyle(
-                              color: Colors.white70, fontSize: 12),
+                              color: Colors.white60, fontSize: 12),
                         ),
                       ],
                     ),

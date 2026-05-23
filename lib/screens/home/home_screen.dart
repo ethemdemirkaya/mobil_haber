@@ -269,19 +269,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       _HeaderIconButton(
-                        icon: Icons.podcasts_rounded,
-                        tooltip: 'Sesli brifing',
-                        accent: true,
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const DailyBriefingScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      _HeaderIconButton(
                         icon: Icons.notifications_none_rounded,
                         tooltip: 'Son haberler',
                         onTap: _showLatestSheet,
@@ -297,6 +284,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding:
                       const EdgeInsets.fromLTRB(20, 14, 20, 6),
                   child: _SearchShortcutBar(),
+                ),
+              ),
+              // ── Sesli Brifing CTA — öne çıkarılmış girişim kartı ──
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                  child: _DailyBriefingCard(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const DailyBriefingScreen(),
+                      ),
+                    ),
+                  ),
                 ),
               ),
               // First-run "AI hazır" tek seferlik bilgilendirme.
@@ -866,22 +866,17 @@ class _HeaderIconButton extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.onTap,
-    this.accent = false,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback onTap;
 
-  /// Marka vurgulu varyant — sesli brifing gibi öne çıkartmak istediğimiz
-  /// aksiyonlar için. Primary container rengiyle dolu pill gösterir.
-  final bool accent;
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final bg = accent ? cs.primaryContainer : cs.surfaceContainerHighest;
-    final fg = accent ? cs.onPrimaryContainer : cs.onSurface;
+    final bg = cs.surfaceContainerHighest;
+    final fg = cs.onSurface;
     return Material(
       color: bg,
       shape: RoundedRectangleBorder(
@@ -1316,6 +1311,111 @@ class _OfflineFallbackNotice extends StatelessWidget {
             child: const Text('Yenile'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Ana sayfada arama çubuğunun hemen altına yerleştirilen "Günlük Sesli
+/// Brifing" kartı. Gradient arka plan + büyük metin + oynat ikonu ile
+/// yaşlı kullanıcılar dahil herkese kolay erişim sağlar.
+class _DailyBriefingCard extends StatelessWidget {
+  const _DailyBriefingCard({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      borderRadius: BorderRadius.circular(18),
+      clipBehavior: Clip.antiAlias,
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                cs.primary,
+                cs.primary.withValues(alpha: 0.80),
+              ],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.22),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.podcasts_rounded,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Günlük Sesli Brifing',
+                        style: TextStyle(
+                          color: cs.onPrimary,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Bugünün haberlerini sesli dinle',
+                        style: TextStyle(
+                          color: cs.onPrimary.withValues(alpha: 0.80),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.22),
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.play_arrow_rounded,
+                          size: 18, color: cs.onPrimary),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Başla',
+                        style: TextStyle(
+                          color: cs.onPrimary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -85,6 +85,11 @@ enum TtsEngineKind {
   /// Kullanıcı kendi ElevenLabs API anahtarını girer.
   /// Maliyet: ~\$0.30/1K karakter (~brifing başına \$0.03–0.05).
   elevenlabs,
+
+  /// Microsoft Edge TTS: ücretsiz, API anahtarı gerektirmez.
+  /// WebSocket protokolüyle speech.platform.bing.com üzerinden çalışır.
+  /// Türkçe: EmelNeural (kadın) / AhmetNeural (erkek).
+  edge,
 }
 
 extension TtsEngineKindLabel on TtsEngineKind {
@@ -92,6 +97,7 @@ extension TtsEngineKindLabel on TtsEngineKind {
         TtsEngineKind.system => 'Sistem TTS (varsayılan)',
         TtsEngineKind.openai => 'OpenAI TTS (yüksek kalite)',
         TtsEngineKind.elevenlabs => 'ElevenLabs (en doğal ses)',
+        TtsEngineKind.edge => 'Edge TTS (ücretsiz, doğal)',
       };
 
   String get description => switch (this) {
@@ -102,6 +108,9 @@ extension TtsEngineKindLabel on TtsEngineKind {
         TtsEngineKind.elevenlabs =>
           'ElevenLabs AI sesleri — son derece doğal, '
               'Türkçe multilingual v2 modeli. ElevenLabs API anahtarı gerekir.',
+        TtsEngineKind.edge =>
+          'Microsoft Edge TTS — ücretsiz, API anahtarı gerektirmez. '
+              'Türkçe: Emel (kadın) veya Ahmet (erkek) sesi.',
       };
 }
 
@@ -162,6 +171,9 @@ class AiSettingsProvider extends ChangeNotifier {
   String _openaiTtsVoice = 'nova';
   String _openaiTtsModel = 'tts-1';
 
+  // ─── Edge TTS ───
+  String _edgeTtsVoice = 'tr-TR-EmelNeural';
+
   // ─── ElevenLabs TTS ───
   String _elevenLabsApiKey = '';
   String _elevenLabsVoiceId = 'pNInz6obpgDQGcFmaJgB'; // Adam
@@ -201,6 +213,7 @@ class AiSettingsProvider extends ChangeNotifier {
   static const String _prefsOpenaiTtsVoice = 'pref_ai_openai_tts_voice';
   static const String _prefsOpenaiTtsModel = 'pref_ai_openai_tts_model';
   static const String _prefsFirstRunNotice = 'pref_ai_first_run_notice';
+  static const String _prefsEdgeVoice = 'edge_tts_voice';
   static const String _prefsElKey = 'elevenlabs_key';
   static const String _prefsElVoice = 'elevenlabs_voice';
   static const String _prefsElModel = 'elevenlabs_model';
@@ -365,14 +378,21 @@ class AiSettingsProvider extends ChangeNotifier {
   double get elevenLabsStability => _elevenLabsStability;
   double get elevenLabsSimilarityBoost => _elevenLabsSimilarityBoost;
 
+  // ─── Edge TTS getters ───
+  String get edgeTtsVoice => _edgeTtsVoice;
+
   /// Seçili TTS motoru kullanılabilir durumda mı? OpenAI/ElevenLabs
-  /// seçildiyse ilgili anahtar girilmiş olmalı.
+  /// seçildiyse ilgili anahtar girilmiş olmalı. Edge ve System ücretsiz.
   bool get isTtsEngineUsable {
-    if (_ttsEngine == TtsEngineKind.system) return true;
-    if (_ttsEngine == TtsEngineKind.elevenlabs) {
-      return _elevenLabsApiKey.isNotEmpty;
+    switch (_ttsEngine) {
+      case TtsEngineKind.system:
+      case TtsEngineKind.edge:
+        return true;
+      case TtsEngineKind.elevenlabs:
+        return _elevenLabsApiKey.isNotEmpty;
+      case TtsEngineKind.openai:
+        return _openaiTtsKey.isNotEmpty;
     }
-    return _openaiTtsKey.isNotEmpty;
   }
 
   // ─── First-run notice ───
@@ -443,6 +463,9 @@ class AiSettingsProvider extends ChangeNotifier {
     _openaiTtsKey = prefs.getString(_prefsOpenaiTtsKey) ?? '';
     _openaiTtsVoice = prefs.getString(_prefsOpenaiTtsVoice) ?? 'nova';
     _openaiTtsModel = prefs.getString(_prefsOpenaiTtsModel) ?? 'tts-1';
+
+    _edgeTtsVoice =
+        prefs.getString(_prefsEdgeVoice) ?? 'tr-TR-EmelNeural';
 
     _elevenLabsApiKey = prefs.getString(_prefsElKey) ?? '';
     _elevenLabsVoiceId =
@@ -575,6 +598,15 @@ class AiSettingsProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_prefsElSimilarity, clamped);
+  }
+
+  // ─────────── Edge TTS setter ───────────
+  Future<void> setEdgeTtsVoice(String voice) async {
+    if (_edgeTtsVoice == voice) return;
+    _edgeTtsVoice = voice;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsEdgeVoice, voice);
   }
 
   // ─────────── Live model listesi ───────────

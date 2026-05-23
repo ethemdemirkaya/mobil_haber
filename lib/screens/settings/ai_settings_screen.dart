@@ -1504,6 +1504,7 @@ class _TtsEngineTile extends StatelessWidget {
               TtsEngineKind.system => Icons.smartphone_outlined,
               TtsEngineKind.openai => Icons.cloud_outlined,
               TtsEngineKind.elevenlabs => Icons.graphic_eq,
+              TtsEngineKind.edge => Icons.language_outlined,
             },
             size: 16,
             color: cs.onSurfaceVariant,

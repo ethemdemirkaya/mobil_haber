@@ -16,6 +16,7 @@ import '../../providers/reading_history_provider.dart';
 import '../../providers/reading_progress_provider.dart';
 import '../../providers/reading_theme_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../widgets/article_audio_summary_button.dart';
 import '../../widgets/article_image.dart';
 import '../../widgets/article_qa_sheet.dart';
 import '../../widgets/author_profile_sheet.dart';
@@ -1063,7 +1064,7 @@ class _AiSummarySection extends StatelessWidget {
 
     if (cached == null) {
       return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (ai.lastError != null && !loading)
             Container(
@@ -1090,31 +1091,39 @@ class _AiSummarySection extends StatelessWidget {
                 ],
               ),
             ),
+          // ── Sesli Özetle — birincil aksiyon ──────────────────────────
+          // Tek dokunuşta AI özeti üretir ve hemen sesli okur.
+          ArticleAudioSummaryButton(
+            article: article,
+            large: true,
+            expand: true,
+          ),
+          const SizedBox(height: 10),
+          // ── Sadece metin özetle — ikincil seçenek ────────────────────
           SizedBox(
             width: double.infinity,
-            child: FilledButton.tonalIcon(
+            child: OutlinedButton.icon(
               onPressed: loading
                   ? null
                   : () {
                       HapticFeedback.selectionClick();
-                      context
-                          .read<AiSettingsProvider>()
-                          .summarize(article);
+                      context.read<AiSettingsProvider>().summarize(article);
                     },
               icon: loading
                   ? const SizedBox(
-                      width: 16,
-                      height: 16,
+                      width: 15,
+                      height: 15,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.auto_awesome, size: 18),
+                  : const Icon(Icons.auto_awesome_outlined, size: 16),
               label: Text(
                 loading
                     ? 'Özet üretiliyor…'
-                    : 'Yapay zekayla özetle • ${ai.currentModelLabel}',
+                    : 'Sadece metin özetle',
+                style: const TextStyle(fontSize: 13),
               ),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -1125,91 +1134,98 @@ class _AiSummarySection extends StatelessWidget {
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            cs.primary.withValues(alpha: 0.10),
-            cs.primary.withValues(alpha: 0.04),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: cs.primary.withValues(alpha: 0.25),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    // ── Özet mevcut — metin kartı + sesli dinle butonu ──────────────────
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                cs.primary.withValues(alpha: 0.10),
+                cs.primary.withValues(alpha: 0.04),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: cs.primary.withValues(alpha: 0.25),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.auto_awesome, size: 16, color: cs.primary),
-              const SizedBox(width: 6),
-              Text(
-                'YAPAY ZEKA ÖZETİ',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2,
-                  color: cs.primary,
-                ),
+              Row(
+                children: [
+                  Icon(Icons.auto_awesome, size: 16, color: cs.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    'YAPAY ZEKA ÖZETİ',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                      color: cs.primary,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    ai.currentModelLabel,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: ai.isLoadingFor(article.id)
+                        ? null
+                        : () async {
+                            HapticFeedback.selectionClick();
+                            final aiRef = context.read<AiSettingsProvider>();
+                            await aiRef.invalidate(article.id);
+                            if (!context.mounted) return;
+                            await aiRef.summarize(article);
+                          },
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: ai.isLoadingFor(article.id)
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.refresh, size: 16),
+                    ),
+                  ),
+                ],
               ),
-              const Spacer(),
-              Text(
-                ai.currentModelLabel,
+              const SizedBox(height: 8),
+              SelectableText(
+                cached,
                 style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(width: 4),
-              InkWell(
-                borderRadius: BorderRadius.circular(20),
-                // Tıklama anında zaten yükleme varsa yoksay — "yeniden
-                // özetle" basıldıkça paralel istek başlatma riskini
-                // kaldırır.
-                onTap: ai.isLoadingFor(article.id)
-                    ? null
-                    : () async {
-                        HapticFeedback.selectionClick();
-                        final aiRef = context.read<AiSettingsProvider>();
-                        await aiRef.invalidate(article.id);
-                        if (!context.mounted) return;
-                        // invalidate sonrası senkron summarize başlat —
-                        // provider içindeki `_loadingArticleId` guard
-                        // ikinci paralel çağrıyı engeller.
-                        await aiRef.summarize(article);
-                      },
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: ai.isLoadingFor(article.id)
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.refresh, size: 16),
+                  color: isSepia ? sepiaText : cs.onSurface,
+                  fontSize: 14,
+                  height: 1.55,
+                  fontFamily: isSepia ? 'serif' : null,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          SelectableText(
-            cached,
-            style: TextStyle(
-              color: isSepia ? sepiaText : cs.onSurface,
-              fontSize: 14,
-              height: 1.55,
-              fontFamily: isSepia ? 'serif' : null,
-            ),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 12),
+        // ── Sesli dinle — özet üretildikten sonra hemen kullanılabilir ──
+        ArticleAudioSummaryButton(
+          article: article,
+          large: true,
+          expand: true,
+        ),
+      ],
     );
   }
 }
