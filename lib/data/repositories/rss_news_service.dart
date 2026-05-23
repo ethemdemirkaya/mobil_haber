@@ -178,8 +178,8 @@ class RssNewsService {
       sourceUrl: link,
     );
 
-    final summary = _stripHtml(descRaw);
-    final content = _stripHtml(contentRaw);
+    final summary = _removePaywallTrailer(_stripHtml(descRaw));
+    final content = _removePaywallTrailer(_stripHtml(contentRaw));
 
     return Article(
       id: _stableId(link),
@@ -230,7 +230,7 @@ class RssNewsService {
       categoryNodes: el.findElements('category'),
       sourceUrl: link,
     );
-    final summary = _stripHtml(summaryRaw);
+    final summary = _removePaywallTrailer(_stripHtml(summaryRaw));
 
     return Article(
       id: _stableId(link),
@@ -526,6 +526,16 @@ class RssNewsService {
     if (s.length <= max) return s;
     return '${s.substring(0, max).trim()}…';
   }
+
+  static final _paywallTrailRe = RegExp(
+    r'\s*[.…,;–—]?\s*(?:haberin?\s+)?(?:devam\w+|tamamını?\s+oku\w*)'
+    r'\s+(?:\w+\s+){0,3}tıkla\w*[.…]*\s*$',
+    caseSensitive: false,
+    unicode: true,
+  );
+
+  String _removePaywallTrailer(String s) =>
+      s.replaceAll(_paywallTrailRe, '').trim();
 
   int _estimateReadMinutes(String text) {
     if (text.isEmpty) return 1;

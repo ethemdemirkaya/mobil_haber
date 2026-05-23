@@ -180,7 +180,7 @@ class _SplashScreenState extends State<SplashScreen>
                 children: [
                   const Spacer(flex: 5),
 
-                  // Pusula glyph — animasyonlu iğne dönüşü.
+                  // Pusula glyph — glow ring + animasyonlu iğne dönüşü.
                   AnimatedBuilder(
                     animation: Listenable.merge([_entry, _needle]),
                     builder: (context, _) {
@@ -188,10 +188,32 @@ class _SplashScreenState extends State<SplashScreen>
                         opacity: _glyphFade.value,
                         child: Transform.scale(
                           scale: _glyphScale.value,
-                          child: PusulaGlyph(
-                            size: 168,
-                            needleProgress: Curves.easeOutCubic
-                                .transform(_needle.value),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              // Glow halo arkada
+                              Container(
+                                width: 200,
+                                height: 200,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: cs.primary.withValues(
+                                        alpha: isDark ? 0.38 : 0.22,
+                                      ),
+                                      blurRadius: 64,
+                                      spreadRadius: 8,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              PusulaGlyph(
+                                size: 168,
+                                needleProgress: Curves.easeOutCubic
+                                    .transform(_needle.value),
+                              ),
+                            ],
                           ),
                         ),
                       );
@@ -236,25 +258,12 @@ class _SplashScreenState extends State<SplashScreen>
 
                   const Spacer(flex: 6),
 
-                  // Footer — ince animasyonlu progress + version.
+                  // Footer — pulsing dots + version.
                   FadeTransition(
                     opacity: _footerFade,
                     child: Column(
                       children: [
-                        SizedBox(
-                          width: 120,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(2),
-                            child: LinearProgressIndicator(
-                              minHeight: 2.5,
-                              backgroundColor: cs.outlineVariant
-                                  .withValues(alpha: 0.4),
-                              valueColor: AlwaysStoppedAnimation(
-                                cs.primary.withValues(alpha: 0.85),
-                              ),
-                            ),
-                          ),
-                        ),
+                        _PulsingDots(color: cs.primary),
                         const SizedBox(height: 14),
                         Text(
                           'v${AppConstants.appVersion}',
@@ -298,12 +307,19 @@ class _TaglinePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: primary.withValues(alpha: 0.08),
+        gradient: LinearGradient(
+          colors: [
+            primary.withValues(alpha: 0.18),
+            primary.withValues(alpha: 0.07),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
         borderRadius: BorderRadius.circular(40),
         border: Border.all(
-          color: primary.withValues(alpha: 0.22),
+          color: primary.withValues(alpha: 0.32),
           width: 1,
         ),
       ),
@@ -311,12 +327,19 @@ class _TaglinePill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 6,
-            height: 6,
+            width: 7,
+            height: 7,
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
               color: primary,
-              borderRadius: BorderRadius.circular(3),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: primary.withValues(alpha: 0.5),
+                  blurRadius: 6,
+                  spreadRadius: 1,
+                ),
+              ],
             ),
           ),
           Text(
@@ -325,7 +348,7 @@ class _TaglinePill extends StatelessWidget {
               color: fg,
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              letterSpacing: 0.1,
+              letterSpacing: 0.2,
             ),
           ),
         ],
@@ -370,4 +393,63 @@ class _SoftBrandHaloPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _SoftBrandHaloPainter old) =>
       old.color != color || old.isDark != isDark;
+}
+
+/// Yükleme göstergesi — 3 nokta sırayla dalgalanır.
+class _PulsingDots extends StatefulWidget {
+  const _PulsingDots({required this.color});
+  final Color color;
+
+  @override
+  State<_PulsingDots> createState() => _PulsingDotsState();
+}
+
+class _PulsingDotsState extends State<_PulsingDots>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, _) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            final phase = (_ctrl.value + i / 3) % 1.0;
+            final v = (math.sin(phase * 2 * math.pi) + 1) / 2;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Transform.scale(
+                scale: 0.45 + 0.55 * v,
+                child: Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: widget.color.withValues(alpha: 0.35 + 0.65 * v),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
 }

@@ -435,18 +435,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 4),
                           child: Row(
                             children: [
-                              CircleAvatar(
-                                radius: 18,
-                                backgroundColor: cs.primaryContainer
-                                    .withValues(alpha: 0.7),
-                                child: Text(
-                                  _initials(article.author),
-                                  style: TextStyle(
-                                    color: cs.onPrimaryContainer,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                  ),
-                                ),
+                              _SourceAvatar(
+                                sourceName: article.sourceName,
                               ),
                               const SizedBox(width: 10),
                               Expanded(
@@ -504,9 +494,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                               color: cat.color,
                             ),
                           ),
-                          const Spacer(),
-                          if (article.sourceName.isNotEmpty)
-                            _SourceBadge(sourceName: article.sourceName),
                         ],
                       ),
                       const SizedBox(height: 10),
@@ -647,14 +634,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     );
   }
 
-  static String _initials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty) return '?';
-    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
-        .toUpperCase();
-  }
-
   static String _hostOf(String url) {
     final uri = Uri.tryParse(url);
     if (uri == null) return '';
@@ -753,105 +732,85 @@ class _AskAiCta extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Material(
       color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => ArticleQaSheet.show(context, article),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          ArticleQaSheet.show(context, article);
+        },
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+          padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
+          constraints: const BoxConstraints(minHeight: 70),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                accent.withValues(alpha: 0.16),
-                cs.primary.withValues(alpha: 0.06),
-                accent.withValues(alpha: 0.04),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              stops: const [0.0, 0.5, 1.0],
-            ),
+            color: accent.withValues(alpha: 0.07),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: accent.withValues(alpha: 0.35)),
-            boxShadow: [
-              BoxShadow(
-                color: accent.withValues(alpha: 0.08),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            border: Border.all(color: accent.withValues(alpha: 0.22)),
           ),
           child: Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 38,
+                height: 38,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.20),
+                  color: accent.withValues(alpha: 0.14),
                   shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: accent.withValues(alpha: 0.25),
-                      blurRadius: 12,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
                 ),
-                child: Icon(Icons.auto_awesome, size: 21, color: accent),
+                child: Icon(Icons.auto_awesome, size: 19, color: accent),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Row(
                       children: [
-                        Text('AI\'ya sor',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 14,
-                              color: cs.onSurface,
-                              letterSpacing: -0.2,
-                            )),
-                        const SizedBox(width: 8),
+                        Text(
+                          'AI\'ya sor',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                            color: cs.onSurface,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        const SizedBox(width: 7),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: accent.withValues(alpha: 0.15),
+                            color: accent.withValues(alpha: 0.14),
                             borderRadius: BorderRadius.circular(5),
                           ),
-                          child: Text('BETA',
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                                color: accent,
-                                letterSpacing: 0.8,
-                              )),
+                          child: Text(
+                            'BETA',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              color: accent,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     Text(
                       'Neden önemli? Arkaplan? Özet?',
                       style: TextStyle(
                         fontSize: 11.5,
                         color: cs.onSurfaceVariant,
-                        height: 1.3,
                       ),
                     ),
                   ],
                 ),
               ),
-              Container(
-                width: 32,
-                height: 32,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.arrow_forward_ios_rounded,
-                    size: 14, color: accent),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: accent.withValues(alpha: 0.65),
               ),
             ],
           ),
@@ -937,6 +896,61 @@ class _ScrimIconButton extends StatelessWidget {
 }
 
 /// Kaynak adı + logosu birlikte gösteren küçük rozet.
+/// Yazar satırında yuvarlak kaynak logosu. Kaynak katalogda varsa logoyu,
+/// yoksa marka rengiyle baş-harf placeholder'ı gösterir.
+class _SourceAvatar extends StatelessWidget {
+  const _SourceAvatar({required this.sourceName});
+
+  final String sourceName;
+  static const double _r = 18;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final source = _SourceBadge._findSource(sourceName);
+    final brandColor = source?.brandColor ?? cs.primary;
+
+    return Container(
+      width: _r * 2,
+      height: _r * 2,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: brandColor.withValues(alpha: 0.10),
+        border: Border.all(
+          color: brandColor.withValues(alpha: 0.32),
+          width: 1.5,
+        ),
+      ),
+      child: ClipOval(
+        child: source != null
+            ? CachedNetworkImage(
+                imageUrl: source.logoUrl,
+                fit: BoxFit.contain,
+                placeholder: (_, _) => _letter(brandColor, source.shortName),
+                errorWidget: (_, _, _) => _letter(brandColor, source.shortName),
+              )
+            : _letter(
+                brandColor,
+                sourceName.isNotEmpty ? sourceName : '?',
+              ),
+      ),
+    );
+  }
+
+  Widget _letter(Color color, String name) => Container(
+        alignment: Alignment.center,
+        color: color.withValues(alpha: 0.15),
+        child: Text(
+          name.isNotEmpty ? name[0].toUpperCase() : '?',
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.w800,
+            fontSize: 13,
+          ),
+        ),
+      );
+}
+
 ///
 /// Detay ekranının üstünde (ÖZET satırında) ve AI özet kartında kullanılır.
 /// Logo `NewsSourceCatalog`'tan kaynak adıyla eşleşirse Google s2/favicons
@@ -1114,11 +1128,12 @@ class _AiSummarySectionState extends State<_AiSummarySection> {
             readAlongNotifier: _readAlongNotifier,
           ),
           const SizedBox(height: 10),
-          // ── Sadece metin özetle — ikincil seçenek ────────────────────
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: loading
+          Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: loading
                   ? null
                   : () {
                       HapticFeedback.selectionClick();
@@ -1126,23 +1141,43 @@ class _AiSummarySectionState extends State<_AiSummarySection> {
                           .read<AiSettingsProvider>()
                           .summarize(widget.article);
                     },
-              icon: loading
-                  ? const SizedBox(
-                      width: 15,
-                      height: 15,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.auto_awesome_outlined, size: 16),
-              label: Text(
-                loading
-                    ? 'Özet üretiliyor…'
-                    : 'Sadece metin özetle',
-                style: const TextStyle(fontSize: 13),
-              ),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+              child: AnimatedOpacity(
+                opacity: loading ? 0.55 : 1.0,
+                duration: const Duration(milliseconds: 200),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 13, horizontal: 18),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                        color: cs.outlineVariant.withValues(alpha: 0.7)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (loading)
+                        SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: cs.primary),
+                        )
+                      else
+                        Icon(Icons.auto_awesome_outlined,
+                            size: 15, color: cs.onSurfaceVariant),
+                      const SizedBox(width: 8),
+                      Text(
+                        loading ? 'Özet üretiliyor…' : 'Sadece metin özetle',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: cs.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1327,52 +1362,71 @@ class _DisabledHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: () {
-        Navigator.of(context).push(
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const AiSettingsScreen()),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: cs.outlineVariant.withValues(alpha: 0.6),
-          ),
         ),
-        child: Row(
-          children: [
-            Icon(Icons.auto_awesome,
-                size: 18, color: cs.onSurfaceVariant),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Yapay zeka özetlemesini etkinleştir',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      color: cs.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    reason,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: cs.outlineVariant.withValues(alpha: 0.55),
             ),
-            Icon(Icons.chevron_right, color: cs.onSurfaceVariant),
-          ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: cs.primaryContainer.withValues(alpha: 0.45),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.lock_outline_rounded,
+                  size: 18,
+                  color: cs.primary.withValues(alpha: 0.6),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Yapay zeka özetlerini etkinleştir',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      reason,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: cs.onSurfaceVariant,
+                size: 20,
+              ),
+            ],
+          ),
         ),
       ),
     );
