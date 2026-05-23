@@ -13,6 +13,7 @@ import '../../core/tts/briefing_audio_handler.dart';
 import '../../data/models/article.dart';
 import '../../data/models/category.dart';
 import '../../data/repositories/daily_briefing_service.dart';
+import '../../data/repositories/edge_tts_service.dart';
 import '../../data/repositories/elevenlabs_tts_service.dart';
 import '../../data/repositories/market_widget_service.dart';
 import '../../data/repositories/openai_tts_service.dart';
@@ -50,6 +51,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   final DailyBriefingService _service = DailyBriefingService();
   final OpenAiTtsService _openaiTts = OpenAiTtsService();
   final ElevenLabsTtsService _elevenLabsTts = ElevenLabsTtsService();
+  final EdgeTtsService _edgeTts = EdgeTtsService();
   final MarketWidgetService _marketService = MarketWidgetService();
   StreamSubscription<void>? _audioCompleteSub;
   StreamSubscription<BriefingLockAction>? _lockActionSub;
@@ -78,7 +80,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   bool _ttsSupported = true; // false → bu platformda hiç çalıştırılamaz
   bool _speaking = false;
   bool _paused = false;
-  double _speechRate = 0.50; // 0.0-1.0; flutter_tts'te 0.5 ≈ normal hız
+  /// Hız çarpanı: 0.75 / 1.0 / 1.25 / 1.5 / 2.0 (1.0 = normal)
+  double _speedMultiplier = 1.0;
   // Ton ayarı: 0.5 (kalın) — 2.0 (ince), 1.0 = nötr.
   double _pitch = 1.0;
 
@@ -172,7 +175,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     if (!mounted) return;
     final canPlay = _ttsReady ||
         _activeEngine == TtsEngineKind.openai ||
-        _activeEngine == TtsEngineKind.elevenlabs;
+        _activeEngine == TtsEngineKind.elevenlabs ||
+        _activeEngine == TtsEngineKind.edge;
     if (_briefing != null && _briefing!.isNotEmpty && canPlay) {
       await Future<void>.delayed(const Duration(milliseconds: 300));
       if (mounted) _play();
@@ -285,7 +289,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     }
 
     await _safeCall(
-        'setSpeechRate', () async => _tts.setSpeechRate(_speechRate));
+        'setSpeechRate', () async => _tts.setSpeechRate(_speedMultiplier * 0.5));
     await _safeCall('setPitch', () async => _tts.setPitch(_pitch));
     await _safeCall('setVolume', () async => _tts.setVolume(1.0));
     await _safeCall('awaitSpeakCompletion',
@@ -588,12 +592,14 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     for (var i = startIndex; i < _utterances.length; i++) {
       if (!mounted) return;
       if (generation != _playGeneration) return;
-      _utteranceIndex = i;
+      setState(() => _utteranceIndex = i);
       try {
         if (engine == TtsEngineKind.openai) {
           await _speakViaOpenAi(_utterances[i]);
         } else if (engine == TtsEngineKind.elevenlabs) {
           await _speakViaElevenLabs(_utterances[i]);
+        } else if (engine == TtsEngineKind.edge) {
+          await _speakViaEdge(_utterances[i]);
         } else {
           await _speakViaSystem(_utterances[i]);
         }
@@ -645,10 +651,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
         'Motoru bölümünden girin.',
       );
     }
-    // OpenAI ses hızı: 0.25-4.0 (1.0 normal). Bizim slider 0.30-0.70 idi
-    // (flutter_tts skalası). Burayı OpenAI skalasına çeviriyoruz.
-    // 0.30 → 0.75 (yavaş), 0.50 → 1.0 (normal), 0.70 → 1.25 (hızlı).
-    final openaiSpeed = (0.5 + (_speechRate - 0.5) * 1.5).clamp(0.5, 2.0);
+    final openaiSpeed = _speedMultiplier;
 
     // 1) Disk cache kontrolü — aynı (text + voice + model + speed)
     //    kombinasyonu için MP3 varsa API'ye gitmeden direkt çal.
@@ -720,10 +723,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
       );
     }
 
-    // ElevenLabs hız aralığı: 0.7–1.2 (dar aralık).
-    // Bizim slider 0.30–0.70 flutter_tts skalasına dayanıyor.
-    // 0.30 → 0.7, 0.50 → 1.0, 0.70 → 1.2 olacak şekilde lineer eşliyoruz.
-    const double speedForCache = 1.0;
+    final speedForCache = _elevenlabsSpeed();
 
     // 1) Disk cache kontrolü — aynı (text + voice + model + speed)
     //    kombinasyonu için MP3 varsa API'ye gitmeden direkt çal.
@@ -747,6 +747,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
         modelId: ai.elevenLabsModelId,
         stability: ai.elevenLabsStability,
         similarityBoost: ai.elevenLabsSimilarityBoost,
+        speed: speedForCache,
       );
       // ignore: unawaited_futures
       BriefingAudioCache.store(
@@ -784,6 +785,72 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     }
   }
 
+  /// _speedMultiplier [0.75,2.0] → ElevenLabs speed [0.7,1.2]
+  double _elevenlabsSpeed() {
+    if (_speedMultiplier <= 1.0) {
+      return (0.7 + (_speedMultiplier - 0.75) * 0.3 / 0.25).clamp(0.7, 1.2);
+    } else {
+      return (1.0 + (_speedMultiplier - 1.0) * 0.2).clamp(0.7, 1.2);
+    }
+  }
+
+  Future<void> _speakViaEdge(String text) async {
+    final ai = context.read<AiSettingsProvider>();
+    final voice = ai.edgeTtsVoice;
+    final ratePct = ((_speedMultiplier - 1.0) * 100).round();
+
+    final cached = await BriefingAudioCache.find(
+      text: text,
+      voice: voice,
+      model: 'edge',
+      speed: _speedMultiplier,
+    );
+
+    Source playerSource;
+    if (cached != null) {
+      debugPrint('[Pusula][Edge TTS] cache hit: ${cached.path}');
+      playerSource = DeviceFileSource(cached.path);
+    } else {
+      final bytes = await _edgeTts.synthesize(
+        text: text,
+        voice: voice,
+        ratePct: ratePct,
+      );
+      // ignore: unawaited_futures
+      BriefingAudioCache.store(
+        text: text,
+        voice: voice,
+        model: 'edge',
+        speed: _speedMultiplier,
+        bytes: bytes,
+      );
+      playerSource = BytesSource(bytes);
+    }
+
+    await _audioCompleteSub?.cancel();
+    final completer = Completer<void>();
+    _openaiPlaybackCompleter = completer;
+    _audioCompleteSub = _audioPlayer.onPlayerComplete.listen((_) {
+      if (!completer.isCompleted) completer.complete();
+    });
+    try {
+      await _audioPlayer.stop();
+      await _audioPlayer.play(playerSource);
+      await completer.future.timeout(
+        const Duration(minutes: 3),
+        onTimeout: () {
+          debugPrint('[Pusula][Edge TTS] playback timeout');
+        },
+      );
+    } finally {
+      await _audioCompleteSub?.cancel();
+      _audioCompleteSub = null;
+      if (identical(_openaiPlaybackCompleter, completer)) {
+        _openaiPlaybackCompleter = null;
+      }
+    }
+  }
+
   Future<void> _play() async {
     if (_utterances.isEmpty) return;
     final engine = _activeEngine;
@@ -803,7 +870,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     setState(() => _paused = true);
     final engine = _activeEngine;
     if (engine == TtsEngineKind.openai ||
-        engine == TtsEngineKind.elevenlabs) {
+        engine == TtsEngineKind.elevenlabs ||
+        engine == TtsEngineKind.edge) {
       await _audioPlayer.stop();
       // Aktif completer'ı manuel complete et — `_speakVia*`'deki
       // `await completer.future` döner, döngü `_paused` üzerinden break eder.
@@ -826,7 +894,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     });
     final engine = _activeEngine;
     if (engine == TtsEngineKind.openai ||
-        engine == TtsEngineKind.elevenlabs) {
+        engine == TtsEngineKind.elevenlabs ||
+        engine == TtsEngineKind.edge) {
       await _audioPlayer.stop();
       final c = _openaiPlaybackCompleter;
       if (c != null && !c.isCompleted) c.complete();
@@ -844,6 +913,32 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     await _play();
   }
 
+  Future<void> _jumpToUtterance(int targetIndex) async {
+    if (_utterances.isEmpty) return;
+    final idx = targetIndex.clamp(0, _utterances.length - 1);
+    final wasPlaying = _speaking;
+    _playGeneration++;
+    setState(() {
+      _utteranceIndex = idx;
+      _paused = !wasPlaying;
+      _speaking = false;
+    });
+    final engine = _activeEngine;
+    if (engine == TtsEngineKind.openai ||
+        engine == TtsEngineKind.elevenlabs ||
+        engine == TtsEngineKind.edge) {
+      await _audioPlayer.stop();
+      final c = _openaiPlaybackCompleter;
+      if (c != null && !c.isCompleted) c.complete();
+      _audioCompleteSub?.cancel();
+      _audioCompleteSub = null;
+    } else {
+      await _tts.stop();
+    }
+    if (!mounted) return;
+    if (wasPlaying) await _playFromIndex(idx);
+  }
+
   Future<void> _selectTopic(BriefingTopic t) async {
     if (t.cacheKey == _topic.cacheKey) return;
     HapticFeedback.selectionClick();
@@ -856,7 +951,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     if (!mounted) return;
     final canPlayAfterSelect = _ttsReady ||
         _activeEngine == TtsEngineKind.openai ||
-        _activeEngine == TtsEngineKind.elevenlabs;
+        _activeEngine == TtsEngineKind.elevenlabs ||
+        _activeEngine == TtsEngineKind.edge;
     if (_briefing != null && canPlayAfterSelect) {
       await Future<void>.delayed(const Duration(milliseconds: 300));
       if (mounted) _play();
@@ -870,7 +966,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     if (!mounted) return;
     final canPlayAfterRefresh = _ttsReady ||
         _activeEngine == TtsEngineKind.openai ||
-        _activeEngine == TtsEngineKind.elevenlabs;
+        _activeEngine == TtsEngineKind.elevenlabs ||
+        _activeEngine == TtsEngineKind.edge;
     if (_briefing != null && canPlayAfterRefresh) _play();
   }
 
@@ -980,30 +1077,34 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
                           _ttsReady &&
                           _ttsSupported) ||
                       (_activeEngine == TtsEngineKind.openai &&
-                          context.watch<AiSettingsProvider>().hasOpenaiTtsKey) ||
+                          ai.hasOpenaiTtsKey) ||
                       (_activeEngine == TtsEngineKind.elevenlabs &&
-                          context.watch<AiSettingsProvider>().hasElevenLabsKey)),
-              speechRate: _speechRate,
+                          ai.hasElevenLabsKey) ||
+                      _activeEngine == TtsEngineKind.edge),
+              speedMultiplier: _speedMultiplier,
               pitch: _pitch,
               sleepEndsAt: _sleepEndsAt,
-              progress: _utterances.isEmpty
-                  ? 0.0
-                  : (_utteranceIndex / _utterances.length).clamp(0.0, 1.0),
+              utteranceIndex: _utteranceIndex,
+              utteranceCount: _utterances.length,
               onPlay: _play,
               onPause: _pause,
               onStop: _stop,
               onRestart: _restart,
-              onRateChanged: (r) async {
-                setState(() => _speechRate = r);
+              onSkipPrev: () => _jumpToUtterance(_utteranceIndex - 1),
+              onSkipNext: () => _jumpToUtterance(_utteranceIndex + 1),
+              onSeekTo: _jumpToUtterance,
+              onSpeedChanged: (s) async {
+                setState(() => _speedMultiplier = s);
                 await _safeCall(
-                    'setSpeechRate', () async => _tts.setSpeechRate(r));
+                    'setSpeechRate', () async => _tts.setSpeechRate(s * 0.5));
                 if (_speaking) {
                   final idx = _utteranceIndex;
                   _playGeneration++;
                   if (!mounted) return;
                   final engine = _activeEngine;
                   if (engine == TtsEngineKind.openai ||
-                      engine == TtsEngineKind.elevenlabs) {
+                      engine == TtsEngineKind.elevenlabs ||
+                      engine == TtsEngineKind.edge) {
                     await _audioPlayer.stop();
                     final c = _openaiPlaybackCompleter;
                     if (c != null && !c.isCompleted) c.complete();
@@ -1018,11 +1119,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
               },
               onPitchChanged: (p) async {
                 setState(() => _pitch = p);
-                await _safeCall(
-                    'setPitch', () async => _tts.setPitch(p));
-                // Sistem TTS ses tonunu hot-update etmez; konuşma sürerken
-                // şu anki cümleyi durdurup tekrar başlatmak yerine
-                // kullanıcıya bir sonraki cümleden itibaren etki etsin.
+                await _safeCall('setPitch', () async => _tts.setPitch(p));
               },
             ),
           ],
@@ -1325,30 +1422,38 @@ class _PlayerBar extends StatefulWidget {
     required this.speaking,
     required this.paused,
     required this.hasBriefing,
-    required this.speechRate,
+    required this.speedMultiplier,
     required this.pitch,
     required this.sleepEndsAt,
-    required this.progress,
+    required this.utteranceIndex,
+    required this.utteranceCount,
     required this.onPlay,
     required this.onPause,
     required this.onStop,
     required this.onRestart,
-    required this.onRateChanged,
+    required this.onSkipPrev,
+    required this.onSkipNext,
+    required this.onSeekTo,
+    required this.onSpeedChanged,
     required this.onPitchChanged,
   });
 
   final bool speaking;
   final bool paused;
   final bool hasBriefing;
-  final double speechRate;
+  final double speedMultiplier;
   final double pitch;
   final DateTime? sleepEndsAt;
-  final double progress;
+  final int utteranceIndex;
+  final int utteranceCount;
   final VoidCallback onPlay;
   final VoidCallback onPause;
   final VoidCallback onStop;
   final VoidCallback onRestart;
-  final ValueChanged<double> onRateChanged;
+  final VoidCallback onSkipPrev;
+  final VoidCallback onSkipNext;
+  final ValueChanged<int> onSeekTo;
+  final ValueChanged<double> onSpeedChanged;
   final ValueChanged<double> onPitchChanged;
 
   @override
@@ -1356,10 +1461,13 @@ class _PlayerBar extends StatefulWidget {
 }
 
 class _PlayerBarState extends State<_PlayerBar> {
-  // Gelişmiş kontroller (pitch) varsayılanda kapalı; expand'te açılır.
   bool _showAdvanced = false;
-  // Uyku zamanlayıcısı kalan süre tickeri.
+  bool _dragging = false;
+  double? _dragValue;
   Timer? _ticker;
+
+  static const _speeds = [0.75, 1.0, 1.25, 1.5, 2.0];
+  static const _speedLabels = ['0.75×', '1×', '1.25×', '1.5×', '2×'];
 
   @override
   void initState() {
@@ -1397,37 +1505,96 @@ class _PlayerBarState extends State<_PlayerBar> {
     if (remaining.isNegative) return '';
     final m = remaining.inMinutes;
     final s = remaining.inSeconds % 60;
-    return '${m.toString().padLeft(2, '0')}:'
-        '${s.toString().padLeft(2, '0')}';
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final sleepText = _sleepCountdown();
+    final count = widget.utteranceCount;
+    final idx = widget.utteranceIndex;
+    final sliderVal = _dragging
+        ? (_dragValue ?? idx.toDouble())
+        : idx.toDouble();
+
     return Container(
       decoration: BoxDecoration(
         color: cs.surface,
         border: Border(
-          top: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: 0.5),
-          ),
+          top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
         ),
       ),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(2),
-            child: LinearProgressIndicator(
-              value: widget.progress,
-              minHeight: 3,
-              backgroundColor: cs.outlineVariant.withValues(alpha: 0.4),
-              valueColor: AlwaysStoppedAnimation(cs.primary),
-            ),
+          // ── Seekable utterance slider ──
+          Row(
+            children: [
+              SizedBox(
+                width: 30,
+                child: Text(
+                  '${idx + 1}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 3,
+                    thumbShape:
+                        const RoundSliderThumbShape(enabledThumbRadius: 6),
+                    overlayShape:
+                        const RoundSliderOverlayShape(overlayRadius: 14),
+                  ),
+                  child: Slider(
+                    value: count > 1
+                        ? sliderVal.clamp(0, count - 1.0)
+                        : 0,
+                    min: 0,
+                    max: count > 1 ? count - 1.0 : 1,
+                    divisions: count > 1 ? count - 1 : null,
+                    onChanged: widget.hasBriefing && count > 1
+                        ? (v) => setState(() {
+                              _dragging = true;
+                              _dragValue = v;
+                            })
+                        : null,
+                    onChangeEnd: widget.hasBriefing && count > 1
+                        ? (v) {
+                            setState(() {
+                              _dragging = false;
+                              _dragValue = null;
+                            });
+                            widget.onSeekTo(v.round());
+                          }
+                        : null,
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 30,
+                child: Text(
+                  '$count',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
+          // ── Sleep countdown ──
           if (sleepText.isNotEmpty) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 2),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -1445,47 +1612,44 @@ class _PlayerBarState extends State<_PlayerBar> {
               ],
             ),
           ],
-          const SizedBox(height: 10),
+          const SizedBox(height: 4),
+          // ── Speed chips ──
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.speed, size: 16, color: cs.onSurfaceVariant),
-              const SizedBox(width: 6),
-              Text(
-                'Hız: ${_rateLabel(widget.speechRate)}',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: cs.onSurfaceVariant,
+              for (var i = 0; i < _speeds.length; i++)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: ChoiceChip(
+                    label: Text(
+                      _speedLabels[i],
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    selected: widget.speedMultiplier == _speeds[i],
+                    onSelected: widget.hasBriefing
+                        ? (_) => widget.onSpeedChanged(_speeds[i])
+                        : null,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 4, vertical: 2),
+                    visualDensity: VisualDensity.compact,
+                    showCheckmark: false,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: Slider(
-                  value: widget.speechRate,
-                  min: 0.30,
-                  max: 0.70,
-                  divisions: 8,
-                  onChanged: widget.hasBriefing ? widget.onRateChanged : null,
-                ),
-              ),
+              const SizedBox(width: 4),
               IconButton(
-                tooltip: _showAdvanced
-                    ? 'Gelişmiş ayarları gizle'
-                    : 'Ton ayarı',
+                tooltip: _showAdvanced ? 'Gelişmiş ayarları gizle' : 'Ton ayarı',
                 iconSize: 18,
                 visualDensity: VisualDensity.compact,
-                onPressed: () => setState(
-                  () => _showAdvanced = !_showAdvanced,
-                ),
+                onPressed: () =>
+                    setState(() => _showAdvanced = !_showAdvanced),
                 icon: Icon(
-                  _showAdvanced
-                      ? Icons.tune
-                      : Icons.tune_outlined,
+                  _showAdvanced ? Icons.tune : Icons.tune_outlined,
                   color: _showAdvanced ? cs.primary : cs.onSurfaceVariant,
                 ),
               ),
             ],
           ),
-          // Gelişmiş: ton (pitch) sürgüsü.
+          // ── Collapsible pitch slider ──
           AnimatedSize(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
@@ -1518,18 +1682,31 @@ class _PlayerBarState extends State<_PlayerBar> {
                   )
                 : const SizedBox.shrink(),
           ),
+          const SizedBox(height: 4),
+          // ── Playback controls ──
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // Stop
               IconButton.filledTonal(
                 tooltip: 'Durdur',
                 onPressed: widget.hasBriefing ? widget.onStop : null,
                 icon: const Icon(Icons.stop_rounded),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 4),
+              // Skip prev
+              IconButton(
+                tooltip: 'Önceki cümle',
+                iconSize: 28,
+                onPressed:
+                    widget.hasBriefing && idx > 0 ? widget.onSkipPrev : null,
+                icon: const Icon(Icons.skip_previous_rounded),
+              ),
+              const SizedBox(width: 4),
+              // Play / Pause
               SizedBox(
-                width: 64,
-                height: 64,
+                width: 60,
+                height: 60,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
                     shape: const CircleBorder(),
@@ -1546,7 +1723,18 @@ class _PlayerBarState extends State<_PlayerBar> {
                   ),
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 4),
+              // Skip next
+              IconButton(
+                tooltip: 'Sonraki cümle',
+                iconSize: 28,
+                onPressed: widget.hasBriefing && idx < count - 1
+                    ? widget.onSkipNext
+                    : null,
+                icon: const Icon(Icons.skip_next_rounded),
+              ),
+              const SizedBox(width: 4),
+              // Restart
               IconButton.filledTonal(
                 tooltip: 'Yeniden başlat',
                 onPressed: widget.hasBriefing ? widget.onRestart : null,
@@ -1557,14 +1745,6 @@ class _PlayerBarState extends State<_PlayerBar> {
         ],
       ),
     );
-  }
-
-  String _rateLabel(double r) {
-    if (r <= 0.35) return 'Yavaş';
-    if (r <= 0.45) return 'Orta-yavaş';
-    if (r <= 0.55) return 'Normal';
-    if (r <= 0.62) return 'Hızlı';
-    return 'Çok hızlı';
   }
 
   String _pitchLabel(double p) {

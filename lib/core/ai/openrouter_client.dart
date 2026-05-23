@@ -151,6 +151,19 @@ class OpenRouterClient {
   }
 
   String _extractErrorMessage(dynamic decoded, int status) {
+    // Özel durum: 429 — provider rate-limit. Kullanıcıya ne yapacağını söyle.
+    if (status == 429) {
+      String detail = '';
+      if (decoded is Map) {
+        final err = decoded['error'];
+        final m = (err is Map ? err['message'] : decoded['message']);
+        if (m is String && m.isNotEmpty) detail = '\n$m';
+      }
+      return '429 — İstek limiti aşıldı.$detail\n\n'
+          'Ücretsiz modeller günlük kota veya dakika başına istek sınırına '
+          'sahiptir. Birkaç dakika bekleyip tekrar deneyin ya da '
+          'Ayarlar > Yapay Zeka > Model bölümünden farklı bir model seçin.';
+    }
     if (decoded is Map) {
       final err = decoded['error'];
       if (err is Map) {

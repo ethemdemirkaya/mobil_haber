@@ -1034,8 +1034,8 @@ class _LogoLetter extends StatelessWidget {
 /// Üç durum:
 ///   1. AI ayarları kapalı/eksik → kompakt CTA "Yapay zeka özetlerini etkinleştir"
 ///   2. Etkin ama bu makale için cache yok → "Yapay zekayla özetle" butonu
-///   3. Cache var → AI özet kartı + "yeniden özetle" küçük aksiyonu
-class _AiSummarySection extends StatelessWidget {
+///   3. Cache var → AI özet kartı + sesli dinle (satır-satır vurgulamalı)
+class _AiSummarySection extends StatefulWidget {
   const _AiSummarySection({
     required this.article,
     required this.isSepia,
@@ -1045,6 +1045,21 @@ class _AiSummarySection extends StatelessWidget {
   final Article article;
   final bool isSepia;
   final Color sepiaText;
+
+  @override
+  State<_AiSummarySection> createState() => _AiSummarySectionState();
+}
+
+class _AiSummarySectionState extends State<_AiSummarySection> {
+  /// Sesli okuma ilerlemesini metin widget'ına aktaran notifier.
+  final _readAlongNotifier =
+      ValueNotifier<ReadAlongState>(ReadAlongState.idle);
+
+  @override
+  void dispose() {
+    _readAlongNotifier.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1059,8 +1074,8 @@ class _AiSummarySection extends StatelessWidget {
       );
     }
 
-    final cached = ai.cachedSummary(article.id);
-    final loading = ai.loadingArticleId == article.id;
+    final cached = ai.cachedSummary(widget.article.id);
+    final loading = ai.loadingArticleId == widget.article.id;
 
     if (cached == null) {
       return Column(
@@ -1092,11 +1107,11 @@ class _AiSummarySection extends StatelessWidget {
               ),
             ),
           // ── Sesli Özetle — birincil aksiyon ──────────────────────────
-          // Tek dokunuşta AI özeti üretir ve hemen sesli okur.
           ArticleAudioSummaryButton(
-            article: article,
+            article: widget.article,
             large: true,
             expand: true,
+            readAlongNotifier: _readAlongNotifier,
           ),
           const SizedBox(height: 10),
           // ── Sadece metin özetle — ikincil seçenek ────────────────────
@@ -1107,7 +1122,9 @@ class _AiSummarySection extends StatelessWidget {
                   ? null
                   : () {
                       HapticFeedback.selectionClick();
-                      context.read<AiSettingsProvider>().summarize(article);
+                      context
+                          .read<AiSettingsProvider>()
+                          .summarize(widget.article);
                     },
               icon: loading
                   ? const SizedBox(
@@ -1183,18 +1200,18 @@ class _AiSummarySection extends StatelessWidget {
                   const SizedBox(width: 4),
                   InkWell(
                     borderRadius: BorderRadius.circular(20),
-                    onTap: ai.isLoadingFor(article.id)
+                    onTap: ai.isLoadingFor(widget.article.id)
                         ? null
                         : () async {
                             HapticFeedback.selectionClick();
                             final aiRef = context.read<AiSettingsProvider>();
-                            await aiRef.invalidate(article.id);
+                            await aiRef.invalidate(widget.article.id);
                             if (!context.mounted) return;
-                            await aiRef.summarize(article);
+                            await aiRef.summarize(widget.article);
                           },
                     child: Padding(
                       padding: const EdgeInsets.all(4),
-                      child: ai.isLoadingFor(article.id)
+                      child: ai.isLoadingFor(widget.article.id)
                           ? const SizedBox(
                               width: 14,
                               height: 14,
@@ -1206,13 +1223,18 @@ class _AiSummarySection extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              SelectableText(
-                cached,
-                style: TextStyle(
-                  color: isSepia ? sepiaText : cs.onSurface,
-                  fontSize: 14,
-                  height: 1.55,
-                  fontFamily: isSepia ? 'serif' : null,
+              // ── Sesli okuma sırasında aktif satır vurgulanır ──────────
+              ValueListenableBuilder<ReadAlongState>(
+                valueListenable: _readAlongNotifier,
+                builder: (context, state, _) => _ReadAlongText(
+                  text: cached,
+                  readAlongState: state,
+                  baseStyle: TextStyle(
+                    color: widget.isSepia ? widget.sepiaText : cs.onSurface,
+                    fontSize: 14,
+                    height: 1.55,
+                    fontFamily: widget.isSepia ? 'serif' : null,
+                  ),
                 ),
               ),
             ],
@@ -1221,11 +1243,79 @@ class _AiSummarySection extends StatelessWidget {
         const SizedBox(height: 12),
         // ── Sesli dinle — özet üretildikten sonra hemen kullanılabilir ──
         ArticleAudioSummaryButton(
-          article: article,
+          article: widget.article,
           large: true,
           expand: true,
+          readAlongNotifier: _readAlongNotifier,
         ),
       ],
+    );
+  }
+}
+
+/// Özet metnini gösterir; sesli okuma aktifken okunan satırı vurgular.
+///
+/// Aktif değilse normal `SelectableText` gösterir (seçilebilir metin).
+/// Aktifken: okunan satır mavi arka plan + kalın, geçmiş satırlar soluk,
+/// henüz okunmamış satırlar normal.
+class _ReadAlongText extends StatelessWidget {
+  const _ReadAlongText({
+    required this.text,
+    required this.readAlongState,
+    required this.baseStyle,
+  });
+
+  final String text;
+  final ReadAlongState readAlongState;
+  final TextStyle baseStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    if (!readAlongState.isActive || readAlongState.activeLine < 0) {
+      return SelectableText(text, style: baseStyle);
+    }
+
+    final lines = readAlongState.lines.isNotEmpty
+        ? readAlongState.lines
+        : text
+            .split('\n')
+            .map((l) => l.trim())
+            .where((l) => l.isNotEmpty)
+            .toList();
+
+    if (lines.isEmpty) {
+      return SelectableText(text, style: baseStyle);
+    }
+
+    final active =
+        readAlongState.activeLine.clamp(0, lines.length - 1);
+
+    return Text.rich(
+      TextSpan(
+        style: baseStyle,
+        children: [
+          for (int i = 0; i < lines.length; i++) ...[
+            TextSpan(
+              text: lines[i],
+              style: i == active
+                  ? TextStyle(
+                      backgroundColor:
+                          cs.primary.withValues(alpha: 0.18),
+                      fontWeight: FontWeight.w700,
+                      color: cs.primary,
+                    )
+                  : i < active
+                      ? TextStyle(
+                          color: baseStyle.color?.withValues(alpha: 0.45),
+                        )
+                      : null,
+            ),
+            if (i < lines.length - 1) const TextSpan(text: '\n'),
+          ],
+        ],
+      ),
     );
   }
 }

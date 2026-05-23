@@ -940,7 +940,7 @@ Yalnızca JSON döndür.
         userPrompt: '''
 HABER BAŞLIK: ${article.title}
 KAYNAK: ${article.sourceName.isNotEmpty ? article.sourceName : "Bilinmeyen"}
-TARİH: ${article.publishedAt != null ? article.publishedAt.toString().substring(0, 10) : "bilinmiyor"}
+TARİH: ${article.publishedAt.toString().substring(0, 10)}
 
 HABER METNİ:
 $body
