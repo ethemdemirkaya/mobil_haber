@@ -24,6 +24,14 @@ import '../../widgets/bias_indicator.dart';
 import '../../widgets/section_header.dart';
 import '../settings/ai_settings_screen.dart';
 
+final _paywallRe = RegExp(
+  r'[,;:\s.…]*(?:haberin?\s+)?devam\w*\s+(?:\w+\s+){0,3}tıkla\w*[.…]*\s*$',
+  caseSensitive: false,
+  unicode: true,
+);
+
+String _stripPaywall(String s) => s.replaceAll(_paywallRe, '').trim();
+
 class ArticleDetailScreen extends StatefulWidget {
   const ArticleDetailScreen({
     super.key,
@@ -499,9 +507,9 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                       const SizedBox(height: 10),
                       // Ana özet — büyük, okunaklı
                       Text(
-                        article.summary.isNotEmpty
+                        _stripPaywall(article.summary.isNotEmpty
                             ? article.summary
-                            : article.title,
+                            : article.title),
                         style: textTheme.titleMedium?.copyWith(
                           color: isSepia ? sepiaText : cs.onSurface,
                           fontWeight: FontWeight.w500,
@@ -517,7 +525,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           article.content.length > article.summary.length + 80) ...[
                         const SizedBox(height: 14),
                         Text(
-                          article.content,
+                          _stripPaywall(article.content),
                           style: textTheme.bodyMedium?.copyWith(
                             color: isSepia
                                 ? sepiaText.withValues(alpha: 0.85)

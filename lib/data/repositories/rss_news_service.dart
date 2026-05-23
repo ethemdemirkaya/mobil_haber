@@ -528,8 +528,7 @@ class RssNewsService {
   }
 
   static final _paywallTrailRe = RegExp(
-    r'\s*[.…,;–—]?\s*(?:haberin?\s+)?(?:devam\w+|tamamını?\s+oku\w*)'
-    r'\s+(?:\w+\s+){0,3}tıkla\w*[.…]*\s*$',
+    r'[,;:\s.…]*(?:haberin?\s+)?devam\w*\s+(?:\w+\s+){0,3}tıkla\w*[.…]*\s*$',
     caseSensitive: false,
     unicode: true,
   );
