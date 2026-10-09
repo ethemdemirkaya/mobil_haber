@@ -12,44 +12,55 @@ class AiSummaryService {
 
   final OpenRouterClient _client;
 
-  static const String _systemPrompt = '''
+  static String _systemPrompt(int bullets) => '''
 Sen bir haber özetleme asistanısın. Görevin, verilen Türkçe haber metnini
-3 madde halinde, her biri tek cümlelik ve toplamda 60 kelimeyi geçmeyecek
-biçimde özetlemek.
+$bullets madde halinde, her biri tek cümlelik biçimde özetlemek.
 
 Kurallar:
-- Çıktın SADECE 3 satırdır; her satır "•" işaretiyle başlar.
-- Spekülasyon yapma, yorum ekleme, sadece metinde geçeni özetle.
-- Sayıları ve özel isimleri koru.
+- Çıktın SADECE $bullets satırdır; her satır "•" işaretiyle başlar.
+- YALNIZCA verilen metinde açıkça yazan bilgiyi kullan. Metinde olmayan
+  hiçbir isim, sayı, tarih, neden veya sonuç ekleme; genel bilgini katma.
+- Metin $bullets ayrı bilgi içermiyorsa daha az madde yaz; madde uydurma.
+- Spekülasyon yapma, yorum ekleme.
+- Sayıları ve özel isimleri olduğu gibi koru.
 - Argo veya duygu yüklü dilden kaçın, nesnel kal.
 - Türkçe yanıtla.
 ''';
 
-  /// Bir makaleyi 3 maddelik özet'e dönüştürür.
-  ///
-  /// Başlık + (varsa) tam içerik, yoksa özet metnini modele gönderir.
+  /// Özetlenecek metin bu uzunluğun altındaysa özet üretilmez — tek
+  /// cümlelik RSS açıklamasını "özetlemek" ya tekrar ya da uydurma üretir.
+  static const int minSourceChars = 400;
+
+  /// [sourceText] (makalenin gövdesi; RSS içeriği ya da sayfadan çıkarılan
+  /// metin) üzerinden madde madde özet üretir.
   Future<String> summarize({
     required Article article,
+    required String sourceText,
     required String apiKey,
     required String model,
   }) async {
-    final source = _composeSource(article);
+    final text = sourceText.length > 3500
+        ? '${sourceText.substring(0, 3500)}…'
+        : sourceText;
+    final bullets = text.length < 1500 ? 2 : 3;
     final user = '''
 BAŞLIK: ${article.title}
 
 KAYNAK: ${article.sourceName.isNotEmpty ? article.sourceName : "Bilinmeyen"}
 
 İÇERİK:
-$source
+$text
 
-Lütfen bu haberi yukarıdaki kurallara göre 3 madde halinde özetle.
+Lütfen bu haberi yukarıdaki kurallara göre en fazla $bullets madde halinde
+özetle.
 ''';
 
     return _client.chat(
       apiKey: apiKey,
       model: model,
-      systemPrompt: _systemPrompt,
+      systemPrompt: _systemPrompt(bullets),
       userPrompt: user,
+      temperature: 0.1,
     );
   }
 
@@ -68,6 +79,7 @@ Lütfen bu haberi yukarıdaki kurallara göre 3 madde halinde özetle.
     required String systemPrompt,
     required String userPrompt,
     int maxTokens = 1000,
+    double temperature = 0.4,
   }) {
     return _client.chat(
       apiKey: apiKey,
@@ -75,19 +87,7 @@ Lütfen bu haberi yukarıdaki kurallara göre 3 madde halinde özetle.
       systemPrompt: systemPrompt,
       userPrompt: userPrompt,
       maxTokens: maxTokens,
-      temperature: 0.4,
+      temperature: temperature,
     );
-  }
-
-  String _composeSource(Article article) {
-    final content = article.content.trim();
-    final summary = article.summary.trim();
-    if (content.isNotEmpty && content.length > summary.length) {
-      // Modele çok uzun girdiler verme — token maliyeti ve hız.
-      return content.length > 3500
-          ? '${content.substring(0, 3500)}…'
-          : content;
-    }
-    return summary;
   }
 }

@@ -245,6 +245,8 @@ class _ArticleAudioSummaryButtonState
       summary = ai.cachedSummary(widget.article.id);
       if (summary == null) {
         if (mounted) setState(() => _state = _AudioState.idle);
+        // Ör. haberin özetlenecek kadar metni yoksa sebebini göster.
+        _showError(ai.lastError ?? 'Özet üretilemedi.');
         return;
       }
     }
