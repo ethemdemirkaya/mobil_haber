@@ -670,6 +670,7 @@ class AiSettingsProvider extends ChangeNotifier {
     required String systemPrompt,
     required String userPrompt,
     int maxTokens = 1000,
+    double temperature = 0.4,
   }) async {
     if (!isReady()) {
       throw const OpenRouterException(
@@ -683,6 +684,7 @@ class AiSettingsProvider extends ChangeNotifier {
       systemPrompt: systemPrompt,
       userPrompt: userPrompt,
       maxTokens: maxTokens,
+      temperature: temperature,
     );
   }
 
