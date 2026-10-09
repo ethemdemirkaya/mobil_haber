@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../core/net/shared_http_client.dart';
+
 /// Bir OpenRouter modelinin runtime listesinde gözüken hâli.
 /// `/api/v1/models` endpoint'inden parse edilen alt küme.
 class OpenRouterModel {
@@ -75,7 +77,7 @@ class OpenRouterModel {
 /// In-memory cache + 6 saatlik TTL ile aşırı API çağrısı yapmıyoruz.
 class OpenRouterModelsRepository {
   OpenRouterModelsRepository({http.Client? client})
-      : _client = client ?? http.Client();
+      : _client = client ?? sharedHttpClient;
 
   final http.Client _client;
 
@@ -136,5 +138,5 @@ class OpenRouterModelsRepository {
     return all.where((m) => m.isFree).toList(growable: false);
   }
 
-  void close() => _client.close();
+  void close() => closeIfOwned(_client);
 }

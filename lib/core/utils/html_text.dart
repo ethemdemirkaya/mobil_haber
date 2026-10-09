@@ -50,3 +50,14 @@ String decodeHtmlEntities(String s) {
         return code == null ? m.group(0)! : String.fromCharCode(code);
       });
 }
+
+final RegExp _paywallTrail = RegExp(
+  r'[,;:\s.…]*(?:haberin?\s+)?devam\w*\s+(?:\w+\s+){0,3}tıkla\w*[.…]*\s*$',
+  caseSensitive: false,
+  unicode: true,
+);
+
+/// RSS açıklamalarının sonundaki "Haberin devamı için tıklayın…" türü
+/// kuyrukları siler. RSS ayrıştırırken ve bu düzeltmeden önce kaydedilmiş
+/// cache/bookmark kayıtlarını gösterirken kullanılır.
+String removePaywallTrailer(String s) => s.replaceAll(_paywallTrail, '').trim();

@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import '../../core/net/shared_http_client.dart';
+
 /// ElevenLabs `text-to-speech` endpoint'iyle konuşan, sesli brifing için
 /// MP3 üreten servis.
 ///
@@ -29,7 +31,7 @@ import 'package:http/http.dart' as http;
 /// ~\$0.03–0.05 arasında değişir. Turbo/Flash modelleri daha ucuz.
 class ElevenLabsTtsService {
   ElevenLabsTtsService({http.Client? httpClient})
-      : _client = httpClient ?? http.Client();
+      : _client = httpClient ?? sharedHttpClient;
 
   final http.Client _client;
 
@@ -153,7 +155,7 @@ class ElevenLabsTtsService {
     return bytes;
   }
 
-  void close() => _client.close();
+  void close() => closeIfOwned(_client);
 }
 
 class ElevenLabsVoice {

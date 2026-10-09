@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../core/net/shared_http_client.dart';
+
 /// Hava + döviz "mini widget" verisi sağlayıcısı.
 ///
 /// İki ücretsiz, anahtar gerektirmeyen API:
@@ -19,7 +21,7 @@ import 'package:http/http.dart' as http;
 /// ("Bugün İstanbul'da hava 18°C, parçalı bulutlu; dolar 38.42, euro 41.10").
 class MarketWidgetService {
   MarketWidgetService({http.Client? client})
-      : _client = client ?? http.Client();
+      : _client = client ?? sharedHttpClient;
 
   final http.Client _client;
   static const Duration _timeout = Duration(seconds: 6);
@@ -129,7 +131,7 @@ class MarketWidgetService {
     }
   }
 
-  void close() => _client.close();
+  void close() => closeIfOwned(_client);
 }
 
 /// Open-Meteo geocoding sonucu — şehir + admin bölge + lat/lon.

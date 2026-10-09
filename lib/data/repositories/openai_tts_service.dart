@@ -4,6 +4,8 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import '../../core/net/shared_http_client.dart';
+
 /// OpenAI'ın `audio/speech` endpoint'iyle konuşan, sesli brifing için
 /// MP3 üreten servis.
 ///
@@ -22,7 +24,7 @@ import 'package:http/http.dart' as http;
 /// hala sistem TTS (ücretsiz).
 class OpenAiTtsService {
   OpenAiTtsService({http.Client? httpClient})
-      : _client = httpClient ?? http.Client();
+      : _client = httpClient ?? sharedHttpClient;
 
   final http.Client _client;
 
@@ -108,7 +110,7 @@ class OpenAiTtsService {
     return bytes;
   }
 
-  void close() => _client.close();
+  void close() => closeIfOwned(_client);
 }
 
 class OpenAiVoice {

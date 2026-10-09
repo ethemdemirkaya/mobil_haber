@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../core/net/shared_http_client.dart';
+
 /// Görsel olmayan haberler için, makale URL'inden OpenGraph `og:image`
 /// meta etiketini çekip görseli sağlayan lazy resolver.
 ///
@@ -20,7 +22,7 @@ import 'package:http/http.dart' as http;
 /// Bellek temizliği yapmıyor — cache uygulama yaşam süresince büyür ama
 /// her kayıt küçük (~80 byte). Tipik kullanım için OK.
 class OgImageResolver {
-  OgImageResolver({http.Client? client}) : _client = client ?? http.Client();
+  OgImageResolver({http.Client? client}) : _client = client ?? sharedHttpClient;
 
   final http.Client _client;
 

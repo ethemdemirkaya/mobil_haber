@@ -68,7 +68,7 @@ class EdgeTtsService {
         .replaceAll('<', '&lt;')
         .replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;');
-    final rate = ratePct >= 0 ? '+${ratePct}%' : '$ratePct%';
+    final rate = ratePct >= 0 ? '+$ratePct%' : '$ratePct%';
     final pitch = pitchHz >= 0 ? '+${pitchHz}Hz' : '${pitchHz}Hz';
     return "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis'"
         " xml:lang='tr-TR'><voice name='$voice'>"
