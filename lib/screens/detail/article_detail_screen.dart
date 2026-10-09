@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/utils/html_text.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../data/models/article.dart';
@@ -24,13 +25,9 @@ import '../../widgets/bias_indicator.dart';
 import '../../widgets/section_header.dart';
 import '../settings/ai_settings_screen.dart';
 
-final _paywallRe = RegExp(
-  r'[,;:\s.…]*(?:haberin?\s+)?devam\w*\s+(?:\w+\s+){0,3}tıkla\w*[.…]*\s*$',
-  caseSensitive: false,
-  unicode: true,
-);
-
-String _stripPaywall(String s) => s.replaceAll(_paywallRe, '').trim();
+// Paywall kuyruğu RSS ayrıştırmada siliniyor; bu, düzeltmeden önce
+// kaydedilmiş cache/bookmark kayıtları için.
+String _stripPaywall(String s) => removePaywallTrailer(s);
 
 class ArticleDetailScreen extends StatefulWidget {
   const ArticleDetailScreen({

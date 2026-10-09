@@ -4,38 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
-import '../../core/network/api_client.dart';
-import '../../core/network/api_config.dart';
+import '../../data/repositories/rss_news_service.dart';
 import '../../providers/bookmark_provider.dart';
 import '../../providers/news_provider.dart';
+import '../../providers/preferences_provider.dart';
 import '../../providers/reading_history_provider.dart';
 import '../../providers/search_provider.dart';
-
-class _SourceHealth {
-  const _SourceHealth({
-    required this.id,
-    required this.name,
-    required this.ok,
-    required this.message,
-    required this.latencyMs,
-  });
-
-  final String id;
-  final String name;
-  final bool ok;
-  final String message;
-  final int latencyMs;
-
-  factory _SourceHealth.fromJson(Map<String, dynamic> j) {
-    return _SourceHealth(
-      id: (j['id'] ?? '').toString(),
-      name: (j['name'] ?? '').toString(),
-      ok: j['ok'] == true,
-      message: (j['message'] ?? '').toString(),
-      latencyMs: (j['latencyMs'] as num?)?.toInt() ?? 0,
-    );
-  }
-}
 
 class DiagnosticsScreen extends StatefulWidget {
   const DiagnosticsScreen({super.key});
@@ -45,10 +19,9 @@ class DiagnosticsScreen extends StatefulWidget {
 }
 
 class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
+  final RssNewsService _rss = RssNewsService();
   bool _loading = false;
-  String? _error;
-  List<_SourceHealth> _health = const [];
-  Map<String, dynamic>? _healthBaseInfo;
+  List<FeedProbe> _health = const [];
 
   @override
   void initState() {
@@ -56,32 +29,26 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
     _loadHealth();
   }
 
+  @override
+  void dispose() {
+    _rss.close();
+    super.dispose();
+  }
+
+  /// Seçili kaynakların feed'lerini paralel test eder; sorunlular üstte.
   Future<void> _loadHealth() async {
-    setState(() {
-      _loading = true;
-      _error = null;
+    setState(() => _loading = true);
+    final sources = context.read<PreferencesProvider>().effectiveSources;
+    final results = await Future.wait(sources.map(_rss.probe));
+    results.sort((a, b) {
+      if (a.ok != b.ok) return a.ok ? 1 : -1;
+      return a.source.name.compareTo(b.source.name);
     });
-    try {
-      final client = ApiClient();
-      final base = await client.get('/health');
-      if (base is Map<String, dynamic>) {
-        _healthBaseInfo = base;
-      }
-      final raw = await client.get(
-        '/external/health',
-        timeout: const Duration(seconds: 60),
-      );
-      if (raw is List) {
-        _health = raw
-            .whereType<Map<String, dynamic>>()
-            .map(_SourceHealth.fromJson)
-            .toList(growable: false);
-      }
-    } catch (e) {
-      _error = e.toString();
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+    if (!mounted) return;
+    setState(() {
+      _health = results;
+      _loading = false;
+    });
   }
 
   @override
@@ -113,14 +80,8 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                 _Row(label: 'Sürüm', value: AppConstants.appVersion),
                 _Row(label: 'Build', value: AppConstants.appBuild),
                 _Row(
-                  label: 'API Base URL',
-                  value: ApiConfig.baseUrl.isEmpty
-                      ? '(tanımlı değil — mock veri)'
-                      : ApiConfig.baseUrl,
-                ),
-                _Row(
-                  label: 'Varsayılan timeout',
-                  value: '${ApiConfig.timeout.inSeconds} sn',
+                  label: 'Veri kaynağı',
+                  value: 'Doğrudan RSS (${newsProv.activeSourceCount} kaynak)',
                 ),
               ],
             ),
@@ -136,32 +97,12 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
               ],
             ),
           ),
-          if (_healthBaseInfo != null)
-            _Section(
-              title: 'Backend',
-              child: Column(
-                children: [
-                  _Row(
-                    label: 'Servis',
-                    value: '${_healthBaseInfo!['service'] ?? '-'}',
-                  ),
-                  _Row(
-                    label: 'Durum',
-                    value: '${_healthBaseInfo!['status'] ?? '-'}',
-                  ),
-                  _Row(
-                    label: 'Sunucu zamanı',
-                    value: '${_healthBaseInfo!['time'] ?? '-'}',
-                  ),
-                ],
-              ),
-            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
             child: Row(
               children: [
                 Text(
-                  'DIŞ KAYNAKLAR',
+                  'KAYNAK SAĞLIĞI',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
@@ -170,6 +111,16 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                   ),
                 ),
                 const Spacer(),
+                if (!_loading && _health.isNotEmpty)
+                  Text(
+                    '${_health.where((h) => h.ok).length}/${_health.length} '
+                    'çalışıyor',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
                 if (_loading)
                   const SizedBox(
                     width: 14,
@@ -179,32 +130,6 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
               ],
             ),
           ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: cs.errorContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.error_outline, color: cs.onErrorContainer),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        _error!,
-                        style: TextStyle(
-                          color: cs.onErrorContainer,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           for (final h in _health) _HealthTile(health: h),
           const SizedBox(height: 24),
         ],
@@ -295,7 +220,7 @@ class _Row extends StatelessWidget {
 
 class _HealthTile extends StatelessWidget {
   const _HealthTile({required this.health});
-  final _SourceHealth health;
+  final FeedProbe health;
 
   @override
   Widget build(BuildContext context) {
@@ -307,7 +232,7 @@ class _HealthTile extends StatelessWidget {
         color: color,
       ),
       title: Text(
-        health.name,
+        health.source.name,
         style: const TextStyle(fontWeight: FontWeight.w700),
       ),
       subtitle: Text(
@@ -317,7 +242,7 @@ class _HealthTile extends StatelessWidget {
         style: const TextStyle(fontSize: 12),
       ),
       trailing: Text(
-        '${health.latencyMs}ms',
+        '${health.latency.inMilliseconds}ms',
         style: TextStyle(
           fontWeight: FontWeight.w600,
           color: cs.onSurfaceVariant,

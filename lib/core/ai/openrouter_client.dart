@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../generated/secrets.g.dart';
+import '../net/shared_http_client.dart';
 
 /// OpenRouter API ile konuşan ham HTTP istemcisi.
 ///
@@ -17,7 +18,7 @@ import '../generated/secrets.g.dart';
 /// Endpoint: `POST /api/v1/chat/completions`
 class OpenRouterClient {
   OpenRouterClient({http.Client? httpClient})
-      : _client = httpClient ?? http.Client();
+      : _client = httpClient ?? sharedHttpClient;
 
   final http.Client _client;
 
@@ -176,7 +177,7 @@ class OpenRouterClient {
     return 'OpenRouter HTTP $status';
   }
 
-  void close() => _client.close();
+  void close() => closeIfOwned(_client);
 }
 
 class OpenRouterException implements Exception {

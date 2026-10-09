@@ -72,19 +72,6 @@ $transitionRule
 ''';
   }
 
-  /// Geriye dönük uyumluluk: eski sürümde sabit prompt kullanılıyordu.
-  static const String systemPrompt = '''
-Sen Pusula adlı Türkçe haber uygulamasının sesli sunucususun. Görevin,
-verilen güncel haber listesinden 90-120 saniye sürecek (yaklaşık 250-300
-kelime) bir sözlü gündem brifingi hazırlamak.
-
-Akış kuralları:
-- Doğal bir radyo spikeri tonunda yaz; "Merhaba, ben Pusula" diye başla.
-- 5-7 haberi ele al; her birine 1-2 cümle ayır.
-- Sayıları ve özel isimleri koru.
-- Kısaltma açma (TL → Türk lirası).
-- "Pusula'da kalın, iyi günler dileriz" ile kapat.
-''';
 
   /// AI'a gönderilecek user-prompt'u inşa eder. `topic` belirtilirse
   /// kategori odaklı; yoksa genel gündem.

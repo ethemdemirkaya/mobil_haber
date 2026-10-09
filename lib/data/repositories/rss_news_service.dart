@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
+import '../../core/net/shared_http_client.dart';
 import '../../core/utils/html_text.dart';
 import '../models/article.dart';
 import '../models/news_source.dart';
@@ -23,7 +24,7 @@ import 'category_classifier.dart';
 ///     eklenir.
 class RssNewsService {
   RssNewsService({http.Client? httpClient})
-      : _client = httpClient ?? http.Client();
+      : _client = httpClient ?? sharedHttpClient;
 
   final http.Client _client;
   static const CategoryClassifier _classifier = CategoryClassifier();
@@ -64,6 +65,39 @@ class RssNewsService {
     int limit = 30,
   }) =>
       _fetchSourceSafe(source, category: category, limit: limit);
+
+  /// Kaynağın ana feed'ini çekip ayrıştırarak sağlığını ölçer
+  /// (Tanılama ekranı). Hata yutulmaz, mesaj olarak döner.
+  Future<FeedProbe> probe(NewsSource source) async {
+    final sw = Stopwatch()..start();
+    try {
+      final body = await _fetch(source.primaryFeed);
+      final count = _parseRss(body, source: source).length;
+      return FeedProbe(
+        source: source,
+        ok: count > 0,
+        itemCount: count,
+        latency: sw.elapsed,
+        message: count > 0 ? '$count haber' : 'Feed boş ya da ayrıştırılamadı',
+      );
+    } on TimeoutException {
+      return FeedProbe(
+        source: source,
+        ok: false,
+        itemCount: 0,
+        latency: sw.elapsed,
+        message: 'Zaman aşımı (${_feedTimeout.inSeconds} sn)',
+      );
+    } catch (e) {
+      return FeedProbe(
+        source: source,
+        ok: false,
+        itemCount: 0,
+        latency: sw.elapsed,
+        message: e.toString().replaceFirst('Exception: ', ''),
+      );
+    }
+  }
 
   Future<List<Article>> _fetchSourceSafe(
     NewsSource source, {
@@ -436,14 +470,7 @@ class RssNewsService {
     return '${s.substring(0, max).trim()}…';
   }
 
-  static final _paywallTrailRe = RegExp(
-    r'[,;:\s.…]*(?:haberin?\s+)?devam\w*\s+(?:\w+\s+){0,3}tıkla\w*[.…]*\s*$',
-    caseSensitive: false,
-    unicode: true,
-  );
-
-  String _removePaywallTrailer(String s) =>
-      s.replaceAll(_paywallTrailRe, '').trim();
+  String _removePaywallTrailer(String s) => removePaywallTrailer(s);
 
   int _estimateReadMinutes(String text) {
     if (text.isEmpty) return 1;
@@ -512,5 +539,22 @@ class RssNewsService {
     'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
   };
 
-  void close() => _client.close();
+  void close() => closeIfOwned(_client);
+}
+
+/// Tek bir feed'in sağlık ölçümü.
+class FeedProbe {
+  const FeedProbe({
+    required this.source,
+    required this.ok,
+    required this.itemCount,
+    required this.latency,
+    required this.message,
+  });
+
+  final NewsSource source;
+  final bool ok;
+  final int itemCount;
+  final Duration latency;
+  final String message;
 }

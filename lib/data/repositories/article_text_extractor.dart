@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../core/net/shared_http_client.dart';
 import '../../core/utils/html_text.dart';
 import '../../core/utils/turkish_text.dart';
 
@@ -25,7 +26,7 @@ import '../../core/utils/turkish_text.dart';
 /// Sonuçlar uygulama yaşam süresince URL bazında bellekte tutulur.
 class ArticleTextExtractor {
   ArticleTextExtractor({http.Client? client})
-      : _client = client ?? http.Client();
+      : _client = client ?? sharedHttpClient;
 
   final http.Client _client;
 
