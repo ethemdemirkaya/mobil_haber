@@ -172,7 +172,9 @@ class CategoryClassifier {
     'seyahat': ['seyahat', 'turizm', 'tatil', 'otel', 'turist'],
     'gundem': [
       'son dakika', 'cumhurbaşkan', 'meclis', 'tbmm', 'bakan', 'seçim',
-      'valilik', 'emniyet',
+      'valilik', 'emniyet', 'milletvekil', 'vekil', 'parti', 'ak parti',
+      'akp', 'chp', 'mhp', 'iyi parti', 'dem parti', 'muhalefet', 'iktidar',
+      'belediye başkan', 'gözaltı', 'tutuklan',
     ],
   };
 }
