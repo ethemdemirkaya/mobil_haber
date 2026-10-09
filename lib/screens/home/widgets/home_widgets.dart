@@ -107,35 +107,34 @@ class _SearchShortcutBar extends StatelessWidget {
   }
 }
 
-/// Liste sonuna eklenen "Daha fazla" / "Hepsi bu kadar" footer.
-/// Scroll-tabanlı auto-load zaten aktif; bu kart görsel feedback verir
-/// ve manuel "Daha fazla yükle" butonuyla gösterilen sayıyı artırır.
-class _LoadMoreFooter extends StatelessWidget {
-  const _LoadMoreFooter({
-    required this.visible,
+
+/// Ana sayfa listesinin sonu: kalan haberler varsa kategori ekranına
+/// götüren buton, yoksa yenile.
+class _SeeAllFooter extends StatelessWidget {
+  const _SeeAllFooter({
+    required this.shown,
     required this.total,
-    required this.onLoadMore,
+    required this.onSeeAll,
     required this.onRefresh,
   });
 
-  final int visible;
+  final int shown;
   final int total;
-  final VoidCallback onLoadMore;
+  final VoidCallback onSeeAll;
   final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final hasMore = visible < total;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
       child: Center(
-        child: hasMore
+        child: shown < total
             ? FilledButton.tonalIcon(
-                onPressed: onLoadMore,
-                icon: const Icon(Icons.expand_more, size: 20),
+                onPressed: onSeeAll,
+                icon: const Icon(Icons.arrow_forward, size: 20),
                 label: Text(
-                  'Daha fazla yükle • $visible / $total',
+                  'Tüm $total haberi gör',
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 style: FilledButton.styleFrom(
@@ -143,26 +142,10 @@ class _LoadMoreFooter extends StatelessWidget {
                       horizontal: 20, vertical: 14),
                 ),
               )
-            : Column(
-                children: [
-                  Icon(Icons.check_circle_outline,
-                      color: cs.onSurfaceVariant, size: 22),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Hepsi bu kadar — $total haber gösterildi',
-                    style: TextStyle(
-                      color: cs.onSurfaceVariant,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton.icon(
-                    onPressed: onRefresh,
-                    icon: const Icon(Icons.refresh, size: 16),
-                    label: const Text('Yenile'),
-                  ),
-                ],
+            : TextButton.icon(
+                onPressed: onRefresh,
+                icon: Icon(Icons.refresh, size: 16, color: cs.primary),
+                label: const Text('Yenile'),
               ),
       ),
     );
