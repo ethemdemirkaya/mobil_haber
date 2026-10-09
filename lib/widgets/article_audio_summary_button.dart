@@ -1,18 +1,14 @@
 import 'package:pusula_news/core/theme/app_icons.dart';
-import 'dart:async';
-import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
+import '../core/tts/briefing_player.dart';
+import '../core/tts/tts_engine_factory.dart';
 import '../data/models/article.dart';
-import '../data/repositories/edge_tts_service.dart';
-import '../data/repositories/elevenlabs_tts_service.dart';
-import '../data/repositories/openai_tts_service.dart';
 import '../providers/ai_settings_provider.dart';
 import '../providers/tts_settings_provider.dart';
 
@@ -71,100 +67,75 @@ class ArticleAudioSummaryButton extends StatefulWidget {
 }
 
 class _ArticleAudioSummaryButtonState extends State<ArticleAudioSummaryButton> {
-  // ─── TTS motorları ──────────────────────────────────────────────────────
   final FlutterTts _tts = FlutterTts();
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final OpenAiTtsService _openaiTts = OpenAiTtsService();
-  final ElevenLabsTtsService _elevenLabsTts = ElevenLabsTtsService();
-  final EdgeTtsService _edgeTts = EdgeTtsService();
+  late final TtsEngineFactory _engines =
+      TtsEngineFactory(systemTts: _tts, player: _audioPlayer);
 
-  // ─── Durum ──────────────────────────────────────────────────────────────
-  _AudioState _state = _AudioState.idle;
+  /// Sesli brifingle aynı oynatıcı: cümle sırası, geç gelen olay koruması,
+  /// bulut motoru düşerse cihaz sesine geçiş. Eskiden bu buton kendi cümle
+  /// döngüsünü ve geçici MP3 dosyalarını yönetiyordu; Edge 403 verince
+  /// sessizce susuyordu.
+  final BriefingPlayer _player = BriefingPlayer();
 
-  /// Sistem TTS'te cümle-cümle döngüsü için tamamlama sinyali.
-  Completer<void>? _systemTtsDone;
+  bool _preparing = false;
+  List<String> _displayLines = const [];
+  bool _wasPlaying = false;
+  Object? _reportedError;
 
-  /// MP3 motorlarında ses süresi (pozisyon oranı için).
-  Duration? _audioDuration;
-
-  /// MP3 motorlarında o an görüntülenen display satırları.
-  List<String> _currentDisplayLines = const [];
-
-  /// Döngüden çıkış bayrağı (stop tuşu).
-  bool _cancelled = false;
-
-  /// Geçici MP3 dosyası — oynatma bittikten sonra silinir.
-  String? _tempAudioPath;
-
-  // ─────────────────────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
+    _player.addListener(_onPlayerChanged);
     _initSystemTts();
-    _audioPlayer.onDurationChanged.listen((d) {
-      _audioDuration = d;
-    });
-    _audioPlayer.onPositionChanged.listen((pos) {
-      if (!mounted || _audioDuration == null) return;
-      final dur = _audioDuration!.inMilliseconds;
-      if (dur <= 0 || _currentDisplayLines.isEmpty) return;
-      final progress = pos.inMilliseconds / dur;
-      final lineIdx = (progress * _currentDisplayLines.length).floor().clamp(
-        0,
-        _currentDisplayLines.length - 1,
-      );
-      widget.readAlongNotifier?.value = ReadAlongState(
-        lines: _currentDisplayLines,
-        activeLine: lineIdx,
-        isActive: true,
-      );
-    });
-    _audioPlayer.onPlayerComplete.listen((_) {
-      if (mounted) setState(() => _state = _AudioState.idle);
-      widget.readAlongNotifier?.value = ReadAlongState.idle;
-      _deleteTempFile();
-    });
   }
 
   Future<void> _initSystemTts() async {
     try {
       await _tts.setLanguage('tr-TR');
-      await _tts.setSpeechRate(0.48);
       await _tts.setVolume(1.0);
-      await _tts.setPitch(1.0);
-      _tts.setCompletionHandler(() {
-        // Cümle-cümle döngüsünde her cümle bitince sinyali tetikle.
-        _systemTtsDone?.complete();
-        _systemTtsDone = null;
-      });
-      _tts.setCancelHandler(() {
-        _systemTtsDone?.complete();
-        _systemTtsDone = null;
-        if (mounted) setState(() => _state = _AudioState.idle);
-        widget.readAlongNotifier?.value = ReadAlongState.idle;
-      });
-      _tts.setErrorHandler((_) {
-        _systemTtsDone?.complete();
-        _systemTtsDone = null;
-        if (mounted) setState(() => _state = _AudioState.idle);
-        widget.readAlongNotifier?.value = ReadAlongState.idle;
-      });
+      await _tts.awaitSpeakCompletion(false);
     } catch (_) {}
   }
 
-  // ─── Yardımcı metodlar ─────────────────────────────────────────────────
+  void _onPlayerChanged() {
+    if (!mounted) return;
+    final playing = _player.isPlaying;
+    final notifier = widget.readAlongNotifier;
+    if (playing && _displayLines.isNotEmpty) {
+      // Cümle → ekran satırı oransal eşleme.
+      final count = _player.utterances.length;
+      final line = count == 0
+          ? 0
+          : ((_player.index / count) * _displayLines.length)
+              .floor()
+              .clamp(0, _displayLines.length - 1);
+      notifier?.value = ReadAlongState(
+        lines: _displayLines,
+        activeLine: line,
+        isActive: true,
+      );
+    } else if (_wasPlaying && !playing) {
+      notifier?.value = ReadAlongState.idle;
+    }
+    _wasPlaying = playing;
+    // Hata oynatıcıyı duraklatır; her hatayı bir kez göster. (Burada
+    // stop() çağırmak dinleyiciyi yeniden tetikleyip döngüye sokardı.)
+    final err = _player.error;
+    if (err != null && !identical(err, _reportedError)) {
+      _reportedError = err;
+      _showError('Sesli okuma hatası: ${TtsEngineFactory.shortError(err)}');
+    }
+    setState(() {});
+  }
 
-  /// Özet metnini TTS için cümlelere böler.
+  /// Özet metnini TTS için cümlelere böler (madde işaretleri atılır).
   List<String> _toSentences(String text) {
-    // Önce satıra göre böl (bullet maddeleri), sonra içlerindeki noktalı
-    // cümleleri de ayır — her biri kısa bir TTS çağrısı olsun.
     final parts = <String>[];
     for (final line in text.split('\n')) {
       final clean = line.replaceAll('•', '').trim();
       if (clean.isEmpty) continue;
-      // Cümle-içi bölme: '.', '!' veya '?' ardından boşluk varsa ayır.
-      final sub = clean.split(RegExp(r'(?<=[.!?])\s+'));
-      for (final s in sub) {
+      for (final s in clean.split(RegExp(r'(?<=[^\d\s][.!?])\s+'))) {
         final t = s.trim();
         if (t.isNotEmpty) parts.add(t);
       }
@@ -173,212 +144,58 @@ class _ArticleAudioSummaryButtonState extends State<ArticleAudioSummaryButton> {
   }
 
   /// Özet metnini ekranda gösterilecek satırlara böler (bullet'lar korunur).
-  List<String> _toDisplayLines(String text) {
-    return text
-        .split('\n')
-        .map((l) => l.trim())
-        .where((l) => l.isNotEmpty)
-        .toList();
-  }
-
-  /// Temizlenmiş TTS metni: bullet ve satır sonlarını kaldırır.
-  String _cleanForTts(String text) {
-    return text
-        .split('\n')
-        .map((l) => l.replaceAll('•', '').trim())
-        .where((l) => l.isNotEmpty)
-        .join('. ');
-  }
-
-  /// MP3 byte'larını geçici dosyaya yazar; yol döner.
-  Future<String> _writeTempMp3(List<int> bytes) async {
-    final dir = await getTemporaryDirectory();
-    final path =
-        '${dir.path}/pusula_tts_${DateTime.now().millisecondsSinceEpoch}.mp3';
-    await File(path).writeAsBytes(bytes);
-    return path;
-  }
-
-  void _deleteTempFile() {
-    final p = _tempAudioPath;
-    _tempAudioPath = null;
-    if (p != null) {
-      File(p).delete().ignore();
-    }
-  }
-
-  // ─── Ana aksiyon ───────────────────────────────────────────────────────
+  List<String> _toDisplayLines(String text) => text
+      .split('\n')
+      .map((l) => l.trim())
+      .where((l) => l.isNotEmpty)
+      .toList();
 
   Future<void> _onTap() async {
     HapticFeedback.selectionClick();
 
-    // Oynatma varsa durdur.
-    if (_state == _AudioState.speaking) {
-      _cancelled = true;
-      await _tts.stop();
-      await _audioPlayer.stop();
-      _deleteTempFile();
-      if (mounted) setState(() => _state = _AudioState.idle);
+    if (_player.isPlaying || _player.isPaused) {
+      await _player.stop();
       widget.readAlongNotifier?.value = ReadAlongState.idle;
       return;
     }
-
-    if (_state == _AudioState.loading) return;
+    if (_preparing) return;
 
     final ai = context.read<AiSettingsProvider>();
     final tts = context.read<TtsSettingsProvider>();
-
     if (!ai.isReady()) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Yapay zeka özeti için AI ayarlarını yapılandırın'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      _showError('Yapay zeka özeti için AI ayarlarını yapılandırın');
       return;
     }
 
-    // Özet yoksa önce üret.
     String? summary = ai.cachedSummary(widget.article.id);
     if (summary == null) {
-      if (mounted) setState(() => _state = _AudioState.loading);
+      setState(() => _preparing = true);
       await ai.summarize(widget.article);
       if (!mounted) return;
+      setState(() => _preparing = false);
       summary = ai.cachedSummary(widget.article.id);
       if (summary == null) {
-        if (mounted) setState(() => _state = _AudioState.idle);
         // Ör. haberin özetlenecek kadar metni yoksa sebebini göster.
         _showError(ai.lastError ?? 'Özet üretilemedi.');
         return;
       }
     }
 
-    if (!mounted) return;
-    setState(() => _state = _AudioState.loading);
-    _cancelled = false;
-
-    try {
-      switch (tts.ttsEngine) {
-        case TtsEngineKind.system:
-          await _speakWithSystem(summary);
-
-        case TtsEngineKind.openai:
-          if (!tts.hasOpenaiTtsKey) {
-            _showError('OpenAI TTS anahtarı ayarlanmamış.');
-            return;
-          }
-          final bytes = await _openaiTts.synthesize(
-            apiKey: tts.openaiTtsKey,
-            text: _cleanForTts(summary),
-            voice: tts.openaiTtsVoice,
-            model: tts.openaiTtsModel,
-          );
-          if (!mounted) return;
-          await _playMp3(bytes, summary);
-
-        case TtsEngineKind.elevenlabs:
-          if (!tts.hasElevenLabsKey) {
-            _showError('ElevenLabs API anahtarı ayarlanmamış.');
-            return;
-          }
-          final bytes = await _elevenLabsTts.synthesize(
-            apiKey: tts.elevenLabsApiKey,
-            text: _cleanForTts(summary),
-            voiceId: tts.elevenLabsVoiceId,
-            modelId: tts.elevenLabsModelId,
-            stability: tts.elevenLabsStability,
-            similarityBoost: tts.elevenLabsSimilarityBoost,
-          );
-          if (!mounted) return;
-          await _playMp3(bytes, summary);
-
-        case TtsEngineKind.edge:
-          final bytes = await _edgeTts.synthesize(
-            text: _cleanForTts(summary),
-            voice: tts.edgeTtsVoice,
-          );
-          if (!mounted) return;
-          await _playMp3(bytes, summary);
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _state = _AudioState.idle);
-        widget.readAlongNotifier?.value = ReadAlongState.idle;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Sesli okuma hatası: $e'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
-
-  /// Sistem TTS: cümle-cümle döngüsü → her cümlede satır vurgusu güncellenir.
-  Future<void> _speakWithSystem(String summary) async {
-    final sentences = _toSentences(summary);
-    final displayLines = _toDisplayLines(summary);
-    if (sentences.isEmpty || !mounted) return;
-
-    setState(() => _state = _AudioState.speaking);
-
-    for (var i = 0; i < sentences.length; i++) {
-      if (_cancelled || !mounted) break;
-
-      // Cümle → ekran satırı oransal eşleme.
-      final lineIdx = ((i / sentences.length) * displayLines.length)
-          .floor()
-          .clamp(0, displayLines.length - 1);
-      widget.readAlongNotifier?.value = ReadAlongState(
-        lines: displayLines,
-        activeLine: lineIdx,
-        isActive: true,
-      );
-
-      _systemTtsDone = Completer<void>();
-      await _tts.speak(sentences[i]);
-      // Cümle tamamlanana (veya durdurulana) kadar bekle — max 30 sn.
-      await _systemTtsDone!.future.timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {},
-      );
-      _systemTtsDone = null;
-    }
-
-    if (mounted && !_cancelled) {
-      setState(() => _state = _AudioState.idle);
-    }
-    widget.readAlongNotifier?.value = ReadAlongState.idle;
-  }
-
-  /// MP3 byte'larını geçici dosyaya yazar ve audioplayers ile oynatır.
-  /// Position listener aracılığıyla satır vurgusu otomatik güncellenir.
-  Future<void> _playMp3(List<int> bytes, String summary) async {
-    _deleteTempFile();
-    _currentDisplayLines = _toDisplayLines(summary);
-    _audioDuration = null;
-
-    final path = await _writeTempMp3(bytes);
-    _tempAudioPath = path;
-
-    if (!mounted) {
-      _deleteTempFile();
-      return;
-    }
-
-    widget.readAlongNotifier?.value = ReadAlongState(
-      lines: _currentDisplayLines,
-      activeLine: 0,
-      isActive: true,
-    );
-    setState(() => _state = _AudioState.speaking);
-    await _audioPlayer.play(DeviceFileSource(path));
+    final kind = tts.ttsEngine;
+    await _player.setEngine(_engines.build(
+      tts,
+      onFallback: (e) => _showError(
+        '${kind.label} şu an kullanılamıyor '
+        '(${TtsEngineFactory.shortError(e)}). Cihazın sesiyle okunuyor.',
+      ),
+    ));
+    _displayLines = _toDisplayLines(summary);
+    await _player.load(_toSentences(summary));
+    await _player.play();
   }
 
   void _showError(String message) {
     if (!mounted) return;
-    setState(() => _state = _AudioState.idle);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
     );
@@ -386,10 +203,10 @@ class _ArticleAudioSummaryButtonState extends State<ArticleAudioSummaryButton> {
 
   @override
   void dispose() {
-    _cancelled = true;
-    _tts.stop();
+    _player.removeListener(_onPlayerChanged);
+    _player.dispose();
     _audioPlayer.dispose();
-    _deleteTempFile();
+    _engines.close();
     super.dispose();
   }
 
@@ -398,7 +215,9 @@ class _ArticleAudioSummaryButtonState extends State<ArticleAudioSummaryButton> {
   Widget build(BuildContext context) {
     final ai = context.watch<AiSettingsProvider>();
     final aiLoading = ai.isLoadingFor(widget.article.id);
-    final effective = aiLoading ? _AudioState.loading : _state;
+    final effective = aiLoading || _preparing
+        ? _AudioState.loading
+        : (_player.isPlaying ? _AudioState.speaking : _AudioState.idle);
 
     return widget.large
         ? _LargeButton(state: effective, onTap: _onTap, expand: widget.expand)
