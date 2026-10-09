@@ -80,3 +80,14 @@ bool _isSuffixChain(String rest, int depth) {
   }
   return false;
 }
+
+/// Sözlüksüz Türkçe "kök" çıkarımı: kelimenin ilk [prefix] harfi (F5).
+///
+/// Türkçe bilgi erişimi çalışmalarında (Can vd., 2008, JASIST) sabit önek
+/// kırpmanın sözlük tabanlı kök bulucularla yarışır sonuç verdiği
+/// raporlanmıştır. Ek atma kurallarındaki belirsizliklere ("bakanı" →
+/// "bakan+ı" mı "baka+nı" mı?) takılmaz; aynı kelimenin ekli hâllerini
+/// tutarlı biçimde aynı anahtara indirir:
+/// "seçim", "seçimlerde", "seçimin" → "seçim"; "bakan", "bakanı" → "bakan".
+String stemTr(String token, {int prefix = 5}) =>
+    token.length <= prefix ? token : token.substring(0, prefix);

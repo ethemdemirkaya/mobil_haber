@@ -196,6 +196,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final cs = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final news = context.watch<NewsProvider>();
+    final trending = news.trending(take: 6);
 
     final history = context.watch<ReadingHistoryProvider>();
     final continueReading = history.ids
@@ -375,11 +376,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ],
-              if (news.trending(take: 6).isNotEmpty) ...[
+              if (trending.isNotEmpty) ...[
                 const SliverToBoxAdapter(
                   child: SectionHeader(
-                    title: 'Trend',
-                    subtitle: 'En çok okunanlar',
+                    title: 'Gündem',
+                    subtitle: 'Birden çok kaynağın şu an işlediği olaylar',
                   ),
                 ),
                 SliverToBoxAdapter(
@@ -389,11 +390,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       scrollDirection: Axis.horizontal,
                       padding:
                           const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: news.trending(take: 6).length,
+                      itemCount: trending.length,
                       separatorBuilder: (_, _) =>
                           const SizedBox(width: 12),
                       itemBuilder: (context, index) {
-                        final a = news.trending(take: 6)[index];
+                        final a = trending[index];
                         return _TrendingCard(
                           article: a,
                           rank: index + 1,

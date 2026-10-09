@@ -27,7 +27,7 @@ class NewsProvider extends ChangeNotifier {
   }
 
   final RssNewsService _rss;
-  final NewsClusterService _clusterer = NewsClusterService();
+  final NewsClusterService _clusterer = const NewsClusterService();
 
   bool _loading = true;
   String? _lastError;
@@ -47,13 +47,24 @@ class NewsProvider extends ChangeNotifier {
   List<Article> _all = const [];
   String _selectedCategoryId = NewsCategory.all.id;
 
-  /// Birden fazla kaynakta görülen ve son saatlerde yayınlanan haberlerin
-  /// id seti. ArticleCard "🔥 Gündem" badge göstermek için kullanır.
-  /// Cluster servisinden türetilir; her _load() sonrası tazelenir.
-  Set<String> _trendingIds = const <String>{};
+  /// Çapraz kaynak kümeleri — her liste değişiminde bir kez (gerekirse
+  /// ayrı isolate'te) hesaplanır; ekranlar build içinde yeniden hesaplamaz.
+  List<NewsCluster> _clusters = const [];
 
-  /// Her id için kaç kaynakta göründüğü — badge sayısı için (ör. "5×").
+  /// Gündem kümeleri ([_minHotScore] üstü, en fazla [_maxTrending]),
+  /// skora göre sıralı.
+  List<NewsCluster> _trendingClusters = const [];
+
+  /// Gündem kümelerindeki her haber id'si → kümedeki kaynak sayısı.
+  /// ArticleCard "🔥 N kaynak" rozeti için.
   Map<String, int> _trendingSourceCount = const <String, int>{};
+
+  /// Eski bir küme hesabının yenisinin üzerine yazmasını önler.
+  int _clusterGeneration = 0;
+
+  /// ≈ 2 kaynak az önce ya da 3 kaynak ~6 saat önce yayınladı.
+  static const double _minHotScore = 1.5;
+  static const int _maxTrending = 10;
 
   List<NewsSource> _activeSources = const [];
   List<NewsSource> _lastSourceList = const [];
@@ -117,18 +128,15 @@ class NewsProvider extends ChangeNotifier {
     return sorted.take(take).toList(growable: false);
   }
 
-  List<Article> trending({int take = 6}) {
-    if (_all.isEmpty) return const [];
-    final sorted = List<Article>.of(_all)
-      ..sort((a, b) {
-        final aw = (a.isFeatured ? 1000 : 0);
-        final bw = (b.isFeatured ? 1000 : 0);
-        final byWeight = (bw - aw);
-        if (byWeight != 0) return byWeight;
-        return b.publishedAt.compareTo(a.publishedAt);
-      });
-    return sorted.take(take).toList(growable: false);
-  }
+  /// Gündemdeki olaylar — her gündem kümesinden en yeni haber, gündem
+  /// skoruna göre sıralı. Çoklu kaynak yoksa boş döner.
+  List<Article> trending({int take = 6}) => _trendingClusters
+      .take(take)
+      .map((c) => c.articles.first)
+      .toList(growable: false);
+
+  /// Çapraz bakış kümeleri (≥2 bağımsız kaynak), gündem skoruna göre sıralı.
+  List<NewsCluster> get clusters => _clusters;
 
   List<Article> related(Article article, {int take = 4}) {
     return _all
@@ -145,40 +153,41 @@ class NewsProvider extends ChangeNotifier {
     return null;
   }
 
-  /// Bu makale çoklu-kaynak gündem mi? (≥2 kaynakta yayınlanmış son
-  /// 36 saatlik bir küme içinde)
-  bool isTrending(String articleId) => _trendingIds.contains(articleId);
+  /// Bu makale gündemdeki (çok kaynaklı ve taze) bir olayın parçası mı?
+  bool isTrending(String articleId) =>
+      _trendingSourceCount.containsKey(articleId);
 
-  /// Trending kümelenmesinde kaç kaynak yer alıyor (badge sayısı).
+  /// Trending kümesinde kaç kaynak yer alıyor (badge sayısı).
   int trendingSourceCount(String articleId) =>
       _trendingSourceCount[articleId] ?? 0;
 
-  /// Trending kümelerini yeniden hesapla. Yüklü makalelere bakar.
-  /// _load sonrası ve cache restore sonrası çağrılır.
-  void _recomputeTrending() {
-    if (_all.length < 4) {
-      _trendingIds = const <String>{};
-      _trendingSourceCount = const <String, int>{};
-      return;
-    }
-    try {
-      final clusters = _clusterer.findClusters(_all);
-      final ids = <String>{};
-      final counts = <String, int>{};
-      for (final c in clusters) {
-        // 2+ kaynak → trending. Tüm üye makaleler işaretlenir.
-        for (final a in c.articles) {
-          ids.add(a.id);
-          counts[a.id] = c.sourceCount;
-        }
+  /// Kümeleri ve gündemi yeniden hesapla. _load sonrası ve cache restore
+  /// sonrası çağrılır; büyük listelerde hesap ayrı isolate'te yapılır.
+  Future<void> _recomputeClusters() async {
+    final generation = ++_clusterGeneration;
+    final snapshot = _all;
+    List<NewsCluster> clusters = const [];
+    if (snapshot.length >= 4) {
+      try {
+        clusters = await _clusterer.findClustersAsync(snapshot);
+      } catch (e) {
+        debugPrint('[Pusula][Cluster] hesaplama hatası: $e');
       }
-      _trendingIds = ids;
-      _trendingSourceCount = counts;
-    } catch (e) {
-      debugPrint('[Pusula][Trending] cluster hatası: $e');
-      _trendingIds = const <String>{};
-      _trendingSourceCount = const <String, int>{};
     }
+    if (generation != _clusterGeneration) return;
+    final trending = clusters
+        .where((c) => c.hotScore >= _minHotScore)
+        .take(_maxTrending)
+        .toList(growable: false);
+    final counts = <String, int>{};
+    for (final c in trending) {
+      for (final a in c.articles) {
+        counts[a.id] = c.sourceCount;
+      }
+    }
+    _clusters = clusters;
+    _trendingClusters = trending;
+    _trendingSourceCount = counts;
   }
 
   Future<void> applySources(List<NewsSource> sources) {
@@ -246,7 +255,7 @@ class NewsProvider extends ChangeNotifier {
       _lastError = 'Canlı haberler alınamadı: $e';
       await _fallbackToCache();
     } finally {
-      _recomputeTrending();
+      await _recomputeClusters();
       _loading = false;
       notifyListeners();
     }
@@ -353,7 +362,8 @@ class NewsProvider extends ChangeNotifier {
     // Çekim hâlâ sürüyorsa loading'i kapatma — banner'lar ve
     // pull-to-refresh durumu doğru kalsın.
     if (_inflight == null) _loading = false;
-    _recomputeTrending();
+    notifyListeners();
+    await _recomputeClusters();
     notifyListeners();
   }
 
