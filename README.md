@@ -8,6 +8,7 @@
 [![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white)](https://dart.dev)
 [![Android](https://img.shields.io/badge/Android-API%2024+-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
 [![OpenRouter](https://img.shields.io/badge/AI-OpenRouter-7C3AED)](https://openrouter.ai)
+[![CI](https://github.com/ethemdemirkaya/mobil_haber/actions/workflows/ci.yml/badge.svg)](https://github.com/ethemdemirkaya/mobil_haber/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 *Haberleri oku, dinle, anla — yapay zekayla güçlendirilmiş.*
@@ -40,7 +41,7 @@
 ┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐
 │  🔍  Arama           │  │  ⚙️  Ayarlar          │  │  🧭  Kaynak Seçici  │
 │─────────────────────│  │─────────────────────│  │─────────────────────│
-│  ┌─────────────┐    │  │  Tema                │  │  Tüm Kaynaklar (42) │
+│  ┌─────────────┐    │  │  Tema                │  │  Tüm Kaynaklar (56) │
 │  │ 🔍 Ara...   │    │  │  ● Otomatik          │  │─────────────────────│
 │  └─────────────┘    │  │  ○ Açık              │  │  [BB] BBC Türkçe  ✓ │
 │                     │  │  ○ Koyu              │  │  [HT] Hürriyet    ✓ │
@@ -49,7 +50,7 @@
 │  · Türkiye          │  │  Model: Claude Haiku │  │  [BK] Bianet      ✓ │
 │  · ekonomi          │  │  Dil: Türkçe         │  │  [AA] AA          ✓ │
 │                     │  │                     │  │  [IN] Independent ✓ │
-│  Sonuçlar           │  │  Sesli Okuma         │  │  + 35 daha...       │
+│  Sonuçlar           │  │  Sesli Okuma         │  │  + 49 daha...       │
 │  ─────────────────  │  │  Motor: ElevenLabs   │  │                     │
 │  [🌐] Haber başlığı │  │  Ses: Adam           │  │  [Kaydet]           │
 └─────────────────────┘  └─────────────────────┘  └─────────────────────┘
@@ -60,25 +61,28 @@
 ## Özellikler
 
 ### Haber Akışı
-- **42+ Türkçe kaynak** — Hürriyet, Cumhuriyet, BBC Türkçe, NTV, CNN Türk, Sözcü, Bianet, T24 ve daha fazlası
-- **Gerçek zamanlı RSS** — Backend yok, doğrudan kaynaklardan çekme
-- **Kişiselleştirilmiş feed** — Kategori ve kaynak bazlı özelleştirme
-- **Kümeleme** — Aynı konuyu işleyen farklı kaynaklardan haberleri bir araya getirir
-- **Kelime filtresi** — İstemediğin kelimeleri içeren haberleri gizle
-- **Offline okuma** — Önbellek yönetimiyle internet olmadan da erişim
+- **56 kaynak** — ulusal, ekonomi, teknoloji, spor ve uluslararası Türkçe yayınlar
+- **Gerçek zamanlı RSS** — backend yok, doğrudan kaynaklardan paralel çekim
+- **Çapraz bakış (olay kümeleme)** — aynı olayı işleyen farklı kaynakları cihaz
+  üzerinde gruplar: Türkçe F5 kök çıkarımı + TF-IDF + artımlı centroid kümeleme
+- **Gündem** — birden çok kaynağın şu an işlediği olaylar; zamanla sönümlenen
+  skor (her kaynak 6 saatte yarıya iner)
+- **Sana Özel** — okuma geçmişinden öğrenen sıralama + MMR çeşitlilik
+  (filtre balonunu azaltır), her öneride kısa gerekçe
+- **Kelime filtresi** — istemediğin kelimeleri içeren haberleri gizle
+- **Offline okuma** — son akış ve okuma geçmişi SQLite'ta
 
 ### Yapay Zeka
 
 | Özellik | Açıklama |
 |---|---|
-| **Haber özeti** | Uzun haberleri 3-4 cümleye indirir |
-| **AI'ya sor** | Haber hakkında soru-cevap: arkaplan, önem, bağlam |
-| **Yönlülük analizi** | Manşet dilini tarafsızlık için 0-100 skor + gerekçe |
-| **Gündem rozeti** | "Bu haber neden önemli?" — tek cümlelik bağlam |
-| **Çapraz bakış** | Aynı habere farklı kaynaklar ne diyor? |
+| **Haber özeti** | Yalnızca haber metnine dayalı 2-3 madde; metin yetersizse özet üretilmez |
+| **Tam metin çıkarımı** | RSS sadece kısa açıklama veriyorsa makale sayfasından gövde paragrafları çıkarılır |
+| **AI'ya sor** | Her cevap "haber metnine dayanıyor" / "genel bilgi — doğrulayın" diye etiketlenir |
+| **Yönlülük analizi** | LLM değerlendirmesi + cihazda kural tabanlı dil sinyalleri; uyumlarına göre güven düzeyi |
 
-> **Not:** Tüm AI özellikleri [OpenRouter](https://openrouter.ai) üzerinden çalışır.
-> Varsayılan model: `anthropic/claude-3.5-haiku` — hızlı, ucuz, Türkçe güçlü.
+> **Not:** AI özellikleri [OpenRouter](https://openrouter.ai) üzerinden çalışır.
+> Varsayılan model: `openai/gpt-oss-20b:free` (ücretsiz katman).
 > Kullanıcı kendi API anahtarını girerek istediği modeli seçebilir.
 
 ### Sesli Okuma (TTS)
@@ -121,22 +125,29 @@ lib/
 │   ├── notifications/                  # Push + zamanlanmış bildirim
 │   ├── theme/                          # Renk paleti, tipografi
 │   ├── tts/                            # AudioSession, AudioHandler
-│   └── utils/                          # Tarih formatlama
+│   ├── net/                            # Paylaşılan HTTP istemcisi
+│   └── utils/                          # Türkçe metin, HTML, tarih yardımcıları
 │
 ├── data/
-│   ├── models/                         # Article, NewsSource, BiasReport…
+│   ├── local/                          # SQLite: haber cache, AI cache, okuma geçmişi
+│   ├── models/                         # Article, NewsSource, BiasReport, QaAnswer…
 │   └── repositories/
-│       ├── rss_news_service.dart        # RSS/Atom parser (xml paketi)
-│       ├── ai_summary_service.dart      # AI özet + soru-cevap mantığı
+│       ├── rss_news_service.dart        # RSS/Atom parser + feed sağlık kontrolü
+│       ├── category_classifier.dart     # Kelime + Türkçe ek tabanlı kategori
+│       ├── news_cluster_service.dart    # TF-IDF + centroid olay kümeleme
+│       ├── personalization_service.dart # İlgi profili + MMR çeşitlilik
+│       ├── article_text_extractor.dart  # Makale sayfasından gövde metni
+│       ├── language_signal_analyzer.dart# Kural tabanlı yönlü dil sinyalleri
+│       ├── ai_summary_service.dart      # AI özet
 │       ├── daily_briefing_service.dart  # Brifing metin üretici
-│       ├── openai_tts_service.dart      # OpenAI TTS HTTP istemcisi
-│       ├── elevenlabs_tts_service.dart  # ElevenLabs TTS HTTP istemcisi
-│       ├── og_image_resolver.dart       # Open Graph görsel çekici
-│       └── news_cluster_service.dart    # Kümeleme mantığı
+│       ├── openai_tts_service.dart      # OpenAI TTS
+│       ├── elevenlabs_tts_service.dart  # ElevenLabs TTS
+│       └── og_image_resolver.dart       # Open Graph görsel çekici
 │
 ├── providers/                          # Provider state management
 │   ├── news_provider.dart              # Haber akışı + filtre
-│   ├── ai_settings_provider.dart       # AI + TTS ayarları
+│   ├── ai_settings_provider.dart       # AI ayarları, özet/bias/Q&A
+│   ├── tts_settings_provider.dart      # Sesli okuma motoru ve ses ayarları
 │   ├── bookmark_provider.dart          # Yer imi snapshot'ı
 │   └── …
 │
@@ -161,6 +172,7 @@ lib/
 | State management | `provider` | Basit, yeterli, Flutter-native |
 | RSS parsing | Doğrudan istemci | Backend maliyeti yok |
 | AI gateway | OpenRouter | 100+ model, tek API |
+| Yerel veri | `sqflite` | Haber cache, sınırlı AI cache (300 kayıt / 30 gün), okuma geçmişi |
 | Görsel cache | `cached_network_image` | Disk + memory, LRU |
 | TTS cache | SHA-256 hash → dosya | Aynı metin tekrar üretilmez |
 | Secrets | Gradle `generateSecrets` → gitignored | Git'e girmez |
@@ -261,25 +273,31 @@ Kullanıcı sorusu geldiğinde AI önce sınıflandırır:
 ## Haber Kaynakları
 
 <details>
-<summary>42 aktif kaynak göster</summary>
+<summary>56 kaynak göster</summary>
 
 **Genel / Ulusal**
-Hürriyet · Cumhuriyet · Sözcü · Sabah · Milliyet · CNN Türk · NTV · T24 · Bianet · Gazete Duvar · Independent Türkçe · Diken · Medyascope · Artı Gerçek · Sendika.org
+Anadolu Ajansı · TRT Haber · Sabah · Sözcü · Hürriyet · Milliyet · Cumhuriyet ·
+Habertürk · CNN Türk · NTV · Yeni Şafak · Diken · Gazete Duvar · Artı Gerçek ·
+Karar · Halk TV · TELE1 · OdaTV · Aydınlık · Yeniçağ · Veryansın TV · Medyascope ·
+Gerçek Gündem · Vatan · Türkiye Gazetesi · İnternethaber · Nethaber · Posta ·
+Akşam · Takvim · A Haber · Star · Bianet · Mynet · Haber Global · Habertürk Genç
 
-**Teknoloji**
-Webtekno · Shiftdelete · Technopat · Donanımhaber · Log
-
-**Spor**
-NTV Spor · Sporx · A Sporu
+**Uluslararası**
+BBC Türkçe · DW Türkçe · Euronews Türkçe · Independent Türkçe · Daily Sabah ·
+Hürriyet Daily News · AA English
 
 **Ekonomi**
-Dünya · Para · Ekohaber · Bloomberg Türkiye
+Investing.com Türkçe · Bloomberg HT · Dünya Gazetesi · Bigpara · Ekonomim
 
-**Uluslararası (Türkçe)**
-BBC Türkçe · Deutsche Welle Türkçe · VOA Türkçe · Euronews Türkçe
+**Teknoloji**
+Webrazzi · ShiftDelete.Net · Donanım Haber · Webtekno · CHIP Online · Tamindir
 
-**Haber Ajansları**
-AA (Anadolu Ajansı) · DHA
+**Spor**
+Fotomaç · A Spor
+
+Bazı kaynakların public RSS'i zaman zaman kırılabiliyor; durumlarını
+**Ayarlar › Tanılama › Kaynak sağlığı** ekranından görebilirsin. Tam liste:
+[`news_source.dart`](lib/data/models/news_source.dart).
 
 </details>
 
@@ -294,6 +312,8 @@ git checkout -b feat/yeni-ozellik
 flutter analyze
 flutter test
 ```
+
+Her PR'da GitHub Actions `flutter analyze` ve `flutter test` çalıştırır.
 
 **Commit formatı:** `feat(scope): kısa açıklama` (Türkçe tercih edilir)
 

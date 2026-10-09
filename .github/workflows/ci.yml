@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  analyze-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # Git'e girmeyen, yerelde üretilen iki dosyanın CI için boş sürümleri:
+      #   - secrets.g.dart: Gradle preBuild'de .env.json'dan üretilir.
+      #   - firebase_options.dart: flutterfire configure ile üretilir.
+      - name: Stub generated files
+        run: |
+          mkdir -p lib/core/generated
+          cat > lib/core/generated/secrets.g.dart <<'DART'
+          // CI stub — gerçek dosya Gradle tarafından .env.json'dan üretilir.
+          const String kBuiltInOpenRouterApiKey = '';
+          DART
+          if [ ! -f lib/firebase_options.dart ]; then
+          cat > lib/firebase_options.dart <<'DART'
+          // CI stub — gerçek dosya `flutterfire configure` ile üretilir.
+          import 'package:firebase_core/firebase_core.dart';
+
+          class DefaultFirebaseOptions {
+            static FirebaseOptions get currentPlatform => const FirebaseOptions(
+                  apiKey: '',
+                  appId: '',
+                  messagingSenderId: '',
+                  projectId: '',
+                );
+          }
+          DART
+          fi
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test

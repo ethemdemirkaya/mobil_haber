@@ -1,5 +1,9 @@
 # mobil_haber — Gereksinim & Uygunluk Analizi
 
+> **Arşiv notu (Ekim 2026):** Bu belge projenin ilk sürümünü (PHP REST API +
+> mock veri) anlatır. Uygulama v2'den beri haberleri doğrudan RSS'ten çekiyor;
+> PHP `web-service/` kaldırıldı. Güncel mimari için [README](../README.md).
+
 Tarih: 2026-05-07
 Branch: `feat/news-app`
 
