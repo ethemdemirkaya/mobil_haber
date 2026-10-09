@@ -24,12 +24,11 @@ class ClusterScreen extends StatefulWidget {
 }
 
 class _ClusterScreenState extends State<ClusterScreen> {
-  final NewsClusterService _service = NewsClusterService();
-
   @override
   Widget build(BuildContext context) {
-    final news = context.watch<NewsProvider>();
-    final clusters = _service.findClusters(news.articles);
+    // Kümeler NewsProvider'da liste değiştiğinde bir kez hesaplanır.
+    final clusters =
+        context.select<NewsProvider, List<NewsCluster>>((n) => n.clusters);
 
     return Scaffold(
       appBar: AppBar(
@@ -107,8 +106,9 @@ class _ClusterScreenState extends State<ClusterScreen> {
                 const SizedBox(height: 12),
                 Text(
                   'Aynı olayı haber yapan farklı kaynakları otomatik '
-                  'gruplandırır. Türkçe-aware token bazlı Jaccard benzerliği '
-                  've 36 saatlik zaman penceresi ile çalışır.',
+                  'gruplandırır. Türkçe kök bulma, TF-IDF ağırlıklı kosinüs '
+                  'benzerliği ve 36 saatlik zaman penceresiyle tamamen '
+                  'cihaz üzerinde çalışır.',
                   style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
                         color: cs.onSurfaceVariant,
                         height: 1.5,

@@ -1,102 +1,108 @@
+import 'dart:isolate';
+import 'dart:math' as math;
+
+import '../../core/utils/turkish_text.dart';
 import '../models/article.dart';
 
 /// Çapraz Kaynak Haber Kümeleme — aynı olayı haber yapan farklı kaynakları
-/// otomatik gruplar.
+/// otomatik gruplar. Tamamen cihaz üzerinde çalışır, AI gerektirmez.
 ///
-/// **Bilimsel temel:** Token tabanlı Jaccard benzerliği + zaman penceresi
-/// kısıtı. Türkçe stop-word filtresi ile gürültü azaltılır. AI gerektirmez,
-/// tamamen on-device çalışır (privacy-first).
+/// **Algoritma (v2):**
+///   1. **Ön işleme:** Türkçe küçük harf + token'lara bölme + stop-word
+///      süzme + F5 kök çıkarımı (`stemTr`): "seçimlerde" ⇔ "seçim".
+///   2. **Ağırlıklandırma:** TF-IDF. Başlıktaki terimler ×2, cümle içinde
+///      büyük harfle başlayan kelimeler (özel isim adayı) ×1.5. Her haberde
+///      geçen "açıkladı" gibi terimler IDF ile bastırılır, "Galatasaray"
+///      gibi ayırt edici terimler öne çıkar.
+///   3. **Artımlı centroid kümeleme:** Haberler zaman sırasıyla işlenir; her
+///      haber, zaman penceresi içindeki kümelerin **merkezine** (centroid)
+///      kosinüs benzerliğiyle karşılaştırılır, eşiği geçen en yakın kümeye
+///      katılır, yoksa yeni küme açar.
 ///
-/// **Algoritma:**
-///   1. Her makaleyi normalize edilmiş token setine çevir (lowercase,
-///      diacritic'ler korunur, noktalama atılır, stop-word'ler süzülür)
-///   2. Tüm çiftler için Jaccard = |A ∩ B| / |A ∪ B|
-///   3. Eşik: 0.32 (deneysel) — bu ve üzeri "aynı olay" sayılır
-///   4. Aynı kaynak iki kez sayılmaz (kümede her kaynak tek başlık)
-///   5. Zaman penceresi: 36 saat — eski haberler kümelenmez
+/// v1'deki Union-Find (single-linkage) A~B, B~C ⇒ A~C zincirlemesiyle
+/// ilgisiz olayları tek dev kümede birleştirebiliyordu; centroid'e
+/// karşılaştırma bunu önler.
 ///
-/// **Karmaşıklık:** O(n²) — n=120 makale için ~7K karşılaştırma, mobilde
-/// <50ms. Daha büyük setler için MinHash/LSH'a geçilebilir.
+/// **Karmaşıklık:** O(n·k) (k = aktif küme sayısı). Büyük listeler
+/// [findClustersAsync] ile ayrı isolate'te hesaplanır, UI thread'i bloklanmaz.
 ///
-/// **Toplumsal değer:** Tek olayın farklı kaynaklarda nasıl manşete
-/// taşındığını yan yana göstererek medya çoğulluğunu görselleştirir.
+/// **Not:** Eşik değeri ([threshold]) etiketli veriyle henüz kalibre
+/// edilmedi; birim testlerdeki gerçekçi manşet örnekleriyle seçildi.
 class NewsClusterService {
-  NewsClusterService();
+  const NewsClusterService({
+    this.threshold = 0.28,
+    this.timeWindow = const Duration(hours: 36),
+    this.hotHalfLife = const Duration(hours: 6),
+  });
 
-  static const double _jaccardThreshold = 0.32;
-  static const Duration _timeWindow = Duration(hours: 36);
+  /// Bir haberin kümeye katılması için gereken minimum kosinüs benzerliği.
+  final double threshold;
+
+  /// Kümenin en yeni haberinden bu kadar uzak haberler katılamaz.
+  final Duration timeWindow;
+
+  /// Gündem skorunda her kaynağın katkısının yarıya indiği süre.
+  final Duration hotHalfLife;
+
   static const int _minClusterSize = 2;
 
+  /// Bu sayının altındaki listeler isolate maliyetine değmez.
+  static const int _isolateThreshold = 80;
+
+  /// [findClusters]'ın UI thread'ini bloklamayan sürümü.
+  Future<List<NewsCluster>> findClustersAsync(
+    List<Article> articles, {
+    DateTime? now,
+  }) {
+    if (articles.length < _isolateThreshold) {
+      return Future.value(findClusters(articles, now: now));
+    }
+    final list = List<Article>.of(articles, growable: false);
+    final at = now ?? DateTime.now();
+    return Isolate.run(() => findClusters(list, now: at));
+  }
+
   /// Verilen makaleler arasında haber kümeleri tespit et. Her küme
-  /// **farklı** kaynaklardan en az 2 başlık içerir.
-  List<NewsCluster> findClusters(List<Article> articles) {
+  /// **farklı** kaynaklardan en az 2 başlık içerir. Sonuç gündem skoruna
+  /// ([NewsCluster.hotScore]) göre azalan sıralıdır.
+  List<NewsCluster> findClusters(List<Article> articles, {DateTime? now}) {
     if (articles.length < 2) return const [];
+    final at = now ?? DateTime.now();
 
-    // Tokenize tüm makaleleri tek seferde — hot loop'ta tekrar etmesin.
-    final tokens = <String, Set<String>>{};
-    for (final a in articles) {
-      tokens[a.id] = _tokenize('${a.title} ${a.summary}');
-    }
+    final vectors = _vectorize(articles);
+    final order = List<int>.generate(articles.length, (i) => i)
+      ..sort((a, b) =>
+          articles[a].publishedAt.compareTo(articles[b].publishedAt));
 
-    // Union-Find ile cluster keşfi.
-    final parent = <String, String>{};
-    for (final a in articles) {
-      parent[a.id] = a.id;
-    }
-
-    String find(String id) {
-      var cur = id;
-      while (parent[cur] != cur) {
-        parent[cur] = parent[parent[cur]!]!;
-        cur = parent[cur]!;
-      }
-      return cur;
-    }
-
-    void union(String a, String b) {
-      final ra = find(a);
-      final rb = find(b);
-      if (ra != rb) parent[ra] = rb;
-    }
-
-    for (var i = 0; i < articles.length; i++) {
+    final building = <_ClusterBuilder>[];
+    for (final i in order) {
+      final v = vectors[i];
+      if (v.isEmpty) continue;
       final a = articles[i];
-      final ta = tokens[a.id]!;
-      if (ta.length < 3) continue;
-      for (var j = i + 1; j < articles.length; j++) {
-        final b = articles[j];
-        // Aynı kaynak iki haberi birbirine eklemenin anlamı yok — küme
-        // farklı bakış açılarını göstermek için.
-        if (a.sourceName.isNotEmpty &&
-            a.sourceName == b.sourceName) {
-          continue;
-        }
-        if (a.publishedAt.difference(b.publishedAt).abs() > _timeWindow) {
-          continue;
-        }
-        final tb = tokens[b.id]!;
-        if (tb.length < 3) continue;
-        if (_jaccard(ta, tb) >= _jaccardThreshold) {
-          union(a.id, b.id);
+      _ClusterBuilder? best;
+      var bestSim = threshold;
+      for (final c in building) {
+        if (a.publishedAt.difference(c.latest).abs() > timeWindow) continue;
+        final sim = c.similarity(v);
+        if (sim >= bestSim) {
+          bestSim = sim;
+          best = c;
         }
       }
-    }
-
-    // Cluster'ları topla.
-    final groups = <String, List<Article>>{};
-    for (final a in articles) {
-      final root = find(a.id);
-      groups.putIfAbsent(root, () => []).add(a);
+      if (best != null) {
+        best.add(a, v);
+      } else {
+        building.add(_ClusterBuilder(a, v));
+      }
     }
 
     final clusters = <NewsCluster>[];
-    for (final entry in groups.entries) {
-      final list = entry.value;
-      if (list.length < _minClusterSize) continue;
-      // Aynı kaynaktan birden fazla varsa en yenisini al (olay tekrarlanan
-      // başlık, takip haberi vb. olabilir).
+    for (final c in building) {
+      if (c.members.length < _minClusterSize) continue;
+      // Aynı kaynaktan birden fazla varsa en yenisini al (takip haberi,
+      // güncellenmiş başlık vb.). Küme farklı bakış açılarını gösterir.
       final unique = <String, Article>{};
-      for (final a in list) {
+      for (final a in c.members) {
         final key = a.sourceName.isEmpty ? a.id : a.sourceName;
         final existing = unique[key];
         if (existing == null || a.publishedAt.isAfter(existing.publishedAt)) {
@@ -107,70 +113,140 @@ class NewsClusterService {
       final members = unique.values.toList(growable: false)
         ..sort((x, y) => y.publishedAt.compareTo(x.publishedAt));
       clusters.add(NewsCluster(
-        id: 'cluster_${entry.key}',
+        id: 'cluster_${members.last.id}',
         articles: members,
+        hotScore: _hotScore(members, at),
       ));
     }
 
-    // En çok kaynak içeren ve en yeni cluster'lar üstte.
     clusters.sort((a, b) {
-      final byCount = b.sourceCount.compareTo(a.sourceCount);
-      if (byCount != 0) return byCount;
+      final byScore = b.hotScore.compareTo(a.hotScore);
+      if (byScore != 0) return byScore;
       return b.latestAt.compareTo(a.latestAt);
     });
-
     return clusters;
   }
 
-  /// İki token seti arasında Jaccard benzerliği. 0..1 arası.
-  double _jaccard(Set<String> a, Set<String> b) {
-    if (a.isEmpty || b.isEmpty) return 0;
-    var intersection = 0;
-    final smaller = a.length <= b.length ? a : b;
-    final larger = identical(smaller, a) ? b : a;
-    for (final t in smaller) {
-      if (larger.contains(t)) intersection++;
+  /// Her bağımsız kaynak 1 puanla başlar ve [hotHalfLife] sürede yarıya
+  /// iner. 2 kaynak az önce yayınladıysa ≈2; 3 kaynak 6 saat önce
+  /// yayınladıysa ≈1.5. Böylece hem kaynak sayısı hem tazelik ölçülür.
+  double _hotScore(List<Article> members, DateTime now) {
+    final halfLifeH = hotHalfLife.inMinutes / 60.0;
+    var score = 0.0;
+    for (final a in members) {
+      final ageH = math.max(0, now.difference(a.publishedAt).inMinutes) / 60.0;
+      score += math.pow(0.5, ageH / halfLifeH);
     }
-    if (intersection == 0) return 0;
-    final union = a.length + b.length - intersection;
-    return intersection / union;
+    return score;
   }
 
-  /// Türkçe-aware tokenize: lowercase + Türkçe karakter sadeleştirme +
-  /// stop-word atma + 3'ten kısa token'lar atılır.
-  Set<String> _tokenize(String text) {
-    if (text.isEmpty) return const {};
-    final normalized = text
-        .toLowerCase()
-        .replaceAll('ı', 'i')
-        .replaceAll('ş', 's')
-        .replaceAll('ç', 'c')
-        .replaceAll('ö', 'o')
-        .replaceAll('ü', 'u')
-        .replaceAll('ğ', 'g')
-        .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ');
-    return normalized
-        .split(RegExp(r'\s+'))
-        .where((w) => w.length >= 3 && !_stopWords.contains(w))
-        .toSet();
+  /// Her makale için L2-normalize edilmiş TF-IDF vektörü.
+  List<Map<String, double>> _vectorize(List<Article> articles) {
+    final tfs = articles.map(_termFrequencies).toList(growable: false);
+    final df = <String, int>{};
+    for (final tf in tfs) {
+      for (final term in tf.keys) {
+        df[term] = (df[term] ?? 0) + 1;
+      }
+    }
+    final n = articles.length;
+    return tfs.map((tf) {
+      final v = <String, double>{};
+      var norm = 0.0;
+      tf.forEach((term, f) {
+        final idf = math.log((n + 1) / (df[term]! + 1)) + 1;
+        final w = f * idf;
+        v[term] = w;
+        norm += w * w;
+      });
+      if (norm == 0) return v;
+      final inv = 1 / math.sqrt(norm);
+      v.updateAll((_, w) => w * inv);
+      return v;
+    }).toList(growable: false);
   }
 
-  /// Türkçe haber metinlerinde sık geçen ama ayırt edici olmayan kelimeler.
-  /// Listeyi mümkün olduğunca konservatif tutuyoruz — özel isim çıkarmamak
-  /// için. Bias eklemekten kaçınmak adına siyasi terim yok.
-  /// Stop-word'ler `_tokenize` sonrası (Türkçe karakter normalize edilmiş,
-  /// 3+ harf) listeyle eşleşir; `ı→i`, `ş→s` vb. dönüşüm zaten yapılmıştır.
+  Map<String, double> _termFrequencies(Article a) {
+    final tf = <String, double>{};
+    void addText(String text, double baseWeight) {
+      final words = text.split(RegExp(r'\s+'));
+      for (var i = 0; i < words.length; i++) {
+        // "Erdoğan'ın" → "Erdoğan": kesmeden sonraki ek ayrı token olmasın.
+        final w = words[i].split(_apostrophe).first;
+        if (w.isEmpty) continue;
+        final first = w[0];
+        final properNoun = i > 0 &&
+            first != first.toLowerCase() &&
+            first == first.toUpperCase();
+        for (final t in trTokens(w)) {
+          if (t.length < 3 || _stopWords.contains(t)) continue;
+          final stem = stemTr(t);
+          tf[stem] = (tf[stem] ?? 0) + baseWeight * (properNoun ? 1.5 : 1);
+        }
+      }
+    }
+
+    addText(a.title, 2);
+    addText(a.summary, 1);
+    return tf;
+  }
+
+  static final RegExp _apostrophe = RegExp("['’‘`]");
+
+  /// Türkçe haber metinlerinde sık geçen ama ayırt edici olmayan kelimeler
+  /// ([trLower] biçiminde). Özel isim çıkarılmaz; siyasi terim yok.
   static const Set<String> _stopWords = {
-    've', 'ile', 'ama', 'fakat', 'ancak', 'cok', 'daha', 'icin', 'kadar',
-    'gibi', 'bir', 'iki', 'her', 'hic', 'olan', 'olarak', 'olur',
-    'oldu', 'olmus', 'oldugu', 'biz', 'siz', 'ben', 'sen',
-    'son', 'haber', 'haberi', 'haberleri', 'aciklama', 'aciklamasi',
-    'yeni', 'eski', 'bugun', 'yarin', 'gun', 'gunde',
-    'sonra', 'once', 'simdi', 'iste', 'tum', 'butun', 'turkiye',
-    'dunya', 'dakika', 'yil', 'yapti', 'yapildi', 'gore',
-    'icinde', 'uzerine', 'hakkinda', 'kim', 'kimdir', 'nedir', 'nasil',
-    'neden', 'niye', 'nereye', 'nereden', 'nerede',
+    've', 'ile', 'ama', 'fakat', 'ancak', 'çok', 'daha', 'için', 'kadar',
+    'gibi', 'bir', 'iki', 'her', 'hiç', 'olan', 'olarak', 'olur', 'oldu',
+    'olmuş', 'olduğu', 'olduğunu', 'biz', 'siz', 'ben', 'sen', 'bu', 'şu',
+    'son', 'haber', 'haberi', 'haberleri', 'açıklama', 'açıklaması',
+    'açıkladı', 'yeni', 'eski', 'bugün', 'yarın', 'gün', 'günde', 'sonra',
+    'önce', 'şimdi', 'işte', 'tüm', 'bütün', 'türkiye', 'dünya', 'dakika',
+    'yıl', 'yaptı', 'yapıldı', 'göre', 'içinde', 'üzerine', 'hakkında',
+    'kim', 'kimdir', 'nedir', 'nasıl', 'neden', 'niye', 'nereye',
+    'nereden', 'nerede', 'dedi', 'etti', 'eden', 'edildi', 'ise', 'değil',
+    'var', 'yok', 'bunu', 'buna', 'başka', 'flaş', 'gelişme', 'video',
+    'izle', 'galeri', 'foto', 'tıkla', 'devamı',
   };
+}
+
+class _ClusterBuilder {
+  _ClusterBuilder(Article first, Map<String, double> v)
+      : members = [first],
+        latest = first.publishedAt {
+    _addVector(v);
+  }
+
+  final List<Article> members;
+  DateTime latest;
+  final Map<String, double> _sum = <String, double>{};
+  double _norm = 0;
+
+  void add(Article a, Map<String, double> v) {
+    members.add(a);
+    if (a.publishedAt.isAfter(latest)) latest = a.publishedAt;
+    _addVector(v);
+  }
+
+  void _addVector(Map<String, double> v) {
+    v.forEach((k, w) => _sum[k] = (_sum[k] ?? 0) + w);
+    var sq = 0.0;
+    for (final w in _sum.values) {
+      sq += w * w;
+    }
+    _norm = math.sqrt(sq);
+  }
+
+  /// [v] (birim vektör) ile küme merkezi arasındaki kosinüs benzerliği.
+  double similarity(Map<String, double> v) {
+    if (_norm == 0) return 0;
+    var dot = 0.0;
+    v.forEach((k, w) {
+      final s = _sum[k];
+      if (s != null) dot += w * s;
+    });
+    return dot / _norm;
+  }
 }
 
 /// Bir haber kümesi — aynı olayı haber yapan farklı kaynakların
@@ -180,10 +256,16 @@ class NewsCluster {
   const NewsCluster({
     required this.id,
     required this.articles,
+    this.hotScore = 0,
   });
 
   final String id;
+
+  /// Kaynak başına en yeni haber, yeniden eskiye sıralı.
   final List<Article> articles;
+
+  /// Zamanla sönümlenen gündem skoru (bkz. `NewsClusterService._hotScore`).
+  final double hotScore;
 
   /// Bu olayı haberleştiren ayrık kaynak sayısı.
   int get sourceCount {
@@ -203,8 +285,7 @@ class NewsCluster {
     return latest;
   }
 
-  /// "Ortak başlık" — cluster içindeki en uzun ortak token kümesinden
-  /// türetilmiş açıklayıcı bir özet. Olmazsa en yeni makalenin başlığı.
+  /// Kümeyi temsil eden başlık — en yeni makalenin başlığı.
   String get headline {
     final newest = articles.reduce(
       (a, b) => a.publishedAt.isAfter(b.publishedAt) ? a : b,
