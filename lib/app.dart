@@ -16,6 +16,7 @@ import 'providers/reading_progress_provider.dart';
 import 'providers/reading_theme_provider.dart';
 import 'providers/search_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/tts_settings_provider.dart';
 import 'screens/splash/splash_screen.dart';
 
 class MobilHaberApp extends StatelessWidget {
@@ -47,6 +48,7 @@ class MobilHaberApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ReadingProgressProvider()),
         ChangeNotifierProvider(create: (_) => ReadingThemeProvider()),
         ChangeNotifierProvider(create: (_) => AiSettingsProvider()),
+        ChangeNotifierProvider(create: (_) => TtsSettingsProvider()),
         ChangeNotifierProvider(create: (_) => KeywordFilterProvider()),
       ],
       child: Consumer<ThemeProvider>(
