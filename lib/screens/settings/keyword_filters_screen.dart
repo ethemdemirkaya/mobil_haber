@@ -1,3 +1,4 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -63,7 +64,7 @@ class _KeywordFiltersScreenState extends State<KeywordFiltersScreen> {
           if (filter.hasKeywords)
             IconButton(
               tooltip: 'Tümünü temizle',
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(AppIcons.trash),
               onPressed: () async {
                 final ok = await _confirm(context);
                 if (ok && context.mounted) {
@@ -81,19 +82,12 @@ class _KeywordFiltersScreenState extends State<KeywordFiltersScreen> {
             margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  cs.primary.withValues(alpha: 0.14),
-                  cs.tertiary.withValues(alpha: 0.06),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: cs.surfaceContainerLow,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               children: [
-                Icon(Icons.search, color: cs.primary, size: 22),
+                Icon(AppIcons.search, color: cs.primary, size: 22),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -120,11 +114,11 @@ class _KeywordFiltersScreenState extends State<KeywordFiltersScreen> {
               textInputAction: TextInputAction.done,
               decoration: InputDecoration(
                 hintText: 'Örn: Galatasaray, FED, Bitcoin',
-                prefixIcon: const Icon(Icons.add_circle_outline),
+                prefixIcon: const Icon(AppIcons.circlePlus),
                 suffixIcon: _input.text.isEmpty
                     ? null
                     : IconButton(
-                        icon: const Icon(Icons.send),
+                        icon: const Icon(AppIcons.send),
                         onPressed: () => _add(_input.text),
                       ),
                 border: OutlineInputBorder(
@@ -152,11 +146,15 @@ class _KeywordFiltersScreenState extends State<KeywordFiltersScreen> {
                       (k) => k.toLowerCase() == s.toLowerCase(),
                     );
                     return ActionChip(
-                      label: Text(s,
-                          style: const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w600)),
+                      label: Text(
+                        s,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       avatar: Icon(
-                        already ? Icons.check : Icons.add,
+                        already ? AppIcons.check : AppIcons.plus,
                         size: 14,
                         color: already
                             ? Colors.green.shade700
@@ -173,7 +171,7 @@ class _KeywordFiltersScreenState extends State<KeywordFiltersScreen> {
 
           // ── Bildirim toggle ──
           SwitchListTile(
-            secondary: const Icon(Icons.notifications_active_outlined),
+            secondary: const Icon(AppIcons.bellRinging),
             title: const Text('Eşleşmelerde bildir'),
             subtitle: const Text(
               'Yeni bir haber eşleştiğinde push bildirimi gönderilsin.',
@@ -214,17 +212,19 @@ class _KeywordFiltersScreenState extends State<KeywordFiltersScreen> {
                       final k = filter.keywords[i];
                       return ListTile(
                         leading: CircleAvatar(
-                          backgroundColor:
-                              cs.primary.withValues(alpha: 0.14),
-                          child: Icon(Icons.tag,
-                              color: cs.primary, size: 18),
+                          backgroundColor: cs.primary.withValues(alpha: 0.14),
+                          child: Icon(
+                            AppIcons.hash,
+                            color: cs.primary,
+                            size: 18,
+                          ),
                         ),
-                        title: Text(k,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700)),
+                        title: Text(
+                          k,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
                         trailing: IconButton(
-                          icon: Icon(Icons.close,
-                              color: cs.onSurfaceVariant),
+                          icon: Icon(AppIcons.x, color: cs.onSurfaceVariant),
                           onPressed: () {
                             HapticFeedback.lightImpact();
                             context.read<KeywordFilterProvider>().remove(k);

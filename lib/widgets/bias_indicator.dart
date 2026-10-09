@@ -1,349 +1,136 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../data/models/article.dart';
 import '../data/models/bias_report.dart';
 import '../providers/ai_settings_provider.dart';
 
-/// Detay ekranında AI yönlülük analizini gösteren kart.
-///
-/// İlk açıldığında "Analiz et" butonu — tıklayınca OpenRouter'a sorulur,
-/// JSON parse edilir, kalıcı cache'e yazılır. Sonraki açılışlarda direkt
-/// renk kodlu skor + cue chip listesi.
+/// Language assessment shares the article's content width at every text size.
 class BiasIndicator extends StatelessWidget {
-  const BiasIndicator({
-    super.key,
-    required this.article,
-  });
-
+  const BiasIndicator({super.key, required this.article});
   final Article article;
-
   @override
   Widget build(BuildContext context) {
     final ai = context.watch<AiSettingsProvider>();
     final report = ai.cachedBias(article.id);
     final loading = ai.loadingBiasId == article.id;
-
-    if (report != null) {
-      return _BiasReportCard(article: article, report: report);
-    }
-    return _BiasPromptCard(loading: loading, article: article);
-  }
-}
-
-class _BiasPromptCard extends StatelessWidget {
-  const _BiasPromptCard({
-    required this.loading,
-    required this.article,
-  });
-
-  final bool loading;
-  final Article article;
-
-  @override
-  Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final ai = context.watch<AiSettingsProvider>();
-    final disabled = !ai.isReady() && !loading;
-    final error = loading ? null : ai.biasErrorFor(article.id);
+    final text = Theme.of(context).textTheme;
+    final error = ai.biasErrorFor(article.id);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final status = switch (report?.band) {
+      BiasBand.neutral =>
+        dark ? const Color(0xFF8DBA91) : const Color(0xFF39734A),
+      BiasBand.mild => dark ? const Color(0xFFE0BB7A) : const Color(0xFF986E26),
+      BiasBand.notable =>
+        dark ? const Color(0xFFEAA77F) : const Color(0xFFAD582D),
+      BiasBand.heavy => cs.error,
+      null => cs.onSurfaceVariant,
+    };
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
-      constraints: const BoxConstraints(minHeight: 70),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: cs.primary.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.primary.withValues(alpha: 0.20)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: 0.14),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.balance, color: cs.primary, size: 19),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'Yönlülük Analizi',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13.5,
-                        color: cs.onSurface,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                    const SizedBox(width: 7),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: cs.primary.withValues(alpha: 0.13),
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      child: Text(
-                        'AI',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                          color: cs.primary,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  disabled
-                      ? 'AI kapalı — Ayarlar > Yapay Zeka'
-                      : error ?? 'Manşet dilini tarafsızlık için değerlendir',
-                  maxLines: error == null ? null : 3,
-                  overflow: error == null ? null : TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: error == null ? cs.onSurfaceVariant : cs.error,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          loading
-              ? SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: cs.primary,
-                  ),
-                )
-              : FilledButton(
-                  onPressed: disabled
-                      ? null
-                      : () => context
-                          .read<AiSettingsProvider>()
-                          .analyzeBias(article),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
-                    visualDensity: VisualDensity.compact,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: Text(
-                    error == null ? 'Analiz et' : 'Tekrar dene',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12.5,
-                    ),
-                  ),
-                ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BiasReportCard extends StatelessWidget {
-  const _BiasReportCard({required this.article, required this.report});
-
-  final Article article;
-  final BiasReport report;
-
-  Color _bandColor(BiasBand b) => switch (b) {
-        BiasBand.neutral => const Color(0xFF2E7D32),
-        BiasBand.mild => const Color(0xFFF9A825),
-        BiasBand.notable => const Color(0xFFE65100),
-        BiasBand.heavy => const Color(0xFFC62828),
-      };
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final bandColor = _bandColor(report.band);
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            bandColor.withValues(alpha: 0.14),
-            bandColor.withValues(alpha: 0.04),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: bandColor.withValues(alpha: 0.4)),
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.balance, color: bandColor, size: 18),
-              const SizedBox(width: 6),
-              Text(
-                'Yönlülük: ${report.label}',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13.5,
-                  color: bandColor,
-                  letterSpacing: -0.1,
+              Icon(AppIcons.scale, size: 20, color: cs.onSurfaceVariant),
+              const SizedBox(width: 10),
+              Expanded(child: Text('Haberin dili', style: text.titleSmall)),
+              if (loading)
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 ),
-              ),
-              const Spacer(),
-              // Kesin bir "62/100" sayısı yanıltıcı bir hassasiyet
-              // izlenimi veriyordu; yerine ölçümün güven düzeyi.
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: cs.surface.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: bandColor.withValues(alpha: 0.5),
-                  ),
-                ),
-                child: Text(
-                  report.confidence.label,
-                  style: TextStyle(
-                    color: bandColor,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 11,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // 4 bantlı gösterge — sürekli skor yerine kaba bant.
-          Row(
-            children: [
-              for (final b in BiasBand.values) ...[
-                Expanded(
-                  child: Container(
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: b == report.band
-                          ? bandColor
-                          : bandColor.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                ),
-                if (b != BiasBand.values.last) const SizedBox(width: 4),
-              ],
             ],
           ),
           const SizedBox(height: 10),
-          Text(
-            report.summary,
-            style: TextStyle(
-              fontSize: 12.5,
-              height: 1.45,
-              color: cs.onSurface,
-            ),
-          ),
-          if (report.confidence == BiasConfidence.low) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Yapay zeka değerlendirmesi, metindeki kural tabanlı dil '
-              'sinyalleriyle uyuşmuyor. Sonucu temkinli yorumlayın.',
-              style: TextStyle(
-                fontSize: 11.5,
-                height: 1.4,
-                fontStyle: FontStyle.italic,
-                color: cs.onSurfaceVariant,
-              ),
-            ),
-          ],
-          if (report.allCues.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(
-              'TESPİT EDİLEN İFADELER',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                color: cs.onSurfaceVariant,
-                letterSpacing: 0.6,
-              ),
-            ),
-            const SizedBox(height: 6),
+          if (report != null) ...[
             Wrap(
-              spacing: 6,
+              spacing: 12,
               runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                for (final cue in report.allCues)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: bandColor.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: bandColor.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Text(
-                      '"$cue"',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: bandColor,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
+                Text(
+                  report.label,
+                  style: text.labelLarge?.copyWith(color: status),
+                ),
+                Text(report.confidence.label, style: text.bodySmall),
               ],
             ),
-          ],
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.info_outline,
-                  size: 12, color: cs.onSurfaceVariant),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  'Sadece dil özellikleri değerlendirilir, olgu doğruluğu '
-                  'kontrol edilmez. İfadeler metinde geçtiği doğrulananlardır.',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    color: cs.onSurfaceVariant,
-                    height: 1.35,
+            const SizedBox(height: 10),
+            Text(report.summary, style: text.bodyMedium?.copyWith(height: 1.5)),
+            Theme(
+              data: Theme.of(
+                context,
+              ).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: EdgeInsets.zero,
+                title: Text('Değerlendirme hakkında', style: text.bodySmall),
+                children: [
+                  if (report.confidence == BiasConfidence.low)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Text(
+                        'Dil sinyalleri ile yapay zeka değerlendirmesi uyuşmuyor. Sonucu temkinli yorumlayın.',
+                        style: text.bodySmall,
+                      ),
+                    ),
+                  if (report.allCues.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Text(
+                        'Tespit edilen ifadeler: ${report.allCues.join(', ')}',
+                        style: text.bodyMedium,
+                      ),
+                    ),
+                  Text(
+                    'Yapay zeka yalnızca dil özelliklerini değerlendirir; haberin doğruluğunu kontrol etmez.',
+                    style: text.bodySmall?.copyWith(height: 1.5),
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: loading || !ai.isReady()
+                          ? null
+                          : () => ai.analyzeBias(article, force: true),
+                      icon: const Icon(AppIcons.refresh, size: 18),
+                      label: const Text('Yeniden değerlendir'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            Text(
+              error ??
+                  (ai.isReady()
+                      ? 'Manşetteki duygusal ve yönlendirici ifadeleri incele.'
+                      : 'Dil değerlendirmesi için Ayarlar’dan yapay zekayı etkinleştir.'),
+              style: text.bodyMedium?.copyWith(
+                color: error == null ? cs.onSurfaceVariant : cs.error,
+                height: 1.5,
+              ),
+            ),
+            if (ai.isReady())
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: loading ? null : () => ai.analyzeBias(article),
+                  child: Text(
+                    error == null ? 'Dili değerlendir' : 'Tekrar dene',
                   ),
                 ),
               ),
-              TextButton(
-                onPressed: () => context
-                    .read<AiSettingsProvider>()
-                    .analyzeBias(article, force: true),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  visualDensity: VisualDensity.compact,
-                ),
-                child: const Text(
-                  'Yenile',
-                  style: TextStyle(fontSize: 11),
-                ),
-              ),
-            ],
-          ),
+          ],
         ],
       ),
     );

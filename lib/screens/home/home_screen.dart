@@ -1,14 +1,13 @@
-import 'dart:async';
-
+import '../../widgets/pusula_mascot.dart';
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/constants/app_constants.dart';
+import '../../widgets/pusula_glyph.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../data/models/article.dart';
 import '../../data/models/category.dart';
 import '../../data/models/news_source.dart';
-import '../../providers/ai_settings_provider.dart';
 import '../../providers/news_provider.dart';
 import '../../providers/reading_history_provider.dart';
 import '../../providers/reading_progress_provider.dart';
@@ -37,12 +36,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final PageController _featuredCtrl =
-      PageController(viewportFraction: 0.88);
+  final PageController _featuredCtrl = PageController(viewportFraction: 0.88);
   final ScrollController _scrollController = ScrollController();
   int _featuredIndex = 0;
-  Timer? _autoScrollTimer;
-  bool _userPaused = false;
 
   /// Ana sayfadaki "Son haberler" listesinde gösterilen haber sayısı.
   /// Eskiden sona yaklaşınca 15'er otomatik artıyordu; 10 kaynakta ~80
@@ -53,31 +49,13 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _startAutoScroll();
   }
 
   @override
   void dispose() {
-    _autoScrollTimer?.cancel();
     _featuredCtrl.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  void _startAutoScroll() {
-    _autoScrollTimer?.cancel();
-    _autoScrollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (!mounted || _userPaused) return;
-      if (!_featuredCtrl.hasClients) return;
-      final featured = context.read<NewsProvider>().featured;
-      if (featured.length < 2) return;
-      final next = (_featuredIndex + 1) % featured.length;
-      _featuredCtrl.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 520),
-        curve: Curves.easeOutCubic,
-      );
-    });
   }
 
   Future<void> _refresh() async {
@@ -87,10 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _openArticle(Article article, {String? heroTag}) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ArticleDetailScreen(
-          article: article,
-          heroTag: heroTag,
-        ),
+        builder: (_) => ArticleDetailScreen(article: article, heroTag: heroTag),
       ),
     );
   }
@@ -120,13 +95,13 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.notifications_active_outlined),
+                    const Icon(AppIcons.bellRinging),
                     const SizedBox(width: 8),
                     Text(
                       'Son haberler',
                       style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ],
                 ),
@@ -146,20 +121,22 @@ class _HomeScreenState extends State<HomeScreen> {
                       return ListTile(
                         leading: CircleAvatar(
                           radius: 20,
-                          backgroundColor:
-                              a.category.color.withValues(alpha: 0.15),
-                          child: Icon(a.category.icon,
-                              color: a.category.color, size: 18),
+                          backgroundColor: a.category.color.withValues(
+                            alpha: 0.15,
+                          ),
+                          child: Icon(
+                            a.category.icon,
+                            color: a.category.color,
+                            size: 18,
+                          ),
                         ),
                         title: Text(
                           a.title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600),
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
-                        subtitle:
-                            Text(DateFormatter.relative(a.publishedAt)),
+                        subtitle: Text(DateFormatter.relative(a.publishedAt)),
                         onTap: () {
                           Navigator.of(ctx).pop();
                           _openArticle(a);
@@ -184,8 +161,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final trending = news.trending(take: 6);
 
     final history = context.watch<ReadingHistoryProvider>();
-    final continueReading =
-        history.articles(lookup: news.byId).take(8).toList(growable: false);
+    final continueReading = history
+        .articles(lookup: news.byId)
+        .take(8)
+        .toList(growable: false);
 
     return Scaffold(
       body: SafeArea(
@@ -197,62 +176,36 @@ class _HomeScreenState extends State<HomeScreen> {
             slivers: [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding:
-                      const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Expanded(
                         child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               children: [
+                                const PusulaGlyph(size: 34),
+                                const SizedBox(width: 10),
                                 Text(
-                                  AppConstants.appName,
-                                  style:
-                                      textTheme.headlineSmall?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: -0.3,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                // v2 (özetleyici) marka rozetimsi vurgu
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 7, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: cs.primary
-                                        .withValues(alpha: 0.10),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    'özet',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 0.5,
-                                      color: cs.primary,
-                                    ),
+                                  'Pusula',
+                                  style: textTheme.headlineLarge?.copyWith(
+                                    letterSpacing: -1,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 6),
                             Text(
-                              'Hızlı · Birleştirilmiş · Özet',
-                              style: textTheme.bodySmall?.copyWith(
-                                color: cs.onSurfaceVariant,
-                                fontWeight: FontWeight.w500,
-                                letterSpacing: 0.1,
-                              ),
+                              DateFormatter.day(DateTime.now()),
+                              style: textTheme.bodySmall,
                             ),
                           ],
                         ),
                       ),
                       _HeaderIconButton(
-                        icon: Icons.notifications_none_rounded,
+                        icon: AppIcons.bell,
                         tooltip: 'Son haberler',
                         onTap: _showLatestSheet,
                       ),
@@ -264,9 +217,29 @@ class _HomeScreenState extends State<HomeScreen> {
               // benzer bir deneyim için MainNavigation'da sekme değişir).
               SliverToBoxAdapter(
                 child: Padding(
-                  padding:
-                      const EdgeInsets.fromLTRB(20, 14, 20, 6),
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
                   child: _SearchShortcutBar(),
+                ),
+              ),
+
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 48,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: NewsCategory.values.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
+                    itemBuilder: (context, index) {
+                      final c = NewsCategory.values[index];
+                      return CategoryChip(
+                        category: c,
+                        selected: news.selectedCategoryId == c.id,
+                        onTap: () =>
+                            context.read<NewsProvider>().selectCategory(c.id),
+                      );
+                    },
+                  ),
                 ),
               ),
               // ── Sesli Brifing CTA — öne çıkarılmış girişim kartı ──
@@ -284,14 +257,12 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               // First-run "AI hazır" tek seferlik bilgilendirme.
               // ignore: deprecated_member_use_from_same_package
-              const SliverToBoxAdapter(child: _AiReadyBanner()),
               if (news.hasError)
                 SliverToBoxAdapter(
                   child: ErrorBanner(
                     message: news.lastError ?? 'Bilinmeyen hata',
                     onRetry: _refresh,
-                    onDismiss: () =>
-                        context.read<NewsProvider>().clearError(),
+                    onDismiss: () => context.read<NewsProvider>().clearError(),
                   ),
                 )
               else if (news.offline && !news.loading)
@@ -307,31 +278,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: EdgeInsets.fromLTRB(0, 18, 0, 0),
                         child: FeaturedSkeleton(),
                       )
-                    : Listener(
-                        onPointerDown: (_) =>
-                            setState(() => _userPaused = true),
-                        onPointerUp: (_) {
-                          // Kullanıcı dokunduktan kısa süre sonra otomatik
-                          // kaymayı yeniden açıyoruz.
-                          Future.delayed(const Duration(seconds: 2), () {
-                            if (mounted) {
-                              setState(() => _userPaused = false);
-                            }
-                          });
-                        },
-                        child: _FeaturedCarousel(
-                          controller: _featuredCtrl,
-                          articles: news.featured,
-                          currentIndex: _featuredIndex,
-                          onIndexChanged: (i) =>
-                              setState(() => _featuredIndex = i),
-                          onTap: (a) => _openArticle(
-                            a,
-                            heroTag: 'featured-img-${a.id}',
-                          ),
-                        ),
+                    : _FeaturedCarousel(
+                        controller: _featuredCtrl,
+                        articles: news.featured,
+                        currentIndex: _featuredIndex,
+                        onIndexChanged: (i) =>
+                            setState(() => _featuredIndex = i),
+                        onTap: (a) =>
+                            _openArticle(a, heroTag: 'featured-img-${a.id}'),
                       ),
               ),
+
               if (continueReading.isNotEmpty) ...[
                 const SliverToBoxAdapter(
                   child: SectionHeader(
@@ -370,11 +327,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: 200,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: trending.length,
-                      separatorBuilder: (_, _) =>
-                          const SizedBox(width: 12),
+                      separatorBuilder: (_, _) => const SizedBox(width: 12),
                       itemBuilder: (context, index) {
                         final a = trending[index];
                         return _TrendingCard(
@@ -407,19 +362,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: 76,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: news.activeSources.length + 1,
-                      separatorBuilder: (_, _) =>
-                          const SizedBox(width: 10),
+                      separatorBuilder: (_, _) => const SizedBox(width: 10),
                       itemBuilder: (context, index) {
                         if (index == news.activeSources.length) {
                           return _AddSourcesChip(
-                            onTap: () =>
-                                Navigator.of(context).push(
+                            onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    const SourcePreferencesScreen(),
+                                builder: (_) => const SourcePreferencesScreen(),
                               ),
                             ),
                           );
@@ -431,33 +382,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ],
-              const SliverToBoxAdapter(
-                child: SectionHeader(title: 'Kategoriler'),
-              ),
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 48,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16),
-                    itemCount: NewsCategory.values.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(width: 8),
-                    itemBuilder: (context, index) {
-                      final c = NewsCategory.values[index];
-                      return CategoryChip(
-                        category: c,
-                        selected:
-                            news.selectedCategoryId == c.id,
-                        onTap: () => context
-                            .read<NewsProvider>()
-                            .selectCategory(c.id),
-                      );
-                    },
-                  ),
-                ),
-              ),
               SliverToBoxAdapter(
                 child: SectionHeader(
                   title: news.selectedCategoryId == NewsCategory.all.id
@@ -471,16 +395,16 @@ class _HomeScreenState extends State<HomeScreen> {
               if (news.loading && news.articles.isEmpty)
                 SliverList.builder(
                   itemCount: 4,
-                  itemBuilder: (_, _) =>
-                      const ArticleCardSkeleton(),
+                  itemBuilder: (_, _) => const ArticleCardSkeleton(),
                 )
               else if (news.unavailable && news.articles.isEmpty)
                 SliverFillRemaining(
                   hasScrollBody: false,
                   child: EmptyState(
-                    icon: Icons.wifi_off_rounded,
+                    icon: AppIcons.wifiOff,
                     title: 'Haberlere ulaşılamadı',
-                    subtitle: 'İnternet bağlantınızı kontrol edip '
+                    subtitle:
+                        'İnternet bağlantınızı kontrol edip '
                         'tekrar deneyin.',
                     actionLabel: 'Tekrar dene',
                     onAction: _refresh,
@@ -490,7 +414,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SliverFillRemaining(
                   hasScrollBody: false,
                   child: EmptyState(
-                    icon: Icons.inbox_outlined,
+                    icon: AppIcons.inbox,
                     title: 'Bu kategoride haber yok',
                     subtitle:
                         'Başka bir kategori seçin veya yenilemeyi deneyin.',
@@ -498,8 +422,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 )
               else ...[
                 SliverList.separated(
-                  itemCount:
-                      news.articles.length.clamp(0, _homeListLimit),
+                  itemCount: news.articles.length.clamp(0, _homeListLimit),
                   separatorBuilder: (_, _) => Divider(
                     height: 1,
                     indent: 16,
@@ -510,10 +433,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     final a = news.articles[index];
                     return ArticleCard(
                       article: a,
-                      onTap: () => _openArticle(
-                        a,
-                        heroTag: 'card-img-${a.id}',
-                      ),
+                      onTap: () => _openArticle(a, heroTag: 'card-img-${a.id}'),
                     );
                   },
                 ),

@@ -1,3 +1,4 @@
+import '../widgets/pusula_navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -75,64 +76,24 @@ class _MainNavigationState extends State<MainNavigation> {
     // eklemek istemiyoruz — basit yol: ekranı aç, kullanıcı chip'ten seçsin.
     // Daha iyi UX için ileride initialCategoryId param eklenebilir.
     if (!mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const DailyBriefingScreen(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const DailyBriefingScreen()));
   }
 
   @override
   Widget build(BuildContext context) {
-    final bookmarkCount = context.select<BookmarkProvider, int>(
-      (b) => b.count,
-    );
+    final bookmarkCount = context.select<BookmarkProvider, int>((b) => b.count);
 
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: PusulaNavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) {
-          if (i != _index) {
-            HapticFeedback.selectionClick();
-          }
+        bookmarkCount: bookmarkCount,
+        onSelected: (i) {
+          if (i != _index) HapticFeedback.selectionClick();
           setState(() => _index = i);
         },
-        destinations: [
-          const NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: 'Ana Sayfa',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.hub_outlined),
-            selectedIcon: Icon(Icons.hub),
-            label: 'Çapraz Bakış',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.tune_outlined),
-            selectedIcon: Icon(Icons.tune),
-            label: 'Sana Özel',
-          ),
-          NavigationDestination(
-            icon: Badge(
-              label: bookmarkCount > 0 ? Text('$bookmarkCount') : null,
-              isLabelVisible: bookmarkCount > 0,
-              child: const Icon(Icons.bookmark_outline),
-            ),
-            selectedIcon: Badge(
-              label: bookmarkCount > 0 ? Text('$bookmarkCount') : null,
-              isLabelVisible: bookmarkCount > 0,
-              child: const Icon(Icons.bookmark),
-            ),
-            label: 'Kayıtlı',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'Ayarlar',
-          ),
-        ],
       ),
     );
   }

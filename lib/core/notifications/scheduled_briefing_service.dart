@@ -40,13 +40,13 @@ class ScheduledBriefing {
   final bool enabled;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'hour': hour,
-        'minute': minute,
-        'categoryId': categoryId,
-        'daysOfWeek': daysOfWeek.toList(),
-        'enabled': enabled,
-      };
+    'id': id,
+    'hour': hour,
+    'minute': minute,
+    'categoryId': categoryId,
+    'daysOfWeek': daysOfWeek.toList(),
+    'enabled': enabled,
+  };
 
   factory ScheduledBriefing.fromJson(Map<String, dynamic> json) {
     return ScheduledBriefing(
@@ -54,7 +54,8 @@ class ScheduledBriefing {
       hour: (json['hour'] as num).toInt(),
       minute: (json['minute'] as num).toInt(),
       categoryId: json['categoryId']?.toString() ?? 'all',
-      daysOfWeek: (json['daysOfWeek'] as List?)
+      daysOfWeek:
+          (json['daysOfWeek'] as List?)
               ?.whereType<num>()
               .map((n) => n.toInt())
               .toSet() ??
@@ -117,8 +118,9 @@ class ScheduledBriefingService {
 
   /// Bildirim'e dokunulduğunda payload'ı tetikleyen yönlendirme stream'i.
   /// UI bunu dinleyip DailyBriefingScreen'i kategoriyle açar.
-  static final ValueNotifier<String?> tappedPayload =
-      ValueNotifier<String?>(null);
+  static final ValueNotifier<String?> tappedPayload = ValueNotifier<String?>(
+    null,
+  );
 
   static final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -131,10 +133,11 @@ class ScheduledBriefingService {
     tz_init.initializeTimeZones();
     try {
       tz.setLocalLocation(tz.getLocation('Europe/Istanbul'));
-    } catch (_) {/* default UTC kalsın */}
+    } catch (_) {
+      /* default UTC kalsın */
+    }
 
-    const androidInit =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosInit = DarwinInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
@@ -155,18 +158,23 @@ class ScheduledBriefingService {
       },
     );
 
-    // Android 13+ ve iOS için izin iste.
+    _initialized = true;
+  }
+
+  /// Request permission only after the user opts in to reminders.
+  static Future<void> requestPermission() async {
+    await init();
     final android = _plugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     await android?.requestNotificationsPermission();
 
     final ios = _plugin
         .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>();
+          IOSFlutterLocalNotificationsPlugin
+        >();
     await ios?.requestPermissions(alert: true, badge: true, sound: true);
-
-    _initialized = true;
   }
 
   /// Kayıtlı tüm brifingleri döner.
@@ -189,6 +197,7 @@ class ScheduledBriefingService {
   /// Yeni brifing ekle (id otomatik) veya mevcut güncelle. Önceki
   /// schedule'lar iptal edilir, yeni gün setine göre yeniden zamanlanır.
   static Future<ScheduledBriefing> save(ScheduledBriefing item) async {
+    if (item.enabled) await requestPermission();
     final list = (await all()).toList();
     final idx = list.indexWhere((x) => x.id == item.id);
     if (idx >= 0) {
@@ -211,7 +220,9 @@ class ScheduledBriefingService {
     for (var d = 1; d <= 7; d++) {
       try {
         await _plugin.cancel(baseId * 10 + d);
-      } catch (_) {/* yoksa bir şey olmaz */}
+      } catch (_) {
+        /* yoksa bir şey olmaz */
+      }
     }
   }
 
@@ -317,8 +328,10 @@ class ScheduledBriefingService {
           matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
           payload: s.categoryId,
         );
-        debugPrint('[Pusula][Sched] $notifId (${_dayName(dayOfWeek)}) '
-            '→ ${firstFire.toIso8601String()}');
+        debugPrint(
+          '[Pusula][Sched] $notifId (${_dayName(dayOfWeek)}) '
+          '→ ${firstFire.toIso8601String()}',
+        );
       } catch (e) {
         debugPrint('[Pusula][Sched] zonedSchedule hata (id $notifId): $e');
       }

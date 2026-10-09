@@ -1,3 +1,4 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -41,23 +42,23 @@ class SettingsScreen extends StatelessWidget {
           _Divider(),
           _ReadingModeTile(),
           SizedBox(height: 12),
-          _SectionTitle('Canlı içerik'),
+          _SectionTitle('Haberler ve sesli brifing'),
           _NavTile(
-            icon: Icons.podcasts_outlined,
+            icon: AppIcons.broadcast,
             title: 'Canlı Haberler',
             subtitle: 'AA, TRT, NTV, Sözcü, BBC, Hacker News + dış API\'ler',
             page: LiveNewsScreen(),
           ),
           _Divider(),
           _NavTile(
-            icon: Icons.tune_outlined,
+            icon: AppIcons.adjustmentsHorizontal,
             title: 'Kaynak Tercihleri',
-            subtitle: 'Canlı ekranda hangi kaynaklar gösterilsin',
+            subtitle: 'Haber akışında görmek istediğin yayınlar',
             page: SourcePreferencesScreen(),
           ),
           _Divider(),
           _NavTile(
-            icon: Icons.tag,
+            icon: AppIcons.hash,
             title: 'Anahtar Kelime Filtreleri',
             subtitle: 'İlgi alanların: Galatasaray, Bitcoin, FED…',
             page: KeywordFiltersScreen(),
@@ -66,37 +67,36 @@ class SettingsScreen extends StatelessWidget {
           _AiSettingsNavTile(),
           _Divider(),
           _NavTile(
-            icon: Icons.podcasts_rounded,
+            icon: AppIcons.broadcast,
             title: 'Sesli Brifing',
             subtitle: 'Bugünün haberlerini AI özetiyle dinle',
             page: DailyBriefingScreen(),
           ),
           _Divider(),
           _NavTile(
-            icon: Icons.schedule_outlined,
+            icon: AppIcons.clock,
             title: 'Zamanlanmış Brifingler',
             subtitle: 'Sabah 7\'de spor, akşam 18\'de ekonomi…',
             page: ScheduledBriefingsScreen(),
           ),
           _Divider(),
           _NavTile(
-            icon: Icons.wb_sunny_outlined,
+            icon: AppIcons.sun,
             title: 'Brifing Bölgesi',
-            subtitle:
-                'Brifingdeki hava durumu için şehir seçimi',
+            subtitle: 'Brifingdeki hava durumu için şehir seçimi',
             page: WeatherLocationScreen(),
           ),
           SizedBox(height: 12),
           _SectionTitle('Tercihler'),
           _NavTile(
-            icon: Icons.notifications_outlined,
+            icon: AppIcons.bell,
             title: 'Bildirim Tercihleri',
             subtitle: 'Son dakika, günlük özet ve kategori bildirimleri',
             page: NotificationPrefsScreen(),
           ),
           _Divider(),
           _NavTile(
-            icon: Icons.data_saver_off_outlined,
+            icon: AppIcons.database,
             title: 'Veri Kullanımı',
             subtitle: 'Düşük çözünürlük, otomatik oynatma',
             page: DataUsageScreen(),
@@ -111,7 +111,7 @@ class SettingsScreen extends StatelessWidget {
           SizedBox(height: 12),
           _SectionTitle('Geliştirici'),
           _NavTile(
-            icon: Icons.health_and_safety_outlined,
+            icon: AppIcons.shieldCheck,
             title: 'Tanılama',
             subtitle: 'Servis durumu, kaynak sağlığı, sürüm bilgisi',
             page: DiagnosticsScreen(),
@@ -119,7 +119,7 @@ class SettingsScreen extends StatelessWidget {
           SizedBox(height: 12),
           _SectionTitle('Hakkında'),
           _NavTile(
-            icon: Icons.info_outline,
+            icon: AppIcons.infoCircle,
             title: 'Uygulama hakkında',
             subtitle:
                 '${AppConstants.appName} sürüm ${AppConstants.appVersion}',
@@ -187,11 +187,9 @@ class _NavTile extends StatelessWidget {
       leading: Icon(icon),
       title: Text(title),
       subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: const Icon(AppIcons.chevronRight),
       onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => page),
-        );
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
       },
     );
   }
@@ -210,7 +208,7 @@ class _ThemeModeTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.watch<ThemeProvider>();
     return ListTile(
-      leading: const Icon(Icons.brightness_6_outlined),
+      leading: const Icon(AppIcons.sunMoon),
       title: const Text('Tema'),
       subtitle: Text(_labels[theme.themeMode]!),
       trailing: SegmentedButton<ThemeMode>(
@@ -218,15 +216,15 @@ class _ThemeModeTile extends StatelessWidget {
         segments: const [
           ButtonSegment(
             value: ThemeMode.system,
-            icon: Icon(Icons.brightness_auto, size: 16),
+            icon: Icon(AppIcons.sunMoon, size: 16),
           ),
           ButtonSegment(
             value: ThemeMode.light,
-            icon: Icon(Icons.wb_sunny_outlined, size: 16),
+            icon: Icon(AppIcons.sun, size: 16),
           ),
           ButtonSegment(
             value: ThemeMode.dark,
-            icon: Icon(Icons.dark_mode_outlined, size: 16),
+            icon: Icon(AppIcons.moon, size: 16),
           ),
         ],
         selected: {theme.themeMode},
@@ -244,7 +242,7 @@ class _FontScaleTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.watch<ThemeProvider>();
     return ListTile(
-      leading: const Icon(Icons.format_size_outlined),
+      leading: const Icon(AppIcons.typography),
       title: const Text('Yazı boyutu'),
       subtitle: Text(theme.fontScale.label),
       trailing: SegmentedButton<AppFontScale>(
@@ -254,10 +252,7 @@ class _FontScaleTile extends StatelessWidget {
             value: AppFontScale.small,
             label: Text('S', style: TextStyle(fontSize: 12)),
           ),
-          ButtonSegment(
-            value: AppFontScale.medium,
-            label: Text('M'),
-          ),
+          ButtonSegment(value: AppFontScale.medium, label: Text('M')),
           ButtonSegment(
             value: AppFontScale.large,
             label: Text('L', style: TextStyle(fontSize: 16)),
@@ -278,7 +273,7 @@ class _DensityTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.watch<ReadingThemeProvider>();
     return ListTile(
-      leading: const Icon(Icons.view_agenda_outlined),
+      leading: const Icon(AppIcons.layoutList),
       title: const Text('Liste yoğunluğu'),
       subtitle: Text(t.density.label),
       trailing: SegmentedButton<ListDensity>(
@@ -286,11 +281,11 @@ class _DensityTile extends StatelessWidget {
         segments: const [
           ButtonSegment(
             value: ListDensity.comfortable,
-            icon: Icon(Icons.density_medium, size: 16),
+            icon: Icon(AppIcons.list, size: 16),
           ),
           ButtonSegment(
             value: ListDensity.compact,
-            icon: Icon(Icons.density_small, size: 16),
+            icon: Icon(AppIcons.listDetails, size: 16),
           ),
         ],
         selected: {t.density},
@@ -308,7 +303,7 @@ class _ReadingModeTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.watch<ReadingThemeProvider>();
     return ListTile(
-      leading: const Icon(Icons.menu_book_outlined),
+      leading: const Icon(AppIcons.book),
       title: const Text('Okuma modu'),
       subtitle: Text(
         t.readingMode == ReadingMode.sepia
@@ -320,11 +315,11 @@ class _ReadingModeTile extends StatelessWidget {
         segments: const [
           ButtonSegment(
             value: ReadingMode.normal,
-            icon: Icon(Icons.brightness_5, size: 16),
+            icon: Icon(AppIcons.sun, size: 16),
           ),
           ButtonSegment(
             value: ReadingMode.sepia,
-            icon: Icon(Icons.menu_book_outlined, size: 16),
+            icon: Icon(AppIcons.book, size: 16),
           ),
         ],
         selected: {t.readingMode},
@@ -345,8 +340,8 @@ class _AiSettingsNavTile extends StatelessWidget {
     final subtitle = !ai.enabled
         ? 'Kapalı — etkinleştirmek için dokun'
         : ai.hasApiKey
-            ? '${ai.currentModelLabel} • OpenRouter'
-            : 'Etkin ama API anahtarı gerekiyor';
+        ? '${ai.currentModelLabel} • OpenRouter'
+        : 'Etkin ama API anahtarı gerekiyor';
     return ListTile(
       leading: Container(
         width: 40,
@@ -356,15 +351,15 @@ class _AiSettingsNavTile extends StatelessWidget {
           color: cs.primary.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(Icons.auto_awesome, color: cs.primary, size: 20),
+        child: Icon(AppIcons.sparkles, color: cs.primary, size: 20),
       ),
       title: const Text('Yapay Zeka Özetleme'),
       subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: const Icon(AppIcons.chevronRight),
       onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const AiSettingsScreen()),
-        );
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const AiSettingsScreen()));
       },
     );
   }
@@ -377,16 +372,14 @@ class _ReadingHistoryNavTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final count = context.watch<ReadingHistoryProvider>().count;
     return ListTile(
-      leading: const Icon(Icons.history),
+      leading: const Icon(AppIcons.history),
       title: const Text('Okuma Geçmişi'),
       subtitle: Text('$count makale'),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: const Icon(AppIcons.chevronRight),
       onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => const ReadingHistoryScreen(),
-          ),
-        );
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const ReadingHistoryScreen()));
       },
     );
   }
@@ -399,7 +392,7 @@ class _ClearSearchTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final history = context.watch<SearchProvider>().history;
     return ListTile(
-      leading: const Icon(Icons.search_off_outlined),
+      leading: const Icon(AppIcons.zoomCancel),
       title: const Text('Arama geçmişini temizle'),
       subtitle: Text('${history.length} kayıt'),
       enabled: history.isNotEmpty,
@@ -425,7 +418,7 @@ class _ClearBookmarksTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final count = context.watch<BookmarkProvider>().count;
     return ListTile(
-      leading: const Icon(Icons.bookmarks_outlined),
+      leading: const Icon(AppIcons.bookmarks),
       title: const Text('Kaydedilenleri temizle'),
       subtitle: Text('$count kayıtlı haber'),
       enabled: count > 0,
@@ -445,7 +438,10 @@ class _ClearBookmarksTile extends StatelessWidget {
 }
 
 Future<bool> _confirm(
-    BuildContext context, String title, String message) async {
+  BuildContext context,
+  String title,
+  String message,
+) async {
   final result = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -469,8 +465,7 @@ Future<bool> _confirm(
 void _snack(BuildContext context, String message) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(
-      content: Text(message),
-      behavior: SnackBarBehavior.floating,
-    ));
+    ..showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
 }

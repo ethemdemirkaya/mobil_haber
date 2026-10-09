@@ -1,3 +1,4 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 
 import '../data/repositories/market_widget_service.dart';
@@ -32,18 +33,9 @@ class MarketMiniWidget extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            cs.primary.withValues(alpha: 0.10),
-            cs.tertiary.withValues(alpha: 0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.6),
-        ),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.6)),
       ),
       child: Material(
         color: Colors.transparent,
@@ -59,10 +51,7 @@ class MarketMiniWidget extends StatelessWidget {
             child: Row(
               children: [
                 if (s.weather != null) ...[
-                  Text(
-                    s.weather!.emoji,
-                    style: const TextStyle(fontSize: 18),
-                  ),
+                  Text(s.weather!.emoji, style: const TextStyle(fontSize: 18)),
                   const SizedBox(width: 6),
                   Text(
                     '${s.weather!.temperatureC.toStringAsFixed(0)}°',
@@ -94,8 +83,7 @@ class MarketMiniWidget extends StatelessWidget {
                     Container(
                       width: 1,
                       height: 14,
-                      margin:
-                          const EdgeInsets.symmetric(horizontal: 10),
+                      margin: const EdgeInsets.symmetric(horizontal: 10),
                       color: cs.outlineVariant.withValues(alpha: 0.6),
                     ),
                 ],
@@ -110,8 +98,11 @@ class MarketMiniWidget extends StatelessWidget {
                 // Sağ tarafta küçük scroll-hint ipucu (yalnızca ilk
                 // render'da, child'lar Row uzunluğunu aşıyorsa kullanıcı
                 // kaydırmayı keşfeder).
-                Icon(Icons.chevron_right,
-                    size: 14, color: cs.onSurfaceVariant),
+                Icon(
+                  AppIcons.chevronRight,
+                  size: 14,
+                  color: cs.onSurfaceVariant,
+                ),
               ],
             ),
           ),

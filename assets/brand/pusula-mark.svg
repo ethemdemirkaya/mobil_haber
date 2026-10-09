@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <circle cx="64" cy="64" r="51.2" stroke="#B32636" stroke-width="7.04"/>
+  <path fill="#B32636" fill-rule="evenodd" transform="rotate(45 64 64)" d="M64 20.48 78.336 64 64 107.52 49.664 64Z M71.168 64a7.168 7.168 0 1 0-14.336 0 7.168 7.168 0 1 0 14.336 0Z"/>
+</svg>

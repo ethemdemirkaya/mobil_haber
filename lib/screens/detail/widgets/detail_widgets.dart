@@ -1,69 +1,75 @@
 part of '../article_detail_screen.dart';
 
-/// Detay ekranının alt kenarındaki sticky "Orijinali oku" CTA'sı.
+/// A persistent, accessible link back to the publisher.
 class _OriginalLinkCta extends StatelessWidget {
   const _OriginalLinkCta({
     required this.accent,
     required this.host,
     required this.onPressed,
   });
-
   final Color accent;
   final String host;
   final VoidCallback onPressed;
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final stackHost =
+        MediaQuery.sizeOf(context).width < 360 ||
+        MediaQuery.textScalerOf(context).scale(14) > 18;
     return SafeArea(
       top: false,
       child: Container(
         decoration: BoxDecoration(
           color: cs.surface,
-          border: Border(
-            top: BorderSide(
-              color: cs.outlineVariant.withValues(alpha: 0.4),
-            ),
-          ),
+          border: Border(top: BorderSide(color: cs.outlineVariant)),
         ),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
         child: FilledButton(
           onPressed: onPressed,
           style: FilledButton.styleFrom(
-            backgroundColor: accent,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 14),
+            backgroundColor: cs.onSurface,
+            foregroundColor: cs.surface,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(10),
             ),
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.open_in_new, size: 18),
-              const SizedBox(width: 8),
-              const Text(
-                'Orijinal haberi oku',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
+              const Icon(AppIcons.externalLink, size: 18),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Kaynağında oku',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    if (stackHost && host.isNotEmpty)
+                      Text(
+                        host,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: cs.surface.withValues(alpha: .8),
+                          fontSize: 11,
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              if (host.isNotEmpty) ...[
+              if (!stackHost && host.isNotEmpty) ...[
                 const SizedBox(width: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                Flexible(
                   child: Text(
                     host,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: cs.surface.withValues(alpha: .8),
                       fontSize: 11,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -76,100 +82,47 @@ class _OriginalLinkCta extends StatelessWidget {
   }
 }
 
-/// "Bu haber hakkında AI'ya sor" CTA — özet bölümünün altında
-/// gösterilen, dikkat çekici ama hafif bir promo. Tıklayınca
-/// `ArticleQaSheet` bottom sheet'i açar.
 class _AskAiCta extends StatelessWidget {
   const _AskAiCta({required this.article, required this.accent});
-
   final Article article;
   final Color accent;
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
     return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
+      color: cs.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: cs.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
         onTap: () {
           HapticFeedback.selectionClick();
           ArticleQaSheet.show(context, article);
         },
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
-          constraints: const BoxConstraints(minHeight: 70),
-          decoration: BoxDecoration(
-            color: accent.withValues(alpha: 0.07),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: accent.withValues(alpha: 0.22)),
-          ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.14),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.auto_awesome, size: 19, color: accent),
-              ),
+              const PusulaMascot(pose: MascotPose.curious, size: 58),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      children: [
-                        Text(
-                          'AI\'ya sor',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 14,
-                            color: cs.onSurface,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                        const SizedBox(width: 7),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: accent.withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          child: Text(
-                            'BETA',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w900,
-                              color: accent,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
+                    Text('Bu haber hakkında sor', style: text.titleSmall),
+                    const SizedBox(height: 4),
                     Text(
-                      'Neden önemli? Arkaplan? Özet?',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: cs.onSurfaceVariant,
-                      ),
+                      'Arka planını ve neden önemli olduğunu keşfet.',
+                      style: text.bodySmall?.copyWith(height: 1.4),
                     ),
                   ],
                 ),
               ),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 14,
-                color: accent.withValues(alpha: 0.65),
-              ),
+              const SizedBox(width: 8),
+              Icon(AppIcons.chevronRight, size: 20, color: cs.onSurfaceVariant),
             ],
           ),
         ),
@@ -189,7 +142,7 @@ class _BookmarkAction extends StatelessWidget {
       (b) => b.isBookmarked(article.id),
     );
     return _ScrimIconButton(
-      icon: saved ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
+      icon: saved ? AppIcons.bookmarkFilled : AppIcons.bookmark,
       tooltip: saved ? 'Kayıttan çıkar' : 'Kaydet',
       activeAccent: saved,
       onTap: () {
@@ -220,10 +173,9 @@ class _ScrimIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = activeAccent
-        ? Colors.white
-        : Colors.black.withValues(alpha: 0.42);
-    final fg = activeAccent ? Colors.black : Colors.white;
+    final cs = Theme.of(context).colorScheme;
+    final bg = activeAccent ? cs.primaryContainer : cs.surface;
+    final fg = activeAccent ? cs.onPrimaryContainer : cs.onSurface;
     final button = Material(
       color: bg,
       shape: const CircleBorder(),
@@ -232,18 +184,13 @@ class _ScrimIconButton extends StatelessWidget {
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: SizedBox(
-          width: 38,
-          height: 38,
+          width: 48,
+          height: 48,
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 220),
             transitionBuilder: (child, anim) =>
                 ScaleTransition(scale: anim, child: child),
-            child: Icon(
-              icon,
-              key: ValueKey(icon),
-              size: 18,
-              color: fg,
-            ),
+            child: Icon(icon, key: ValueKey(icon), size: 18, color: fg),
           ),
         ),
       ),
@@ -287,26 +234,19 @@ class _SourceAvatar extends StatelessWidget {
                 placeholder: (_, _) => _letter(brandColor, source.shortName),
                 errorWidget: (_, _, _) => _letter(brandColor, source.shortName),
               )
-            : _letter(
-                brandColor,
-                sourceName.isNotEmpty ? sourceName : '?',
-              ),
+            : _letter(brandColor, sourceName.isNotEmpty ? sourceName : '?'),
       ),
     );
   }
 
   Widget _letter(Color color, String name) => Container(
-        alignment: Alignment.center,
-        color: color.withValues(alpha: 0.15),
-        child: Text(
-          name.isNotEmpty ? name[0].toUpperCase() : '?',
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.w800,
-            fontSize: 13,
-          ),
-        ),
-      );
+    alignment: Alignment.center,
+    color: color.withValues(alpha: 0.15),
+    child: Text(
+      name.isNotEmpty ? name[0].toUpperCase() : '?',
+      style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 13),
+    ),
+  );
 }
 
 ///
@@ -330,8 +270,9 @@ class _SourceBadge extends StatelessWidget {
         color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: (source?.brandColor ?? cs.outlineVariant)
-              .withValues(alpha: 0.25),
+          color: (source?.brandColor ?? cs.outlineVariant).withValues(
+            alpha: 0.25,
+          ),
         ),
       ),
       child: Row(
@@ -347,14 +288,15 @@ class _SourceBadge extends StatelessWidget {
                 child: CachedNetworkImage(
                   imageUrl: source.logoUrl,
                   fit: BoxFit.contain,
-                  placeholder: (_, _) => _LogoLetter(source: source, size: size),
+                  placeholder: (_, _) =>
+                      _LogoLetter(source: source, size: size),
                   errorWidget: (_, _, _) =>
                       _LogoLetter(source: source, size: size),
                 ),
               ),
             )
           else
-            Icon(Icons.public, size: size, color: cs.onSurfaceVariant),
+            Icon(AppIcons.world, size: size, color: cs.onSurfaceVariant),
           const SizedBox(width: 6),
           Text(
             sourceName,
@@ -421,8 +363,7 @@ class _RelatedTile extends StatelessWidget {
           );
         },
         child: Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -455,8 +396,7 @@ class _RelatedTile extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded,
-                  color: cs.onSurfaceVariant),
+              Icon(AppIcons.chevronRight, color: cs.onSurfaceVariant),
             ],
           ),
         ),

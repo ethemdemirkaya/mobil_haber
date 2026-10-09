@@ -1,3 +1,4 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -18,8 +19,7 @@ class ScheduledBriefingsScreen extends StatefulWidget {
       _ScheduledBriefingsScreenState();
 }
 
-class _ScheduledBriefingsScreenState
-    extends State<ScheduledBriefingsScreen> {
+class _ScheduledBriefingsScreenState extends State<ScheduledBriefingsScreen> {
   List<ScheduledBriefing> _items = const [];
   bool _loading = true;
 
@@ -66,94 +66,88 @@ class _ScheduledBriefingsScreenState
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Zamanlanmış Brifingler'),
-      ),
+      appBar: AppBar(title: const Text('Zamanlanmış Brifingler')),
       floatingActionButton: FloatingActionButton.extended(
-        icon: const Icon(Icons.add),
+        icon: const Icon(AppIcons.plus),
         label: const Text('Yeni'),
         onPressed: () => _addOrEdit(),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
-              ? _EmptyHint(onAdd: () => _addOrEdit())
-              : RefreshIndicator(
-                  onRefresh: _refresh,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(0, 8, 0, 80),
-                    itemCount: _items.length,
-                    separatorBuilder: (_, _) => Divider(
-                      height: 1,
-                      indent: 20,
-                      endIndent: 20,
-                      color: cs.outlineVariant.withValues(alpha: 0.4),
+          ? _EmptyHint(onAdd: () => _addOrEdit())
+          : RefreshIndicator(
+              onRefresh: _refresh,
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(0, 8, 0, 80),
+                itemCount: _items.length,
+                separatorBuilder: (_, _) => Divider(
+                  height: 1,
+                  indent: 20,
+                  endIndent: 20,
+                  color: cs.outlineVariant.withValues(alpha: 0.4),
+                ),
+                itemBuilder: (context, i) {
+                  final item = _items[i];
+                  final cat = NewsCategory.byId(item.categoryId);
+                  return Dismissible(
+                    key: ValueKey(item.id),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      color: cs.errorContainer,
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 24),
+                      child: Icon(AppIcons.trash, color: cs.onErrorContainer),
                     ),
-                    itemBuilder: (context, i) {
-                      final item = _items[i];
-                      final cat = NewsCategory.byId(item.categoryId);
-                      return Dismissible(
-                        key: ValueKey(item.id),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          color: cs.errorContainer,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 24),
-                          child: Icon(Icons.delete,
-                              color: cs.onErrorContainer),
-                        ),
-                        onDismissed: (_) async {
-                          await ScheduledBriefingService.delete(item.id);
-                          await _refresh();
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              behavior: SnackBarBehavior.floating,
-                              content: Text('Brifing silindi.'),
-                            ),
-                          );
-                        },
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor:
-                                (item.categoryId == 'all'
-                                        ? cs.primary
-                                        : cat.color)
-                                    .withValues(alpha: 0.18),
-                            child: Icon(
-                              item.categoryId == 'all'
-                                  ? Icons.podcasts
-                                  : cat.icon,
-                              color: item.categoryId == 'all'
-                                  ? cs.primary
-                                  : cat.color,
-                              size: 18,
-                            ),
-                          ),
-                          title: Text(
-                            item.title,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              color: item.enabled
-                                  ? cs.onSurface
-                                  : cs.onSurfaceVariant,
-                            ),
-                          ),
-                          subtitle: Text(item.daysLabel),
-                          trailing: Switch(
-                            value: item.enabled,
-                            onChanged: (v) async {
-                              await ScheduledBriefingService.setEnabled(
-                                  item.id, v);
-                              await _refresh();
-                            },
-                          ),
-                          onTap: () => _addOrEdit(existing: item),
+                    onDismissed: (_) async {
+                      await ScheduledBriefingService.delete(item.id);
+                      await _refresh();
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          behavior: SnackBarBehavior.floating,
+                          content: Text('Brifing silindi.'),
                         ),
                       );
                     },
-                  ),
-                ),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor:
+                            (item.categoryId == 'all' ? cs.primary : cat.color)
+                                .withValues(alpha: 0.18),
+                        child: Icon(
+                          item.categoryId == 'all'
+                              ? AppIcons.broadcast
+                              : cat.icon,
+                          color: item.categoryId == 'all'
+                              ? cs.primary
+                              : cat.color,
+                          size: 18,
+                        ),
+                      ),
+                      title: Text(
+                        item.title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: item.enabled
+                              ? cs.onSurface
+                              : cs.onSurfaceVariant,
+                        ),
+                      ),
+                      subtitle: Text(item.daysLabel),
+                      trailing: Switch(
+                        value: item.enabled,
+                        onChanged: (v) async {
+                          await ScheduledBriefingService.setEnabled(item.id, v);
+                          await _refresh();
+                        },
+                      ),
+                      onTap: () => _addOrEdit(existing: item),
+                    ),
+                  );
+                },
+              ),
+            ),
     );
   }
 }
@@ -170,13 +164,13 @@ class _EmptyHint extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.schedule, size: 64, color: cs.onSurfaceVariant),
+          Icon(AppIcons.clock, size: 64, color: cs.onSurfaceVariant),
           const SizedBox(height: 16),
           Text(
             'Zamanlanmış brifingin yok',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
           Text(
@@ -189,7 +183,7 @@ class _EmptyHint extends StatelessWidget {
           const SizedBox(height: 20),
           FilledButton.icon(
             onPressed: onAdd,
-            icon: const Icon(Icons.add),
+            icon: const Icon(AppIcons.plus),
             label: const Text('İlk brifingini ekle'),
           ),
         ],
@@ -224,10 +218,7 @@ class _BriefingEditorSheetState extends State<_BriefingEditorSheet> {
 
   Future<void> _pickTime() async {
     HapticFeedback.selectionClick();
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _time,
-    );
+    final picked = await showTimePicker(context: context, initialTime: _time);
     if (picked != null) setState(() => _time = picked);
   }
 
@@ -261,15 +252,15 @@ class _BriefingEditorSheetState extends State<_BriefingEditorSheet> {
             widget.existing == null
                 ? 'Yeni zamanlanmış brifing'
                 : 'Brifingi düzenle',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 16),
           // Saat
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.schedule),
+            leading: const Icon(AppIcons.clock),
             title: const Text('Saat'),
             trailing: TextButton(
               onPressed: _pickTime,
@@ -287,10 +278,11 @@ class _BriefingEditorSheetState extends State<_BriefingEditorSheet> {
           Text(
             'Kategori',
             style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.8,
-                color: cs.onSurfaceVariant),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+              color: cs.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -299,7 +291,7 @@ class _BriefingEditorSheetState extends State<_BriefingEditorSheet> {
             children: [
               ChoiceChip(
                 label: const Text('Genel gündem'),
-                avatar: const Icon(Icons.podcasts, size: 16),
+                avatar: const Icon(AppIcons.broadcast, size: 16),
                 selected: _categoryId == 'all',
                 onSelected: (_) => setState(() => _categoryId = 'all'),
               ),
@@ -317,10 +309,11 @@ class _BriefingEditorSheetState extends State<_BriefingEditorSheet> {
           Text(
             'Günler',
             style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.8,
-                color: cs.onSurfaceVariant),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+              color: cs.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -328,9 +321,13 @@ class _BriefingEditorSheetState extends State<_BriefingEditorSheet> {
             children: [
               for (var i = 1; i <= 7; i++)
                 FilterChip(
-                  label: Text(_dayShort(i),
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 12)),
+                  label: Text(
+                    _dayShort(i),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
                   selected: _days.contains(i),
                   onSelected: (v) => setState(() {
                     if (v) {
@@ -361,7 +358,7 @@ class _BriefingEditorSheetState extends State<_BriefingEditorSheet> {
             width: double.infinity,
             child: FilledButton.icon(
               onPressed: _save,
-              icon: const Icon(Icons.check),
+              icon: const Icon(AppIcons.check),
               label: Text(widget.existing == null ? 'Kaydet' : 'Güncelle'),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),

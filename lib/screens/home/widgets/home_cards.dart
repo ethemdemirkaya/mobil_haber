@@ -28,14 +28,13 @@ class _FeaturedCarousel extends StatelessWidget {
           subtitle: 'Son güncel başlıklar',
         ),
         SizedBox(
-          height: 248,
+          height: 360,
           child: PageView.builder(
             controller: controller,
             itemCount: articles.length,
             onPageChanged: onIndexChanged,
             itemBuilder: (context, index) {
               final a = articles[index];
-              final active = index == currentIndex;
               return AnimatedPadding(
                 duration: const Duration(milliseconds: 240),
                 curve: Curves.easeOutCubic,
@@ -43,16 +42,13 @@ class _FeaturedCarousel extends StatelessWidget {
                   horizontal: 8,
                   // Aktif kartın ölçeklenmesi yerine padding farkıyla
                   // hafif "yükseliyor" hissi.
-                  vertical: active ? 4 : 16,
+                  vertical: 4,
                 ),
                 child: AnimatedScale(
                   duration: const Duration(milliseconds: 240),
                   curve: Curves.easeOutCubic,
-                  scale: active ? 1.0 : 0.97,
-                  child: FeaturedArticleCard(
-                    article: a,
-                    onTap: () => onTap(a),
-                  ),
+                  scale: 1.0,
+                  child: FeaturedArticleCard(article: a, onTap: () => onTap(a)),
                 ),
               );
             },
@@ -103,9 +99,7 @@ class _TrendingCard extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         child: InkWell(
           onTap: onTap,
           child: Stack(
@@ -137,7 +131,9 @@ class _TrendingCard extends StatelessWidget {
                 left: 10,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: cs.primary,
                     borderRadius: BorderRadius.circular(20),
@@ -145,8 +141,7 @@ class _TrendingCard extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.local_fire_department,
-                          size: 13, color: cs.onPrimary),
+                      Icon(AppIcons.flame, size: 13, color: cs.onPrimary),
                       const SizedBox(width: 4),
                       Text(
                         '#$rank',
@@ -170,7 +165,9 @@ class _TrendingCard extends StatelessWidget {
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: cat.color,
                         borderRadius: BorderRadius.circular(6),
@@ -209,10 +206,7 @@ class _TrendingCard extends StatelessWidget {
 }
 
 class _ContinueCard extends StatelessWidget {
-  const _ContinueCard({
-    required this.article,
-    required this.onTap,
-  });
+  const _ContinueCard({required this.article, required this.onTap});
 
   final Article article;
   final VoidCallback onTap;
@@ -228,9 +222,7 @@ class _ContinueCard extends StatelessWidget {
       child: Material(
         color: cs.surfaceContainerLow,
         clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: InkWell(
           onTap: onTap,
           child: Column(
@@ -286,10 +278,8 @@ class _ContinueCard extends StatelessWidget {
                 height: 3,
                 child: LinearProgressIndicator(
                   value: progress.clamp(0.0, 1.0),
-                  backgroundColor:
-                      cs.outlineVariant.withValues(alpha: 0.4),
-                  valueColor:
-                      AlwaysStoppedAnimation(article.category.color),
+                  backgroundColor: cs.outlineVariant.withValues(alpha: 0.4),
+                  valueColor: AlwaysStoppedAnimation(article.category.color),
                 ),
               ),
             ],
@@ -343,104 +333,43 @@ class _SourceMiniCard extends StatelessWidget {
   }
 }
 
-/// Ana sayfada arama çubuğunun hemen altına yerleştirilen "Günlük Sesli
-/// Brifing" kartı. Gradient arka plan + büyük metin + oynat ikonu ile
-/// yaşlı kullanıcılar dahil herkese kolay erişim sağlar.
 class _DailyBriefingCard extends StatelessWidget {
   const _DailyBriefingCard({required this.onTap});
   final VoidCallback onTap;
-
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Material(
-      borderRadius: BorderRadius.circular(18),
-      clipBehavior: Clip.antiAlias,
-      color: Colors.transparent,
+      color: cs.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: cs.outlineVariant),
+      ),
       child: InkWell(
         onTap: onTap,
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                cs.primary,
-                cs.primary.withValues(alpha: 0.80),
-              ],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-            child: Row(
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.22),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.podcasts_rounded,
-                    color: Colors.white,
-                    size: 24,
-                  ),
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const PusulaMascot(pose: MascotPose.listening, size: 56),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Gündemi dinle', style: theme.textTheme.titleLarge),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Günlük sesli brifingin',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Günlük Sesli Brifing',
-                        style: TextStyle(
-                          color: cs.onPrimary,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 16,
-                          letterSpacing: -0.2,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Bugünün haberlerini sesli dinle',
-                        style: TextStyle(
-                          color: cs.onPrimary.withValues(alpha: 0.80),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(50),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.play_arrow_rounded,
-                          size: 18, color: cs.onPrimary),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Başla',
-                        style: TextStyle(
-                          color: cs.onPrimary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+              Icon(AppIcons.playerPlayFilled, size: 38, color: cs.primary),
+            ],
           ),
         ),
       ),

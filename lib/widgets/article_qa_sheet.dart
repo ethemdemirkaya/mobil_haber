@@ -1,3 +1,4 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -49,9 +50,7 @@ class _ArticleQaSheetState extends State<ArticleQaSheet> {
     final ai = context.read<AiSettingsProvider>();
     if (!ai.isReady()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('AI kapalı — Ayarlar > Yapay Zeka'),
-        ),
+        const SnackBar(content: Text('AI kapalı — Ayarlar > Yapay Zeka')),
       );
       return;
     }
@@ -100,8 +99,11 @@ class _ArticleQaSheetState extends State<ArticleQaSheet> {
                         color: cs.primary.withValues(alpha: 0.16),
                         shape: BoxShape.circle,
                       ),
-                      child:
-                          Icon(Icons.psychology_alt, color: cs.primary, size: 20),
+                      child: Icon(
+                        AppIcons.messageQuestion,
+                        color: cs.primary,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -110,9 +112,7 @@ class _ArticleQaSheetState extends State<ArticleQaSheet> {
                         children: [
                           Text(
                             'Haber Asistanı',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
+                            style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                           Text(
@@ -133,10 +133,7 @@ class _ArticleQaSheetState extends State<ArticleQaSheet> {
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                   children: [
                     if (_turns.isEmpty)
-                      _SuggestedPrompts(
-                        suggested: _suggested,
-                        onTap: _ask,
-                      ),
+                      _SuggestedPrompts(suggested: _suggested, onTap: _ask),
                     for (final t in _turns)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 16),
@@ -171,7 +168,9 @@ class _ArticleQaSheetState extends State<ArticleQaSheet> {
                           ),
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 10),
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
                         ),
                         onSubmitted: (v) {
                           if (v.trim().isNotEmpty && !loading) _ask(v.trim());
@@ -195,7 +194,7 @@ class _ArticleQaSheetState extends State<ArticleQaSheet> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Icon(Icons.send),
+                          : const Icon(AppIcons.send),
                     ),
                   ],
                 ),
@@ -256,8 +255,7 @@ class _SuggestedPrompts extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(Icons.shield_outlined,
-                  size: 14, color: cs.onSurfaceVariant),
+              Icon(AppIcons.shield, size: 14, color: cs.onSurfaceVariant),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -340,9 +338,7 @@ class _QaTurnView extends StatelessWidget {
               bottomRight: Radius.circular(16),
               bottomLeft: Radius.circular(4),
             ),
-            border: Border.all(
-              color: cs.outlineVariant.withValues(alpha: 0.5),
-            ),
+            border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
           ),
           child: turn.loading
               ? Row(
@@ -406,7 +402,7 @@ class _GroundingLabel extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
-          fromArticle ? Icons.article_outlined : Icons.public,
+          fromArticle ? AppIcons.article : AppIcons.world,
           size: 13,
           color: color,
         ),

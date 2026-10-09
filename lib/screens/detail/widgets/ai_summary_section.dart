@@ -23,8 +23,7 @@ class _AiSummarySection extends StatefulWidget {
 
 class _AiSummarySectionState extends State<_AiSummarySection> {
   /// Sesli okuma ilerlemesini metin widget'ına aktaran notifier.
-  final _readAlongNotifier =
-      ValueNotifier<ReadAlongState>(ReadAlongState.idle);
+  final _readAlongNotifier = ValueNotifier<ReadAlongState>(ReadAlongState.idle);
 
   @override
   void dispose() {
@@ -62,8 +61,11 @@ class _AiSummarySectionState extends State<_AiSummarySection> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.error_outline,
-                      size: 16, color: cs.onErrorContainer),
+                  Icon(
+                    AppIcons.alertCircle,
+                    size: 16,
+                    color: cs.onErrorContainer,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -94,9 +96,9 @@ class _AiSummarySectionState extends State<_AiSummarySection> {
                   ? null
                   : () {
                       HapticFeedback.selectionClick();
-                      context
-                          .read<AiSettingsProvider>()
-                          .summarize(widget.article);
+                      context.read<AiSettingsProvider>().summarize(
+                        widget.article,
+                      );
                     },
               child: AnimatedOpacity(
                 opacity: loading ? 0.55 : 1.0,
@@ -104,12 +106,15 @@ class _AiSummarySectionState extends State<_AiSummarySection> {
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
-                      vertical: 13, horizontal: 18),
+                    vertical: 13,
+                    horizontal: 18,
+                  ),
                   decoration: BoxDecoration(
                     color: cs.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                        color: cs.outlineVariant.withValues(alpha: 0.7)),
+                      color: cs.outlineVariant.withValues(alpha: 0.7),
+                    ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -119,18 +124,25 @@ class _AiSummarySectionState extends State<_AiSummarySection> {
                           width: 14,
                           height: 14,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: cs.primary),
+                            strokeWidth: 2,
+                            color: cs.primary,
+                          ),
                         )
                       else
-                        Icon(Icons.auto_awesome_outlined,
-                            size: 15, color: cs.onSurfaceVariant),
+                        Icon(
+                          AppIcons.sparkles,
+                          size: 15,
+                          color: cs.onSurfaceVariant,
+                        ),
                       const SizedBox(width: 8),
-                      Text(
-                        loading ? 'Özet üretiliyor…' : 'Sadece metin özetle',
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                          color: cs.onSurface,
+                      Flexible(
+                        child: Text(
+                          loading ? 'Özet üretiliyor…' : 'Metin özeti oluştur',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: cs.onSurface,
+                          ),
                         ),
                       ),
                     ],
@@ -150,14 +162,7 @@ class _AiSummarySectionState extends State<_AiSummarySection> {
         Container(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                cs.primary.withValues(alpha: 0.10),
-                cs.primary.withValues(alpha: 0.04),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: cs.surfaceContainerLow,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: cs.primary.withValues(alpha: 0.25),
@@ -169,7 +174,7 @@ class _AiSummarySectionState extends State<_AiSummarySection> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.auto_awesome, size: 16, color: cs.primary),
+                  Icon(AppIcons.sparkles, size: 16, color: cs.primary),
                   const SizedBox(width: 6),
                   Text(
                     'YAPAY ZEKA ÖZETİ',
@@ -209,7 +214,7 @@ class _AiSummarySectionState extends State<_AiSummarySection> {
                               height: 14,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(Icons.refresh, size: 16),
+                          : const Icon(AppIcons.refresh, size: 16),
                     ),
                   ),
                 ],
@@ -272,17 +277,16 @@ class _ReadAlongText extends StatelessWidget {
     final lines = readAlongState.lines.isNotEmpty
         ? readAlongState.lines
         : text
-            .split('\n')
-            .map((l) => l.trim())
-            .where((l) => l.isNotEmpty)
-            .toList();
+              .split('\n')
+              .map((l) => l.trim())
+              .where((l) => l.isNotEmpty)
+              .toList();
 
     if (lines.isEmpty) {
       return SelectableText(text, style: baseStyle);
     }
 
-    final active =
-        readAlongState.activeLine.clamp(0, lines.length - 1);
+    final active = readAlongState.activeLine.clamp(0, lines.length - 1);
 
     return Text.rich(
       TextSpan(
@@ -293,16 +297,13 @@ class _ReadAlongText extends StatelessWidget {
               text: lines[i],
               style: i == active
                   ? TextStyle(
-                      backgroundColor:
-                          cs.primary.withValues(alpha: 0.18),
+                      backgroundColor: cs.primary.withValues(alpha: 0.18),
                       fontWeight: FontWeight.w700,
                       color: cs.primary,
                     )
                   : i < active
-                      ? TextStyle(
-                          color: baseStyle.color?.withValues(alpha: 0.45),
-                        )
-                      : null,
+                  ? TextStyle(color: baseStyle.color?.withValues(alpha: 0.45))
+                  : null,
             ),
             if (i < lines.length - 1) const TextSpan(text: '\n'),
           ],
@@ -324,9 +325,9 @@ class _DisabledHint extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const AiSettingsScreen()),
-        ),
+        onTap: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const AiSettingsScreen())),
         child: Container(
           padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
           decoration: BoxDecoration(
@@ -347,7 +348,7 @@ class _DisabledHint extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  Icons.lock_outline_rounded,
+                  AppIcons.lock,
                   size: 18,
                   color: cs.primary.withValues(alpha: 0.6),
                 ),
@@ -377,11 +378,7 @@ class _DisabledHint extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: cs.onSurfaceVariant,
-                size: 20,
-              ),
+              Icon(AppIcons.chevronRight, color: cs.onSurfaceVariant, size: 20),
             ],
           ),
         ),

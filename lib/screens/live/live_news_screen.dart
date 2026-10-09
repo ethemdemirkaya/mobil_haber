@@ -1,3 +1,4 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -58,10 +59,8 @@ class _LiveNewsScreenState extends State<LiveNewsScreen> {
   void _openArticle(Article a) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ArticleDetailScreen(
-          article: a,
-          heroTag: 'card-img-${a.id}',
-        ),
+        builder: (_) =>
+            ArticleDetailScreen(article: a, heroTag: 'card-img-${a.id}'),
       ),
     );
   }
@@ -70,8 +69,9 @@ class _LiveNewsScreenState extends State<LiveNewsScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final p = context.watch<ExternalNewsProvider>();
-    final disabledSources =
-        context.watch<PreferencesProvider>().disabledSources;
+    final disabledSources = context
+        .watch<PreferencesProvider>()
+        .disabledSources;
     final visibleSources = p.sources
         .where((s) => !disabledSources.contains(s.id))
         .toList(growable: false);
@@ -81,11 +81,10 @@ class _LiveNewsScreenState extends State<LiveNewsScreen> {
         title: const Text('Canlı Haberler'),
         actions: [
           IconButton(
-            tooltip:
-                _aggregateMode ? 'Tek kaynağa geç' : 'Tüm kaynakları birleştir',
-            icon: Icon(
-              _aggregateMode ? Icons.filter_alt : Icons.merge_type,
-            ),
+            tooltip: _aggregateMode
+                ? 'Tek kaynağa geç'
+                : 'Tüm kaynakları birleştir',
+            icon: Icon(_aggregateMode ? AppIcons.filter : AppIcons.gitMerge),
             onPressed: _toggleAggregate,
           ),
         ],
@@ -110,9 +109,8 @@ class _LiveNewsScreenState extends State<LiveNewsScreen> {
                   sources: visibleSources,
                   loading: p.loadingSources,
                   selectedId: p.selectedSourceId,
-                  onSelect: (id) => context
-                      .read<ExternalNewsProvider>()
-                      .selectSource(id),
+                  onSelect: (id) =>
+                      context.read<ExternalNewsProvider>().selectSource(id),
                 ),
               ),
             SliverToBoxAdapter(
@@ -120,7 +118,7 @@ class _LiveNewsScreenState extends State<LiveNewsScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
                 child: Row(
                   children: [
-                    Icon(Icons.sensors, color: cs.primary, size: 18),
+                    Icon(AppIcons.broadcast, color: cs.primary, size: 18),
                     const SizedBox(width: 6),
                     Text(
                       _aggregateMode
@@ -150,7 +148,7 @@ class _LiveNewsScreenState extends State<LiveNewsScreen> {
               const SliverFillRemaining(
                 hasScrollBody: false,
                 child: IllustratedEmptyState(
-                  icon: Icons.podcasts_outlined,
+                  icon: AppIcons.broadcast,
                   title: 'Henüz haber yok',
                   subtitle:
                       'Bir kaynak seçin veya birleştir moduna geçin. Aşağı çekerek yenileyin.',
@@ -167,10 +165,7 @@ class _LiveNewsScreenState extends State<LiveNewsScreen> {
                 ),
                 itemBuilder: (context, index) {
                   final a = p.articles[index];
-                  return ArticleCard(
-                    article: a,
-                    onTap: () => _openArticle(a),
-                  );
+                  return ArticleCard(article: a, onTap: () => _openArticle(a));
                 },
               ),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -204,11 +199,8 @@ class _SourceChipsRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           itemCount: 6,
           separatorBuilder: (_, _) => const SizedBox(width: 8),
-          itemBuilder: (_, _) => const ShimmerBox(
-            width: 110,
-            height: 36,
-            borderRadius: 18,
-          ),
+          itemBuilder: (_, _) =>
+              const ShimmerBox(width: 110, height: 36, borderRadius: 18),
         ),
       );
     }
@@ -238,10 +230,8 @@ class _SourceChipsRow extends StatelessWidget {
               ),
               avatar: Icon(
                 disabled
-                    ? Icons.lock_outline
-                    : (s.requiresApiKey
-                        ? Icons.vpn_key_outlined
-                        : Icons.rss_feed),
+                    ? AppIcons.lock
+                    : (s.requiresApiKey ? AppIcons.key : AppIcons.rss),
                 size: 16,
                 color: selected ? cs.onPrimary : cs.onSurfaceVariant,
               ),

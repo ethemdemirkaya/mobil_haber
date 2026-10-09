@@ -1,3 +1,5 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
+import '../../widgets/pusula_mascot.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,11 +35,7 @@ part 'widgets/detail_widgets.dart';
 String _stripPaywall(String s) => removePaywallTrailer(s);
 
 class ArticleDetailScreen extends StatefulWidget {
-  const ArticleDetailScreen({
-    super.key,
-    required this.article,
-    this.heroTag,
-  });
+  const ArticleDetailScreen({super.key, required this.article, this.heroTag});
 
   final Article article;
 
@@ -68,9 +66,9 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
   void _restoreScrollPosition() {
     if (!_scrollController.hasClients) return;
-    final saved = context
-        .read<ReadingProgressProvider>()
-        .get(widget.article.id);
+    final saved = context.read<ReadingProgressProvider>().get(
+      widget.article.id,
+    );
     if (saved <= 0.02 || saved >= 0.95) return;
     final max = _scrollController.position.maxScrollExtent;
     if (max <= 0) {
@@ -121,24 +119,25 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     HapticFeedback.selectionClick();
     final uri = Uri.tryParse(url);
     if (uri == null) return;
-    final ok = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && mounted) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(
-          content: Text('Bağlantı açılamadı'),
-          behavior: SnackBarBehavior.floating,
-        ));
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Bağlantı açılamadı'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
     }
   }
 
   Future<void> _openAuthor() async {
     HapticFeedback.selectionClick();
-    final selected =
-        await AuthorProfileSheet.show(context, widget.article.author);
+    final selected = await AuthorProfileSheet.show(
+      context,
+      widget.article.author,
+    );
     if (selected != null && mounted) {
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -167,14 +166,13 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.tune_outlined, size: 18),
+                    const Icon(AppIcons.adjustmentsHorizontal, size: 18),
                     const SizedBox(width: 8),
                     Text(
                       'Okuma seçenekleri',
-                      style:
-                          Theme.of(sheetCtx).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
+                      style: Theme.of(sheetCtx).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ],
                 ),
@@ -182,9 +180,9 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                 Text(
                   'Yazı boyutu',
                   style: Theme.of(sheetCtx).textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.6,
-                      ),
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.6,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Consumer<ThemeProvider>(
@@ -193,8 +191,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                     segments: const [
                       ButtonSegment(
                         value: AppFontScale.small,
-                        label: Text('Küçük',
-                            style: TextStyle(fontSize: 12)),
+                        label: Text('Küçük', style: TextStyle(fontSize: 12)),
                       ),
                       ButtonSegment(
                         value: AppFontScale.medium,
@@ -202,16 +199,13 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                       ),
                       ButtonSegment(
                         value: AppFontScale.large,
-                        label: Text('Büyük',
-                            style: TextStyle(fontSize: 16)),
+                        label: Text('Büyük', style: TextStyle(fontSize: 16)),
                       ),
                     ],
                     selected: {t.fontScale},
                     onSelectionChanged: (set) {
                       HapticFeedback.selectionClick();
-                      context
-                          .read<ThemeProvider>()
-                          .setFontScale(set.first);
+                      context.read<ThemeProvider>().setFontScale(set.first);
                     },
                   ),
                 ),
@@ -219,9 +213,9 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                 Text(
                   'Okuma modu',
                   style: Theme.of(sheetCtx).textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.6,
-                      ),
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.6,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Consumer<ReadingThemeProvider>(
@@ -230,21 +224,21 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                     segments: const [
                       ButtonSegment(
                         value: ReadingMode.normal,
-                        icon: Icon(Icons.brightness_5, size: 16),
+                        icon: Icon(AppIcons.sun, size: 16),
                         label: Text('Standart'),
                       ),
                       ButtonSegment(
                         value: ReadingMode.sepia,
-                        icon: Icon(Icons.menu_book_outlined, size: 16),
+                        icon: Icon(AppIcons.book, size: 16),
                         label: Text('Sepya'),
                       ),
                     ],
                     selected: {r.readingMode},
                     onSelectionChanged: (set) {
                       HapticFeedback.selectionClick();
-                      context
-                          .read<ReadingThemeProvider>()
-                          .setReadingMode(set.first);
+                      context.read<ReadingThemeProvider>().setReadingMode(
+                        set.first,
+                      );
                     },
                   ),
                 ),
@@ -263,6 +257,13 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     final textTheme = Theme.of(context).textTheme;
     final article = widget.article;
     final cat = article.category;
+    final publisherPreview = _stripPaywall(article.summary).trim();
+    final hasPreview =
+        publisherPreview.isNotEmpty &&
+        !RegExp(
+          r'^devam[ıi] (için|icin) t[ıi]klay[ıi]n[ıi]z[.!…]*$',
+          caseSensitive: false,
+        ).hasMatch(publisherPreview);
 
     final related = context.select<NewsProvider, List<Article>>(
       (n) => n.related(article),
@@ -281,7 +282,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       // zorunda kalmadan kaynağa atlayabilir.
       bottomNavigationBar: article.hasOriginalUrl
           ? _OriginalLinkCta(
-              accent: cat.color,
+              accent: cs.primary,
               host: _hostOf(article.sourceUrl),
               onPressed: () => _openOriginal(article.sourceUrl),
             )
@@ -292,22 +293,28 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             controller: _scrollController,
             slivers: [
               SliverAppBar(
-                expandedHeight: 300,
+                expandedHeight: 260,
                 pinned: true,
                 stretch: true,
                 // Saydam zemin + scrim buton tasarımı: hero görsel üstünde
                 // gezinirken status bar'a karşı kontrast scrim'den geliyor.
                 // Pin olduğunda da pill butonlar nötr görünüyor.
-                backgroundColor: Colors.transparent,
+                backgroundColor: cs.surface,
                 surfaceTintColor: Colors.transparent,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 scrolledUnderElevation: 0,
-                systemOverlayStyle: SystemUiOverlayStyle.light,
+                systemOverlayStyle:
+                    _scrollController.hasClients &&
+                        _scrollController.offset >= 200
+                    ? (Theme.of(context).brightness == Brightness.dark
+                          ? SystemUiOverlayStyle.light
+                          : SystemUiOverlayStyle.dark)
+                    : SystemUiOverlayStyle.light,
                 leading: Padding(
                   padding: const EdgeInsets.only(left: 8, top: 6, bottom: 6),
                   child: _ScrimIconButton(
-                    icon: Icons.arrow_back_ios_new_rounded,
+                    icon: AppIcons.arrowLeft,
                     tooltip: 'Geri',
                     onTap: () => Navigator.of(context).maybePop(),
                   ),
@@ -316,7 +323,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: _ScrimIconButton(
-                      icon: Icons.psychology_alt_rounded,
+                      icon: AppIcons.messageQuestion,
                       tooltip: 'Haber Asistanı',
                       onTap: () => ArticleQaSheet.show(context, article),
                     ),
@@ -325,7 +332,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: _ScrimIconButton(
-                      icon: Icons.text_fields_rounded,
+                      icon: AppIcons.typography,
                       tooltip: 'Okuma seçenekleri',
                       onTap: _showReadingOptions,
                     ),
@@ -334,7 +341,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: _ScrimIconButton(
-                      icon: Icons.ios_share_rounded,
+                      icon: AppIcons.share,
                       tooltip: 'Paylaş',
                       onTap: _share,
                     ),
@@ -342,7 +349,11 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   const SizedBox(width: 6),
                   Padding(
                     padding: const EdgeInsets.only(
-                        left: 0, right: 12, top: 6, bottom: 6),
+                      left: 0,
+                      right: 12,
+                      top: 6,
+                      bottom: 6,
+                    ),
                     child: _BookmarkAction(article: article),
                   ),
                 ],
@@ -404,22 +415,24 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
-                          color: cat.color.withValues(alpha: 0.15),
+                          color: cs.primary.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(cat.icon, size: 14, color: cat.color),
+                            Icon(cat.icon, size: 14, color: cs.primary),
                             const SizedBox(width: 6),
                             Text(
                               cat.name,
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
-                                color: cat.color,
+                                color: cs.primary,
                               ),
                             ),
                           ],
@@ -429,7 +442,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                       Text(
                         article.title,
                         // v2: 800 → 700, daha rafine letter spacing.
-                        style: textTheme.headlineSmall?.copyWith(
+                        style: textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                           height: 1.22,
                           letterSpacing: -0.4,
@@ -443,40 +456,22 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 4),
                           child: Row(
                             children: [
-                              _SourceAvatar(
-                                sourceName: article.sourceName,
-                              ),
+                              _SourceAvatar(sourceName: article.sourceName),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(article.author,
-                                        style: textTheme.titleSmall),
                                     Text(
-                                      DateFormatter.full(
-                                          article.publishedAt),
+                                      article.author,
+                                      style: textTheme.titleSmall,
+                                    ),
+                                    Text(
+                                      DateFormatter.full(article.publishedAt),
                                       style: textTheme.bodySmall,
                                     ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: cs.surfaceContainerHighest,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.bolt_outlined,
-                                        size: 14,
-                                        color: cs.onSurfaceVariant),
-                                    const SizedBox(width: 4),
                                     Text(
-                                      '${article.readMinutes} dk özet',
+                                      '${article.readMinutes} dk okuma',
                                       style: textTheme.bodySmall,
                                     ),
                                   ],
@@ -490,48 +485,55 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                       // Özet header
                       Row(
                         children: [
-                          Icon(Icons.auto_awesome,
-                              size: 16, color: cat.color),
+                          Icon(AppIcons.sparkles, size: 16, color: cs.primary),
                           const SizedBox(width: 6),
                           Text(
-                            'ÖZET',
+                            'KAYNAKTAN ÖNİZLEME',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 1.4,
-                              color: cat.color,
+                              color: cs.primary,
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 10),
-                      // Ana özet — büyük, okunaklı
-                      Text(
-                        _stripPaywall(article.summary.isNotEmpty
-                            ? article.summary
-                            : article.title),
-                        style: textTheme.titleMedium?.copyWith(
-                          color: isSepia ? sepiaText : cs.onSurface,
-                          fontWeight: FontWeight.w500,
-                          height: isSepia ? 1.65 : 1.55,
-                          fontSize: 17,
-                          fontFamily: isSepia ? 'serif' : null,
-                        ),
+                      // Selectable publisher preview.
+                      SelectableText(
+                        hasPreview
+                            ? publisherPreview
+                            : article.hasOriginalUrl
+                            ? 'Kaynak yalnızca başlığı paylaşıyor. Tam haberi kaynağında okuyabilirsiniz.'
+                            : 'Kaynak bu haber için bir önizleme paylaşmıyor.',
+                        style: hasPreview
+                            ? textTheme.titleMedium?.copyWith(
+                                color: isSepia ? sepiaText : cs.onSurface,
+                                fontWeight: FontWeight.w500,
+                                height: 1.6,
+                                fontSize: 20,
+                                fontFamily: 'Newsreader',
+                              )
+                            : textTheme.bodyMedium?.copyWith(
+                                color: cs.onSurfaceVariant,
+                                height: 1.6,
+                              ),
                       ),
                       // Eğer içerik özetten anlamlı şekilde uzunsa, ek
                       // bağlam olarak göster.
                       if (article.content.isNotEmpty &&
                           article.content != article.summary &&
-                          article.content.length > article.summary.length + 80) ...[
+                          article.content.length >
+                              article.summary.length + 80) ...[
                         const SizedBox(height: 14),
                         Text(
                           _stripPaywall(article.content),
-                          style: textTheme.bodyMedium?.copyWith(
+                          style: textTheme.bodyLarge?.copyWith(
                             color: isSepia
                                 ? sepiaText.withValues(alpha: 0.85)
                                 : cs.onSurfaceVariant,
-                            height: isSepia ? 1.65 : 1.55,
-                            fontFamily: isSepia ? 'serif' : null,
+                            height: 1.6,
+                            fontFamily: 'Newsreader',
                           ),
                         ),
                       ],
@@ -543,25 +545,13 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                         isSepia: isSepia,
                         sepiaText: sepiaText,
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 12),
                       // Yönlülük analizi — manşetin dil tarafsızlığı.
                       // Margin sıfırla çünkü zaten parent'ta padding var.
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 0),
-                        child: Transform.translate(
-                          offset: const Offset(-16, 0),
-                          child: SizedBox(
-                            width: MediaQuery.of(context).size.width,
-                            child: BiasIndicator(article: article),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
+                      BiasIndicator(article: article),
+                      const SizedBox(height: 12),
                       // Haber asistanı CTA — alt kenarda zarif promo
-                      _AskAiCta(
-                        article: article,
-                        accent: cat.color,
-                      ),
+                      _AskAiCta(article: article, accent: cs.primary),
                       const SizedBox(height: 18),
                       // CTA artık sticky alt kenarda — burada yalnızca
                       // harici kaynak yoksa bilgi rozeti gösteriliyor.
@@ -574,8 +564,11 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.info_outline,
-                                  size: 16, color: cs.onSurfaceVariant),
+                              Icon(
+                                AppIcons.infoCircle,
+                                size: 16,
+                                color: cs.onSurfaceVariant,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -590,11 +583,11 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                       Text(
                         article.sourceName.isNotEmpty
                             ? 'Bu özet ${article.sourceName} tarafından sağlanan '
-                                'metinden derlenmiştir; tam habere erişmek için '
-                                'yukarıdaki butonu kullanın.'
+                                  'metinden derlenmiştir; tam habere erişmek için '
+                                  'alttaki kaynak bağlantısını kullanın.'
                             : 'Özetler kaynak sağlayıcının sunduğu metinden '
-                                'derlenir; tam habere erişmek için yukarıdaki '
-                                'butonu kullanın.',
+                                  'derlenir; tam habere erişmek için yukarıdaki '
+                                  'butonu kullanın.',
                         style: textTheme.bodySmall?.copyWith(
                           color: cs.onSurfaceVariant,
                           fontStyle: FontStyle.italic,

@@ -50,8 +50,10 @@ class PushNotificationService {
         options: DefaultFirebaseOptions.currentPlatform,
       );
     } catch (e) {
-      debugPrint('[Pusula][FCM] Firebase init başarısız: $e\n'
-          '→ Setup için: ./setup-firebase.ps1 (veya docs/FIREBASE_SETUP.md)');
+      debugPrint(
+        '[Pusula][FCM] Firebase init başarısız: $e\n'
+        '→ Setup için: ./setup-firebase.ps1 (veya docs/FIREBASE_SETUP.md)',
+      );
       return;
     }
 
@@ -59,11 +61,7 @@ class PushNotificationService {
       final messaging = FirebaseMessaging.instance;
 
       // İzin (iOS + Android 13+)
-      final settings = await messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
+      final settings = await messaging.getNotificationSettings();
       if (settings.authorizationStatus == AuthorizationStatus.denied) {
         debugPrint('[Pusula][FCM] kullanıcı bildirim iznini reddetti.');
       }

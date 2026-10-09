@@ -1,3 +1,4 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -35,16 +36,13 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     super.initState();
     final ai = context.read<AiSettingsProvider>();
     _keyController = TextEditingController(text: ai.apiKey);
-    final isPreset = AiSettingsProvider.presets.any(
-      (p) => p.id == ai.modelId,
+    final isPreset = AiSettingsProvider.presets.any((p) => p.id == ai.modelId);
+    _customModelController = TextEditingController(
+      text: isPreset ? '' : ai.modelId,
     );
-    _customModelController =
-        TextEditingController(text: isPreset ? '' : ai.modelId);
     final tts = context.read<TtsSettingsProvider>();
-    _openaiTtsKeyController =
-        TextEditingController(text: tts.openaiTtsKey);
-    _elTtsKeyController =
-        TextEditingController(text: tts.elevenLabsApiKey);
+    _openaiTtsKeyController = TextEditingController(text: tts.openaiTtsKey);
+    _elTtsKeyController = TextEditingController(text: tts.elevenLabsApiKey);
 
     // Ekran açıldığında live OpenRouter listesini bir kez çekelim.
     // Cache valid ise tekrar çağrı yapmaz.
@@ -69,10 +67,12 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(
-        content: Text('API anahtarı kaydedildi.'),
-        behavior: SnackBarBehavior.floating,
-      ));
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('API anahtarı kaydedildi.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 
   Future<void> _saveCustomModel() async {
@@ -84,10 +84,12 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text('Model güncellendi: $v'),
-        behavior: SnackBarBehavior.floating,
-      ));
+      ..showSnackBar(
+        SnackBar(
+          content: Text('Model güncellendi: $v'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 
   Future<void> _saveTtsKey() async {
@@ -97,10 +99,12 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(
-        content: Text('OpenAI TTS anahtarı kaydedildi.'),
-        behavior: SnackBarBehavior.floating,
-      ));
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('OpenAI TTS anahtarı kaydedildi.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 
   Future<void> _saveElTtsKey() async {
@@ -110,10 +114,12 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(
-        content: Text('ElevenLabs API anahtarı kaydedildi.'),
-        behavior: SnackBarBehavior.floating,
-      ));
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('ElevenLabs API anahtarı kaydedildi.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 
   Future<void> _openElevenLabsPage() async {
@@ -134,10 +140,12 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     if (ai.apiKey.isEmpty) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(
-          content: Text('Önce API anahtarı girin.'),
-          behavior: SnackBarBehavior.floating,
-        ));
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Önce API anahtarı girin.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       return;
     }
     setState(() => _testing = true);
@@ -147,11 +155,13 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     setState(() => _testing = false);
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(result),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 4),
-      ));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(result),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ),
+      );
   }
 
   Future<void> _openOpenRouterKeysPage() async {
@@ -174,15 +184,13 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Yapay Zeka Özetleme'),
-      ),
+      appBar: AppBar(title: const Text('Yapay Zeka Özetleme')),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
           // ─────────── Etkin/Pasif ───────────
           SwitchListTile(
-            secondary: const Icon(Icons.auto_awesome),
+            secondary: const Icon(AppIcons.sparkles),
             title: const Text('Yapay zeka özetlerini etkinleştir'),
             subtitle: const Text(
               'Detay ekranında "Yapay zekayla özetle" butonu görünür.',
@@ -217,21 +225,19 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   segments: const [
                     ButtonSegment(
                       value: ApiKeyMode.builtIn,
-                      icon: Icon(Icons.verified_outlined, size: 16),
+                      icon: Icon(AppIcons.shieldCheck, size: 16),
                       label: Text('Varsayılan'),
                     ),
                     ButtonSegment(
                       value: ApiKeyMode.userProvided,
-                      icon: Icon(Icons.person_outline, size: 16),
+                      icon: Icon(AppIcons.user, size: 16),
                       label: Text('Kendi anahtarım'),
                     ),
                   ],
                   selected: {ai.apiKeyMode},
                   onSelectionChanged: (set) {
                     HapticFeedback.selectionClick();
-                    context
-                        .read<AiSettingsProvider>()
-                        .setApiKeyMode(set.first);
+                    context.read<AiSettingsProvider>().setApiKeyMode(set.first);
                   },
                 ),
               ],
@@ -262,13 +268,14 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.cloud_outlined,
-                          size: 18, color: cs.primary),
+                      Icon(AppIcons.cloud, size: 18, color: cs.primary),
                       const SizedBox(width: 8),
                       const Text(
                         'Sağlayıcı: OpenRouter',
                         style: TextStyle(
-                            fontWeight: FontWeight.w800, fontSize: 13),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                        ),
                       ),
                     ],
                   ),
@@ -295,7 +302,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                         visualDensity: VisualDensity.compact,
                       ),
                       onPressed: _openOpenRouterKeysPage,
-                      icon: const Icon(Icons.open_in_new, size: 14),
+                      icon: const Icon(AppIcons.externalLink, size: 14),
                       label: const Text('OpenRouter API anahtarı al'),
                     ),
                   ),
@@ -316,16 +323,11 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 obscureText: _obscureKey,
                 decoration: InputDecoration(
                   hintText: 'sk-or-v1-...',
-                  prefixIcon: const Icon(Icons.vpn_key_outlined),
+                  prefixIcon: const Icon(AppIcons.key),
                   suffixIcon: IconButton(
                     tooltip: _obscureKey ? 'Göster' : 'Gizle',
-                    icon: Icon(
-                      _obscureKey
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                    ),
-                    onPressed: () =>
-                        setState(() => _obscureKey = !_obscureKey),
+                    icon: Icon(_obscureKey ? AppIcons.eye : AppIcons.eyeOff),
+                    onPressed: () => setState(() => _obscureKey = !_obscureKey),
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -340,7 +342,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 children: [
                   FilledButton.icon(
                     onPressed: _saveKey,
-                    icon: const Icon(Icons.save_outlined, size: 18),
+                    icon: const Icon(AppIcons.deviceFloppy, size: 18),
                     label: const Text('Kaydet'),
                   ),
                   const SizedBox(width: 10),
@@ -350,13 +352,12 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                         ? const SizedBox(
                             width: 14,
                             height: 14,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Icon(Icons.bolt_outlined, size: 18),
-                    label: Text(_testing
-                        ? 'Test ediliyor'
-                        : 'Bağlantıyı test et'),
+                        : const Icon(AppIcons.bolt, size: 18),
+                    label: Text(
+                      _testing ? 'Test ediliyor' : 'Bağlantıyı test et',
+                    ),
                   ),
                 ],
               ),
@@ -373,13 +374,14 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                         ? const SizedBox(
                             width: 14,
                             height: 14,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Icon(Icons.bolt_outlined, size: 18),
-                    label: Text(_testing
-                        ? 'Test ediliyor'
-                        : 'Varsayılan anahtarı test et'),
+                        : const Icon(AppIcons.bolt, size: 18),
+                    label: Text(
+                      _testing
+                          ? 'Test ediliyor'
+                          : 'Varsayılan anahtarı test et',
+                    ),
                   ),
                 ],
               ),
@@ -396,8 +398,11 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.error_outline,
-                        size: 18, color: cs.onErrorContainer),
+                    Icon(
+                      AppIcons.alertCircle,
+                      size: 18,
+                      color: cs.onErrorContainer,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -409,7 +414,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, size: 16),
+                      icon: const Icon(AppIcons.x, size: 16),
                       onPressed: () =>
                           context.read<AiSettingsProvider>().clearError(),
                     ),
@@ -425,8 +430,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
             _ModelTile(
               preset: p,
               selected: ai.modelId == p.id,
-              onTap: () =>
-                  context.read<AiSettingsProvider>().setModelId(p.id),
+              onTap: () => context.read<AiSettingsProvider>().setModelId(p.id),
             ),
 
           // ─────────── Canlı OpenRouter listesi ───────────
@@ -440,7 +444,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               decoration: InputDecoration(
                 hintText: 'provider/model-id',
                 helperText: 'Örn: mistralai/mistral-large, x-ai/grok-2-1212',
-                prefixIcon: const Icon(Icons.code),
+                prefixIcon: const Icon(AppIcons.code),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -454,7 +458,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               alignment: Alignment.centerLeft,
               child: FilledButton.tonalIcon(
                 onPressed: _saveCustomModel,
-                icon: const Icon(Icons.check, size: 18),
+                icon: const Icon(AppIcons.check, size: 18),
                 label: const Text('Custom model\'i uygula'),
               ),
             ),
@@ -485,8 +489,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.info_outline,
-                            size: 16, color: cs.primary),
+                        Icon(AppIcons.infoCircle, size: 16, color: cs.primary),
                         const SizedBox(width: 6),
                         const Text(
                           'OpenAI TTS yapılandırması',
@@ -521,11 +524,9 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 decoration: InputDecoration(
                   labelText: 'OpenAI API anahtarı',
                   hintText: 'sk-proj-...',
-                  prefixIcon: const Icon(Icons.vpn_key_outlined),
+                  prefixIcon: const Icon(AppIcons.key),
                   suffixIcon: IconButton(
-                    icon: Icon(_obscureTtsKey
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined),
+                    icon: Icon(_obscureTtsKey ? AppIcons.eye : AppIcons.eyeOff),
                     onPressed: () =>
                         setState(() => _obscureTtsKey = !_obscureTtsKey),
                   ),
@@ -543,7 +544,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 alignment: Alignment.centerLeft,
                 child: FilledButton.tonalIcon(
                   onPressed: _saveTtsKey,
-                  icon: const Icon(Icons.save_outlined, size: 18),
+                  icon: const Icon(AppIcons.deviceFloppy, size: 18),
                   label: const Text('OpenAI TTS anahtarını kaydet'),
                 ),
               ),
@@ -566,9 +567,8 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 title: v.label,
                 subtitle: v.description,
                 selected: tts.openaiTtsVoice == v.id,
-                onTap: () => context
-                    .read<TtsSettingsProvider>()
-                    .setOpenaiTtsVoice(v.id),
+                onTap: () =>
+                    context.read<TtsSettingsProvider>().setOpenaiTtsVoice(v.id),
               ),
             const SizedBox(height: 4),
             Padding(
@@ -588,9 +588,8 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 title: m.label,
                 subtitle: m.description,
                 selected: tts.openaiTtsModel == m.id,
-                onTap: () => context
-                    .read<TtsSettingsProvider>()
-                    .setOpenaiTtsModel(m.id),
+                onTap: () =>
+                    context.read<TtsSettingsProvider>().setOpenaiTtsModel(m.id),
               ),
             const SizedBox(height: 12),
           ],
@@ -610,8 +609,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.graphic_eq,
-                            size: 16, color: cs.primary),
+                        Icon(AppIcons.waveSine, size: 16, color: cs.primary),
                         const SizedBox(width: 6),
                         const Text(
                           'ElevenLabs TTS yapılandırması',
@@ -638,12 +636,11 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                       alignment: Alignment.centerLeft,
                       child: TextButton.icon(
                         style: TextButton.styleFrom(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
                           visualDensity: VisualDensity.compact,
                         ),
                         onPressed: _openElevenLabsPage,
-                        icon: const Icon(Icons.open_in_new, size: 14),
+                        icon: const Icon(AppIcons.externalLink, size: 14),
                         label: const Text('ElevenLabs API anahtarı al'),
                       ),
                     ),
@@ -660,13 +657,13 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 decoration: InputDecoration(
                   labelText: 'ElevenLabs API anahtarı',
                   hintText: 'sk_...',
-                  prefixIcon: const Icon(Icons.vpn_key_outlined),
+                  prefixIcon: const Icon(AppIcons.key),
                   suffixIcon: IconButton(
-                    icon: Icon(_obscureElTtsKey
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined),
-                    onPressed: () => setState(
-                        () => _obscureElTtsKey = !_obscureElTtsKey),
+                    icon: Icon(
+                      _obscureElTtsKey ? AppIcons.eye : AppIcons.eyeOff,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscureElTtsKey = !_obscureElTtsKey),
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -682,7 +679,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 alignment: Alignment.centerLeft,
                 child: FilledButton.tonalIcon(
                   onPressed: _saveElTtsKey,
-                  icon: const Icon(Icons.save_outlined, size: 18),
+                  icon: const Icon(AppIcons.deviceFloppy, size: 18),
                   label: const Text('ElevenLabs anahtarını kaydet'),
                 ),
               ),
@@ -748,12 +745,14 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 children: [
-                  const Icon(Icons.graphic_eq, size: 16),
+                  const Icon(AppIcons.waveSine, size: 16),
                   const SizedBox(width: 4),
                   Text(
                     tts.elevenLabsStability.toStringAsFixed(2),
                     style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w700),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   Expanded(
                     child: Slider(
@@ -774,9 +773,10 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               child: Text(
                 'Düşük = daha dramatik, değişken. Yüksek = tutarlı, sakin.',
                 style: TextStyle(
-                    fontSize: 11,
-                    color: cs.onSurfaceVariant,
-                    height: 1.4),
+                  fontSize: 11,
+                  color: cs.onSurfaceVariant,
+                  height: 1.4,
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -796,12 +796,14 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 children: [
-                  const Icon(Icons.person_outline, size: 16),
+                  const Icon(AppIcons.user, size: 16),
                   const SizedBox(width: 4),
                   Text(
                     tts.elevenLabsSimilarityBoost.toStringAsFixed(2),
                     style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w700),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   Expanded(
                     child: Slider(
@@ -822,9 +824,10 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               child: Text(
                 'Yüksek = sesin orijinaline sadık, düşük = daha esnek.',
                 style: TextStyle(
-                    fontSize: 11,
-                    color: cs.onSurfaceVariant,
-                    height: 1.4),
+                  fontSize: 11,
+                  color: cs.onSurfaceVariant,
+                  height: 1.4,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -834,7 +837,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
           // ─────────── Cache yönetimi ───────────
           const _SectionTitle('Önbellek'),
           ListTile(
-            leading: const Icon(Icons.cleaning_services_outlined),
+            leading: const Icon(AppIcons.brush),
             title: const Text('Üretilmiş özetleri temizle'),
             subtitle: const Text(
               'Tüm haberler için cache\'lenmiş AI özetleri silinir.',

@@ -27,18 +27,10 @@ class EmptyState extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 96,
-              height: 96,
-              decoration: BoxDecoration(
-                color: cs.primaryContainer.withValues(alpha: 0.6),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                size: 44,
-                color: cs.onPrimaryContainer,
-              ),
+            Image.asset(
+              'assets/brand/wise-owl.png',
+              height: 132,
+              excludeFromSemantics: true,
             ),
             const SizedBox(height: 20),
             Text(

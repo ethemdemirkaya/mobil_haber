@@ -1,3 +1,4 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -26,14 +27,15 @@ class ReadingHistoryScreen extends StatelessWidget {
           if (items.isNotEmpty)
             IconButton(
               tooltip: 'Geçmişi temizle',
-              icon: const Icon(Icons.delete_sweep_outlined),
+              icon: const Icon(AppIcons.trash),
               onPressed: () async {
                 final confirmed = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
                     title: const Text('Geçmişi temizle'),
                     content: const Text(
-                        'Tüm okuma geçmişiniz silinecek. Bu işlem geri alınamaz.'),
+                      'Tüm okuma geçmişiniz silinecek. Bu işlem geri alınamaz.',
+                    ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.of(ctx).pop(false),
@@ -55,7 +57,7 @@ class ReadingHistoryScreen extends StatelessWidget {
       ),
       body: items.isEmpty
           ? IllustratedEmptyState(
-              icon: Icons.history,
+              icon: AppIcons.history,
               title: 'Henüz haber okumadınız',
               subtitle:
                   'Okuduğunuz haberler burada listelenir; "Devam et" satırına da yansır.',
@@ -77,15 +79,11 @@ class ReadingHistoryScreen extends StatelessWidget {
                   background: Container(
                     color: cs.errorContainer,
                     alignment: Alignment.centerRight,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 24),
-                    child: Icon(Icons.delete_outline,
-                        color: cs.onErrorContainer),
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Icon(AppIcons.trash, color: cs.onErrorContainer),
                   ),
                   onDismissed: (_) {
-                    context
-                        .read<ReadingHistoryProvider>()
-                        .remove(a.id);
+                    context.read<ReadingHistoryProvider>().remove(a.id);
                   },
                   child: ArticleCard(
                     article: a,

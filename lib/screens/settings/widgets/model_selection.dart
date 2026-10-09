@@ -34,7 +34,7 @@ class _ModelTile extends StatelessWidget {
           color: selected ? cs.primary : Colors.transparent,
         ),
         child: selected
-            ? Icon(Icons.check, size: 14, color: cs.onPrimary)
+            ? Icon(AppIcons.check, size: 14, color: cs.onPrimary)
             : null,
       ),
       title: Row(
@@ -104,13 +104,15 @@ class _LiveModelSectionState extends State<_LiveModelSection> {
     final ai = context.watch<AiSettingsProvider>();
 
     final all = ai.availableModels;
-    final filtered = all.where((m) {
-      if (_onlyFree && !m.isFree) return false;
-      if (_search.isEmpty) return true;
-      final q = _search.toLowerCase();
-      return m.id.toLowerCase().contains(q) ||
-          m.name.toLowerCase().contains(q);
-    }).toList(growable: false);
+    final filtered = all
+        .where((m) {
+          if (_onlyFree && !m.isFree) return false;
+          if (_search.isEmpty) return true;
+          final q = _search.toLowerCase();
+          return m.id.toLowerCase().contains(q) ||
+              m.name.toLowerCase().contains(q);
+        })
+        .toList(growable: false);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,7 +145,7 @@ class _LiveModelSectionState extends State<_LiveModelSection> {
                   onPressed: () => context
                       .read<AiSettingsProvider>()
                       .loadOpenRouterModels(forceRefresh: true),
-                  icon: const Icon(Icons.refresh),
+                  icon: const Icon(AppIcons.refresh),
                 ),
             ],
           ),
@@ -159,13 +161,15 @@ class _LiveModelSectionState extends State<_LiveModelSection> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.error_outline, color: cs.onErrorContainer),
+                  Icon(AppIcons.alertCircle, color: cs.onErrorContainer),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       ai.modelsError!,
                       style: TextStyle(
-                          color: cs.onErrorContainer, fontSize: 12),
+                        color: cs.onErrorContainer,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                   TextButton(
@@ -206,8 +210,11 @@ class _LiveModelSectionState extends State<_LiveModelSection> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.warning_amber_rounded,
-                        size: 16, color: Colors.orange.shade800),
+                    Icon(
+                      AppIcons.alertTriangle,
+                      size: 16,
+                      color: Colors.orange.shade800,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -233,7 +240,9 @@ class _LiveModelSectionState extends State<_LiveModelSection> {
                   label: Text(
                     'Sadece ücretsiz (${ai.availableFreeModels.length})',
                     style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w700),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   selected: _onlyFree,
                   onSelected: (v) => setState(() => _onlyFree = v),
@@ -244,9 +253,11 @@ class _LiveModelSectionState extends State<_LiveModelSection> {
                     decoration: InputDecoration(
                       isDense: true,
                       hintText: 'Ara: claude, free, gpt, gemini…',
-                      prefixIcon: const Icon(Icons.search, size: 18),
+                      prefixIcon: const Icon(AppIcons.search, size: 18),
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 10),
+                        horizontal: 8,
+                        vertical: 10,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -328,7 +339,7 @@ class _LiveModelTile extends StatelessWidget {
           color: selected ? cs.primary : Colors.transparent,
         ),
         child: selected
-            ? Icon(Icons.check, size: 14, color: cs.onPrimary)
+            ? Icon(AppIcons.check, size: 14, color: cs.onPrimary)
             : null,
       ),
       title: Row(
@@ -343,8 +354,7 @@ class _LiveModelTile extends StatelessWidget {
           ),
           if (model.isFree)
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: Colors.purple.withValues(alpha: 0.16),
                 borderRadius: BorderRadius.circular(6),
@@ -361,8 +371,7 @@ class _LiveModelTile extends StatelessWidget {
             )
           else if (model.promptPricePerMillion != null)
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: cs.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(6),

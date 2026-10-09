@@ -1,3 +1,4 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -76,10 +77,10 @@ class _WeatherLocationScreenState extends State<WeatherLocationScreen> {
   Future<void> _select(String city, double lat, double lon) async {
     HapticFeedback.selectionClick();
     await context.read<PreferencesProvider>().setWeatherLocation(
-          cityName: city,
-          lat: lat,
-          lon: lon,
-        );
+      cityName: city,
+      lat: lat,
+      lon: lon,
+    );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -96,9 +97,7 @@ class _WeatherLocationScreenState extends State<WeatherLocationScreen> {
     final prefs = context.watch<PreferencesProvider>();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Brifing Bölgesi'),
-      ),
+      appBar: AppBar(title: const Text('Brifing Bölgesi')),
       body: Column(
         children: [
           // Aktif şehir bilgisi.
@@ -106,19 +105,12 @@ class _WeatherLocationScreenState extends State<WeatherLocationScreen> {
             margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  cs.primary.withValues(alpha: 0.14),
-                  cs.tertiary.withValues(alpha: 0.06),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: cs.surfaceContainerLow,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               children: [
-                Icon(Icons.place, color: cs.primary, size: 22),
+                Icon(AppIcons.mapPin, color: cs.primary, size: 22),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -164,11 +156,11 @@ class _WeatherLocationScreenState extends State<WeatherLocationScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                       )
-                    : const Icon(Icons.search),
+                    : const Icon(AppIcons.search),
                 suffixIcon: _input.text.isEmpty
                     ? null
                     : IconButton(
-                        icon: const Icon(Icons.clear),
+                        icon: const Icon(AppIcons.x),
                         onPressed: () {
                           _input.clear();
                           setState(() => _results = const []);
@@ -215,7 +207,7 @@ class _WeatherLocationScreenState extends State<WeatherLocationScreen> {
                           ? cs.primary
                           : cs.primary.withValues(alpha: 0.14),
                       child: Icon(
-                        selected ? Icons.check : Icons.location_city,
+                        selected ? AppIcons.check : AppIcons.building,
                         color: selected ? cs.onPrimary : cs.primary,
                         size: 18,
                       ),
@@ -252,28 +244,28 @@ class _WeatherLocationScreenState extends State<WeatherLocationScreen> {
                         height: 1,
                         indent: 16,
                         endIndent: 16,
-                        color:
-                            cs.outlineVariant.withValues(alpha: 0.4),
+                        color: cs.outlineVariant.withValues(alpha: 0.4),
                       ),
                       itemBuilder: (context, i) {
                         final c = _results[i];
                         return ListTile(
                           leading: CircleAvatar(
-                            backgroundColor:
-                                cs.primary.withValues(alpha: 0.14),
-                            child: Icon(Icons.place,
-                                color: cs.primary, size: 18),
+                            backgroundColor: cs.primary.withValues(alpha: 0.14),
+                            child: Icon(
+                              AppIcons.mapPin,
+                              color: cs.primary,
+                              size: 18,
+                            ),
                           ),
                           title: Text(
                             c.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                            ),
+                            style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                           subtitle: Text(
-                            [c.admin, c.country]
-                                .where((s) => s.isNotEmpty)
-                                .join(', '),
+                            [
+                              c.admin,
+                              c.country,
+                            ].where((s) => s.isNotEmpty).join(', '),
                           ),
                           trailing: Text(
                             '${c.lat.toStringAsFixed(1)}°',

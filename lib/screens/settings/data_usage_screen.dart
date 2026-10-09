@@ -1,3 +1,4 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -25,8 +26,7 @@ class DataUsageScreen extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(Icons.data_saver_on_outlined,
-                    color: cs.onPrimaryContainer, size: 28),
+                Icon(AppIcons.database, color: cs.onPrimaryContainer, size: 28),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -42,36 +42,39 @@ class DataUsageScreen extends StatelessWidget {
             ),
           ),
           SwitchListTile(
-            secondary: const Icon(Icons.image_outlined),
+            secondary: const Icon(AppIcons.photo),
             title: const Text('Düşük çözünürlüklü görseller'),
             subtitle: const Text(
-                'Hücresel veriyle açıkken küçük boyutlu görsel indirilir'),
+              'Hücresel veriyle açıkken küçük boyutlu görsel indirilir',
+            ),
             value: prefs.dataSaverImages,
             onChanged: (v) =>
                 context.read<PreferencesProvider>().setDataSaverImages(v),
           ),
           SwitchListTile(
-            secondary: const Icon(Icons.play_circle_outline),
+            secondary: const Icon(AppIcons.playerPlay),
             title: const Text('Otomatik içerik oynatma'),
             subtitle: const Text(
-                'Liste görünümünde animasyonlu içerikler otomatik oynar'),
+              'Liste görünümünde animasyonlu içerikler otomatik oynar',
+            ),
             value: prefs.dataSaverAutoplay,
             onChanged: (v) =>
                 context.read<PreferencesProvider>().setDataSaverAutoplay(v),
           ),
           const SizedBox(height: 8),
           ListTile(
-            leading: const Icon(Icons.cleaning_services_outlined),
+            leading: const Icon(AppIcons.brush),
             title: const Text('Önbelleği temizle'),
-            subtitle: const Text(
-                'Görsel önbelleği ve geçici dosyalar silinir'),
+            subtitle: const Text('Görsel önbelleği ve geçici dosyalar silinir'),
             onTap: () {
               ScaffoldMessenger.of(context)
                 ..hideCurrentSnackBar()
-                ..showSnackBar(const SnackBar(
-                  content: Text('Önbellek temizlendi'),
-                  behavior: SnackBarBehavior.floating,
-                ));
+                ..showSnackBar(
+                  const SnackBar(
+                    content: Text('Önbellek temizlendi'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
             },
           ),
         ],
