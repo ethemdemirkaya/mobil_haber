@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 import 'package:pusula_news/data/models/bias_report.dart';
 import 'package:pusula_news/data/models/qa_answer.dart';
@@ -43,6 +47,24 @@ void main() {
       expect(text, isNotNull);
       expect(text, contains('AFAD yaptığı açıklamada'));
       expect(text!.split('\n\n'), [_para1, _para2, _para3, _para4]);
+    });
+
+    test('extract() ağ isteğinden sonra tamamlanır (kendini bekleme hatası)',
+        () async {
+      const html = '<body><p>$_para1</p><p>$_para2</p>'
+          '<p>$_para3</p><p>$_para4</p></body>';
+      final extractor = ArticleTextExtractor(
+        client: MockClient((_) async => http.Response.bytes(
+              utf8.encode(html),
+              200,
+            )),
+      );
+      final text = await extractor
+          .extract('https://ornek.com/haber-1')
+          .timeout(const Duration(seconds: 2));
+      expect(text, contains('AFAD'));
+      // İkinci çağrı cache'ten döner.
+      expect(await extractor.extract('https://ornek.com/haber-1'), text);
     });
 
     test('yeterli gövde metni yoksa null döner', () {

@@ -45,6 +45,7 @@ class _BiasPromptCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final ai = context.watch<AiSettingsProvider>();
     final disabled = !ai.isReady() && !loading;
+    final error = loading ? null : ai.biasErrorFor(article.id);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
@@ -107,10 +108,12 @@ class _BiasPromptCard extends StatelessWidget {
                 Text(
                   disabled
                       ? 'AI kapalı — Ayarlar > Yapay Zeka'
-                      : 'Manşet dilini tarafsızlık için değerlendir',
+                      : error ?? 'Manşet dilini tarafsızlık için değerlendir',
+                  maxLines: error == null ? null : 3,
+                  overflow: error == null ? null : TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 11.5,
-                    color: cs.onSurfaceVariant,
+                    color: error == null ? cs.onSurfaceVariant : cs.error,
                     height: 1.35,
                   ),
                 ),
@@ -141,8 +144,8 @@ class _BiasPromptCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Text(
-                    'Analiz et',
+                  child: Text(
+                    error == null ? 'Analiz et' : 'Tekrar dene',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 12.5,

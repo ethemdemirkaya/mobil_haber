@@ -151,6 +151,9 @@ class AiSettingsProvider extends ChangeNotifier {
   /// Aktif çağrı durumu — UI loading indicator için. Aynı anda 1 çağrı.
   String? _loadingArticleId;
   String? _loadingBiasId;
+
+  /// Son yönlülük analizi başarısız olan makale — kart hatayı gösterir.
+  String? _biasErrorId;
   String? _loadingQaId;
   String? _lastError;
 
@@ -162,11 +165,19 @@ class AiSettingsProvider extends ChangeNotifier {
   static const String _prefsBiasCache = 'pref_ai_bias_cache';
   static const String _prefsFirstRunNotice = 'pref_ai_first_run_notice';
 
+  /// Default — NVIDIA Nemotron 3 Super, OpenRouter'da :free katmanda
+  /// rate-limit ile ücretsiz (Ekim 2026'da doğrulandı). Ücretsiz modeller
+  /// sık değiştiği için kaldırılanlar [_retiredModelIds] ile otomatik
+  /// taşınır.
+  static const String defaultModelId = 'nvidia/nemotron-3-super-120b-a12b:free';
 
-  /// Default — OpenAI'ın açık-ağırlıklı 20B modeli, OpenRouter'da
-  /// :free tier'da rate-limit ile ücretsiz. Yedek olarak Gemini 2.0 Flash
-  /// free de mevcut (presets[1]).
-  static const String defaultModelId = 'openai/gpt-oss-20b:free';
+  /// OpenRouter'ın ücretsiz katmandan kaldırdığı (404 dönen) modeller.
+  /// Kullanıcı bunlardan birini kaydetmişse açılışta varsayılana taşınır;
+  /// aksi hâlde tüm AI özellikleri sessizce çalışmaz.
+  static const Set<String> _retiredModelIds = {
+    'openai/gpt-oss-20b:free',
+    'google/gemini-2.0-flash-exp:free',
+  };
 
   /// Kullanıcıya sunulan hazır model listesi. ID'ler OpenRouter'ın resmi
   /// model id'leri ile eşleşmelidir. Listede olmayan modelleri kullanmak
@@ -176,16 +187,17 @@ class AiSettingsProvider extends ChangeNotifier {
   /// sonra ucuz hızlılar, sonra premium.
   static const List<AiModelPreset> presets = [
     AiModelPreset(
-      id: 'openai/gpt-oss-20b:free',
-      label: 'GPT OSS 20B (free)',
+      id: 'nvidia/nemotron-3-super-120b-a12b:free',
+      label: 'Nemotron 3 Super (free)',
       description:
-          'OpenAI açık-ağırlıklı 20B — varsayılan, ücretsiz katmanda kullanım.',
+          'NVIDIA 120B — varsayılan, ücretsiz katmanda kullanım.',
       tier: AiModelTier.free,
     ),
     AiModelPreset(
-      id: 'google/gemini-2.0-flash-exp:free',
-      label: 'Gemini 2.0 Flash (free)',
-      description: 'Google — ücretsiz, hızlı, geniş context (yedek).',
+      id: 'google/gemma-4-31b-it:free',
+      label: 'Gemma 4 31B (free)',
+      description: 'Google — ücretsiz, çok dilli (yoğun saatlerde 429 '
+          'verebilir).',
       tier: AiModelTier.free,
     ),
     AiModelPreset(
@@ -349,6 +361,10 @@ class AiSettingsProvider extends ChangeNotifier {
   /// Aktif bias çağrısının makale id'si — UI loading state.
   String? get loadingBiasId => _loadingBiasId;
 
+  /// Bu makalenin son yönlülük analizi başarısız olduysa hata mesajı.
+  String? biasErrorFor(String articleId) =>
+      _biasErrorId == articleId ? _lastError : null;
+
   /// Aktif Q&A çağrısının makale id'si — UI loading state.
   String? get loadingQaId => _loadingQaId;
 
@@ -365,6 +381,10 @@ class AiSettingsProvider extends ChangeNotifier {
         OpenRouterClient.hasBuiltInKey;
     _apiKey = prefs.getString(_prefsKey) ?? '';
     _modelId = prefs.getString(_prefsModel) ?? defaultModelId;
+    if (_retiredModelIds.contains(_modelId)) {
+      _modelId = defaultModelId;
+      await prefs.setString(_prefsModel, _modelId);
+    }
 
     // ApiKeyMode default kararı:
     //   - Kayıtlı bir tercih varsa onu yükle.
@@ -665,6 +685,7 @@ class AiSettingsProvider extends ChangeNotifier {
       return null;
     }
     _loadingBiasId = article.id;
+    _biasErrorId = null;
     _lastError = null;
     notifyListeners();
     try {
@@ -695,6 +716,7 @@ class AiSettingsProvider extends ChangeNotifier {
       _lastError = 'Beklenmeyen hata: $e';
       return null;
     } finally {
+      if (_lastError != null) _biasErrorId = article.id;
       _loadingBiasId = null;
       notifyListeners();
     }
