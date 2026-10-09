@@ -1,6 +1,6 @@
 import '../models/article.dart';
 import '../models/news_source.dart';
-import 'rss_news_service.dart';
+import '../sources/news_aggregator.dart';
 
 /// `LiveNewsScreen` ve `SourcePreferencesScreen` ile arayüz uyumluluğu için
 /// korunan basit kaynak özeti.
@@ -49,10 +49,11 @@ class ExternalSource {
 /// konuşan sürümle aynı) korunarak `live_news_screen.dart` ve diğer
 /// çağıranların değişmeden çalışması sağlanmıştır.
 class ExternalNewsRepository {
-  ExternalNewsRepository({RssNewsService? service})
-      : _service = service ?? RssNewsService();
+  ExternalNewsRepository({NewsAggregator? aggregator})
+      : _aggregator = aggregator ?? NewsAggregator();
 
-  final RssNewsService _service;
+  /// Kaynak başına çekim planı (yayıncı API'si, olmazsa RSS).
+  final NewsAggregator _aggregator;
 
   Future<List<ExternalSource>> fetchSources() async {
     return NewsSourceCatalog.all
@@ -68,11 +69,12 @@ class ExternalNewsRepository {
   }) async {
     final src = NewsSourceCatalog.byId(sourceId);
     if (src == null) return const [];
-    final articles = await _service.fetchOne(
+    final articles = (await _aggregator.fetchSource(
       src,
       category: category.isEmpty ? null : category,
       limit: limit,
-    );
+    ))
+        .articles;
     if (query.isEmpty) return articles;
     return articles.where((a) => a.matchesQuery(query)).toList(growable: false);
   }
@@ -108,7 +110,7 @@ class ExternalNewsRepository {
     } else {
       list.addAll(NewsSourceCatalog.all);
     }
-    final articles = await _service.aggregate(
+    final articles = await _aggregator.aggregate(
       list,
       category: category.isEmpty ? null : category,
       perSource: perSource,

@@ -9,11 +9,13 @@ import '../data/models/category.dart';
 import '../data/models/news_source.dart';
 import '../data/repositories/news_cluster_service.dart';
 import '../data/repositories/rss_news_service.dart';
+import '../data/sources/news_aggregator.dart';
 
 /// Pusula — birincil veri kaynağı doğrudan RSS, ikincil olarak offline cache.
 ///
 /// Veri katmanı (öncelik sırası):
-///   1. **Live RSS** — `RssNewsService.aggregate()` ile paralel çekim
+///   1. **Canlı çekim** — `NewsAggregator.aggregate()`: kaynak başına plan
+///      (yayıncı API'si, o olmazsa RSS) paralel çalışır
 ///   2. **Disk cache** — son başarılı çekim SQLite'a yazılır;
 ///      offline veya tüm kaynaklar erişilemez olduğunda buradan okunur
 ///
@@ -23,14 +25,14 @@ class NewsProvider extends ChangeNotifier {
   NewsProvider({
     RssNewsService? rssService,
     ArticleCacheStore cacheStore = const ArticleCacheStore(),
-  })  : _rss = rssService ?? RssNewsService(),
+  })  : _aggregator = NewsAggregator(rss: rssService ?? RssNewsService()),
         _cacheStore = cacheStore {
     // Konstruktörde async'i tetikleyemeyiz ama disk cache'i hızlıca
     // yükleyip gösterirsek splash sırasında bile bir şey görünür.
     _restoreFromCache();
   }
 
-  final RssNewsService _rss;
+  final NewsAggregator _aggregator;
   final ArticleCacheStore _cacheStore;
   final NewsClusterService _clusterer = const NewsClusterService();
 
@@ -285,7 +287,7 @@ class NewsProvider extends ChangeNotifier {
         await _fallbackToCache();
         _activeSources = const [];
       } else {
-        final fetched = await _rss.aggregate(sources, perSource: 8);
+        final fetched = await _aggregator.aggregate(sources, perSource: 8);
         if (fetched.isNotEmpty) {
           _all = fetched;
           _activeSources = sources;

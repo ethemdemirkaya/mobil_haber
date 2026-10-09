@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../data/repositories/rss_news_service.dart';
+import '../../data/sources/news_aggregator.dart';
 import '../../providers/bookmark_provider.dart';
 import '../../providers/news_provider.dart';
 import '../../providers/preferences_provider.dart';
@@ -20,7 +21,7 @@ class DiagnosticsScreen extends StatefulWidget {
 }
 
 class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
-  final RssNewsService _rss = RssNewsService();
+  final NewsAggregator _aggregator = NewsAggregator();
   bool _loading = false;
   List<FeedProbe> _health = const [];
 
@@ -32,7 +33,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
 
   @override
   void dispose() {
-    _rss.close();
+    _aggregator.close();
     super.dispose();
   }
 
@@ -40,7 +41,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
   Future<void> _loadHealth() async {
     setState(() => _loading = true);
     final sources = context.read<PreferencesProvider>().effectiveSources;
-    final results = await Future.wait(sources.map(_rss.probe));
+    final results = await Future.wait(sources.map(_aggregator.probe));
     results.sort((a, b) {
       if (a.ok != b.ok) return a.ok ? 1 : -1;
       return a.source.name.compareTo(b.source.name);
@@ -82,7 +83,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                 _Row(label: 'Build', value: AppConstants.appBuild),
                 _Row(
                   label: 'Veri kaynağı',
-                  value: 'Doğrudan RSS (${newsProv.activeSourceCount} kaynak)',
+                  value: 'Yayıncı API\'si / RSS (${newsProv.activeSourceCount} kaynak)',
                 ),
               ],
             ),
