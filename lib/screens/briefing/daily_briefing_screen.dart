@@ -20,9 +20,13 @@ import '../../data/repositories/openai_tts_service.dart';
 import '../../providers/ai_settings_provider.dart';
 import '../../providers/news_provider.dart';
 import '../../providers/preferences_provider.dart';
+import '../../providers/tts_settings_provider.dart';
 import '../../widgets/market_mini_widget.dart';
 import '../settings/ai_settings_screen.dart';
 import '../settings/weather_location_screen.dart';
+
+part 'widgets/briefing_player_bar.dart';
+part 'widgets/briefing_widgets.dart';
 
 /// Bugünün haberlerinden AI ile yazılmış sesli brifingi okutan ekran.
 ///
@@ -446,7 +450,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   /// kullanılır. AI ayarları ekranından değiştirildiğinde Consumer
   /// otomatik rebuild eder.
   TtsEngineKind get _activeEngine =>
-      context.read<AiSettingsProvider>().ttsEngine;
+      context.read<TtsSettingsProvider>().ttsEngine;
 
   // ─────────────── AI generation ───────────────
 
@@ -644,8 +648,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   }
 
   Future<void> _speakViaOpenAi(String text) async {
-    final ai = context.read<AiSettingsProvider>();
-    if (ai.openaiTtsKey.isEmpty) {
+    final tts = context.read<TtsSettingsProvider>();
+    if (tts.openaiTtsKey.isEmpty) {
       throw const OpenAiTtsException(
         'OpenAI TTS anahtarı yok. Ayarlar > Yapay Zeka > Sesli Okuma '
         'Motoru bölümünden girin.',
@@ -657,8 +661,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     //    kombinasyonu için MP3 varsa API'ye gitmeden direkt çal.
     final cached = await BriefingAudioCache.find(
       text: text,
-      voice: ai.openaiTtsVoice,
-      model: ai.openaiTtsModel,
+      voice: tts.openaiTtsVoice,
+      model: tts.openaiTtsModel,
       speed: openaiSpeed,
     );
 
@@ -669,17 +673,17 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     } else {
       // 2) Cache miss → API çağrısı + disk'e kaydet.
       final bytes = await _openaiTts.synthesize(
-        apiKey: ai.openaiTtsKey,
+        apiKey: tts.openaiTtsKey,
         text: text,
-        voice: ai.openaiTtsVoice,
-        model: ai.openaiTtsModel,
+        voice: tts.openaiTtsVoice,
+        model: tts.openaiTtsModel,
         speed: openaiSpeed,
       );
       // ignore: unawaited_futures
       BriefingAudioCache.store(
         text: text,
-        voice: ai.openaiTtsVoice,
-        model: ai.openaiTtsModel,
+        voice: tts.openaiTtsVoice,
+        model: tts.openaiTtsModel,
         speed: openaiSpeed,
         bytes: bytes,
       );
@@ -715,8 +719,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   }
 
   Future<void> _speakViaElevenLabs(String text) async {
-    final ai = context.read<AiSettingsProvider>();
-    if (ai.elevenLabsApiKey.isEmpty) {
+    final tts = context.read<TtsSettingsProvider>();
+    if (tts.elevenLabsApiKey.isEmpty) {
       throw const ElevenLabsException(
         'ElevenLabs API anahtarı yok. Ayarlar > Yapay Zeka > Sesli Okuma '
         'Motoru bölümünden girin.',
@@ -729,8 +733,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     //    kombinasyonu için MP3 varsa API'ye gitmeden direkt çal.
     final cached = await BriefingAudioCache.find(
       text: text,
-      voice: ai.elevenLabsVoiceId,
-      model: ai.elevenLabsModelId,
+      voice: tts.elevenLabsVoiceId,
+      model: tts.elevenLabsModelId,
       speed: speedForCache,
     );
 
@@ -741,19 +745,19 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     } else {
       // 2) Cache miss → API çağrısı + disk'e kaydet.
       final bytes = await _elevenLabsTts.synthesize(
-        apiKey: ai.elevenLabsApiKey,
+        apiKey: tts.elevenLabsApiKey,
         text: text,
-        voiceId: ai.elevenLabsVoiceId,
-        modelId: ai.elevenLabsModelId,
-        stability: ai.elevenLabsStability,
-        similarityBoost: ai.elevenLabsSimilarityBoost,
+        voiceId: tts.elevenLabsVoiceId,
+        modelId: tts.elevenLabsModelId,
+        stability: tts.elevenLabsStability,
+        similarityBoost: tts.elevenLabsSimilarityBoost,
         speed: speedForCache,
       );
       // ignore: unawaited_futures
       BriefingAudioCache.store(
         text: text,
-        voice: ai.elevenLabsVoiceId,
-        model: ai.elevenLabsModelId,
+        voice: tts.elevenLabsVoiceId,
+        model: tts.elevenLabsModelId,
         speed: speedForCache,
         bytes: bytes,
       );
@@ -795,8 +799,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   }
 
   Future<void> _speakViaEdge(String text) async {
-    final ai = context.read<AiSettingsProvider>();
-    final voice = ai.edgeTtsVoice;
+    final tts = context.read<TtsSettingsProvider>();
+    final voice = tts.edgeTtsVoice;
     final ratePct = ((_speedMultiplier - 1.0) * 100).round();
 
     final cached = await BriefingAudioCache.find(
@@ -981,6 +985,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     // AI provider'ı watch ile dinle — kullanıcı Settings'te mode/key
     // değiştirince ekran anında yeniden render olsun.
     final ai = context.watch<AiSettingsProvider>();
+    // Motor/anahtar değişince oynatıcı durumu da güncellensin.
+    final tts = context.watch<TtsSettingsProvider>();
     final topics = _availableTopics(news);
 
     // AI provider hazır + ready ama _error "yapılandırılmamış" diyorsa,
@@ -1077,9 +1083,9 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
                           _ttsReady &&
                           _ttsSupported) ||
                       (_activeEngine == TtsEngineKind.openai &&
-                          ai.hasOpenaiTtsKey) ||
+                          tts.hasOpenaiTtsKey) ||
                       (_activeEngine == TtsEngineKind.elevenlabs &&
-                          ai.hasElevenLabsKey) ||
+                          tts.hasElevenLabsKey) ||
                       _activeEngine == TtsEngineKind.edge),
               speedMultiplier: _speedMultiplier,
               pitch: _pitch,
@@ -1270,488 +1276,4 @@ class _CachedBriefing {
   const _CachedBriefing(this.text, this.utterances);
   final String text;
   final List<String> utterances;
-}
-
-class _TopicChipsRow extends StatelessWidget {
-  const _TopicChipsRow({
-    required this.topics,
-    required this.selectedKey,
-    required this.cachedKeys,
-    required this.onSelect,
-    required this.disabled,
-  });
-
-  final List<BriefingTopic> topics;
-  final String selectedKey;
-  final Set<String> cachedKeys;
-  final ValueChanged<BriefingTopic> onSelect;
-  final bool disabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return SizedBox(
-      height: 56,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        itemCount: topics.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, i) {
-          final t = topics[i];
-          final selected = t.cacheKey == selectedKey;
-          final hasCached = cachedKeys.contains(t.cacheKey);
-          final accent = t.category?.color ?? cs.primary;
-          return ChoiceChip(
-            avatar: Icon(
-              t.category?.icon ?? Icons.podcasts,
-              size: 16,
-              color: selected ? cs.onPrimary : accent,
-            ),
-            label: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  t.isGeneral ? 'Genel' : t.category!.name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: selected ? cs.onPrimary : cs.onSurface,
-                  ),
-                ),
-                if (hasCached && !selected) ...[
-                  const SizedBox(width: 6),
-                  Icon(Icons.check_circle,
-                      size: 12, color: cs.onSurfaceVariant),
-                ],
-              ],
-            ),
-            selected: selected,
-            onSelected: disabled ? null : (_) => onSelect(t),
-            selectedColor: accent,
-            backgroundColor: cs.surfaceContainerHighest,
-            showCheckmark: false,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _TtsWarningBanner extends StatelessWidget {
-  const _TtsWarningBanner({required this.message});
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      decoration: BoxDecoration(
-        color: cs.tertiaryContainer.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.warning_amber_rounded,
-              size: 18, color: cs.onTertiaryContainer),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                fontSize: 12,
-                color: cs.onTertiaryContainer,
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HighlightedText extends StatelessWidget {
-  const _HighlightedText({
-    required this.utterances,
-    required this.currentIndex,
-    required this.speaking,
-  });
-
-  final List<String> utterances;
-  final int currentIndex;
-  final bool speaking;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    return SelectableText.rich(
-      TextSpan(
-        children: [
-          for (var i = 0; i < utterances.length; i++)
-            TextSpan(
-              text: '${utterances[i]} ',
-              style: TextStyle(
-                color: cs.onSurface,
-                backgroundColor: speaking && i == currentIndex
-                    ? cs.primary.withValues(alpha: 0.18)
-                    : null,
-                fontWeight: speaking && i == currentIndex
-                    ? FontWeight.w700
-                    : FontWeight.w400,
-              ),
-            ),
-        ],
-      ),
-      style: textTheme.bodyLarge?.copyWith(
-        height: 1.7,
-        fontSize: 16,
-      ),
-    );
-  }
-}
-
-class _PlayerBar extends StatefulWidget {
-  const _PlayerBar({
-    required this.speaking,
-    required this.paused,
-    required this.hasBriefing,
-    required this.speedMultiplier,
-    required this.pitch,
-    required this.sleepEndsAt,
-    required this.utteranceIndex,
-    required this.utteranceCount,
-    required this.onPlay,
-    required this.onPause,
-    required this.onStop,
-    required this.onRestart,
-    required this.onSkipPrev,
-    required this.onSkipNext,
-    required this.onSeekTo,
-    required this.onSpeedChanged,
-    required this.onPitchChanged,
-  });
-
-  final bool speaking;
-  final bool paused;
-  final bool hasBriefing;
-  final double speedMultiplier;
-  final double pitch;
-  final DateTime? sleepEndsAt;
-  final int utteranceIndex;
-  final int utteranceCount;
-  final VoidCallback onPlay;
-  final VoidCallback onPause;
-  final VoidCallback onStop;
-  final VoidCallback onRestart;
-  final VoidCallback onSkipPrev;
-  final VoidCallback onSkipNext;
-  final ValueChanged<int> onSeekTo;
-  final ValueChanged<double> onSpeedChanged;
-  final ValueChanged<double> onPitchChanged;
-
-  @override
-  State<_PlayerBar> createState() => _PlayerBarState();
-}
-
-class _PlayerBarState extends State<_PlayerBar> {
-  bool _showAdvanced = false;
-  bool _dragging = false;
-  double? _dragValue;
-  Timer? _ticker;
-
-  static const _speeds = [0.75, 1.0, 1.25, 1.5, 2.0];
-  static const _speedLabels = ['0.75×', '1×', '1.25×', '1.5×', '2×'];
-
-  @override
-  void initState() {
-    super.initState();
-    _maybeStartTicker();
-  }
-
-  @override
-  void didUpdateWidget(covariant _PlayerBar old) {
-    super.didUpdateWidget(old);
-    if (widget.sleepEndsAt != old.sleepEndsAt) {
-      _ticker?.cancel();
-      _ticker = null;
-      _maybeStartTicker();
-    }
-  }
-
-  void _maybeStartTicker() {
-    if (widget.sleepEndsAt == null) return;
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _ticker?.cancel();
-    super.dispose();
-  }
-
-  String _sleepCountdown() {
-    final ends = widget.sleepEndsAt;
-    if (ends == null) return '';
-    final remaining = ends.difference(DateTime.now());
-    if (remaining.isNegative) return '';
-    final m = remaining.inMinutes;
-    final s = remaining.inSeconds % 60;
-    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final sleepText = _sleepCountdown();
-    final count = widget.utteranceCount;
-    final idx = widget.utteranceIndex;
-    final sliderVal = _dragging
-        ? (_dragValue ?? idx.toDouble())
-        : idx.toDouble();
-
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        border: Border(
-          top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
-        ),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // ── Seekable utterance slider ──
-          Row(
-            children: [
-              SizedBox(
-                width: 30,
-                child: Text(
-                  '${idx + 1}',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: 3,
-                    thumbShape:
-                        const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    overlayShape:
-                        const RoundSliderOverlayShape(overlayRadius: 14),
-                  ),
-                  child: Slider(
-                    value: count > 1
-                        ? sliderVal.clamp(0, count - 1.0)
-                        : 0,
-                    min: 0,
-                    max: count > 1 ? count - 1.0 : 1,
-                    divisions: count > 1 ? count - 1 : null,
-                    onChanged: widget.hasBriefing && count > 1
-                        ? (v) => setState(() {
-                              _dragging = true;
-                              _dragValue = v;
-                            })
-                        : null,
-                    onChangeEnd: widget.hasBriefing && count > 1
-                        ? (v) {
-                            setState(() {
-                              _dragging = false;
-                              _dragValue = null;
-                            });
-                            widget.onSeekTo(v.round());
-                          }
-                        : null,
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: 30,
-                child: Text(
-                  '$count',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          // ── Sleep countdown ──
-          if (sleepText.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.bedtime, size: 13, color: cs.primary),
-                const SizedBox(width: 4),
-                Text(
-                  'Uyku: $sleepText',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: cs.primary,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 4),
-          // ── Speed chips ──
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              for (var i = 0; i < _speeds.length; i++)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: ChoiceChip(
-                    label: Text(
-                      _speedLabels[i],
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    selected: widget.speedMultiplier == _speeds[i],
-                    onSelected: widget.hasBriefing
-                        ? (_) => widget.onSpeedChanged(_speeds[i])
-                        : null,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 4, vertical: 2),
-                    visualDensity: VisualDensity.compact,
-                    showCheckmark: false,
-                  ),
-                ),
-              const SizedBox(width: 4),
-              IconButton(
-                tooltip: _showAdvanced ? 'Gelişmiş ayarları gizle' : 'Ton ayarı',
-                iconSize: 18,
-                visualDensity: VisualDensity.compact,
-                onPressed: () =>
-                    setState(() => _showAdvanced = !_showAdvanced),
-                icon: Icon(
-                  _showAdvanced ? Icons.tune : Icons.tune_outlined,
-                  color: _showAdvanced ? cs.primary : cs.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-          // ── Collapsible pitch slider ──
-          AnimatedSize(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            child: _showAdvanced
-                ? Row(
-                    children: [
-                      Icon(Icons.graphic_eq,
-                          size: 16, color: cs.onSurfaceVariant),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Ton: ${_pitchLabel(widget.pitch)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                      Expanded(
-                        child: Slider(
-                          value: widget.pitch,
-                          min: 0.5,
-                          max: 1.8,
-                          divisions: 13,
-                          onChanged: widget.hasBriefing
-                              ? widget.onPitchChanged
-                              : null,
-                        ),
-                      ),
-                    ],
-                  )
-                : const SizedBox.shrink(),
-          ),
-          const SizedBox(height: 4),
-          // ── Playback controls ──
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Stop
-              IconButton.filledTonal(
-                tooltip: 'Durdur',
-                onPressed: widget.hasBriefing ? widget.onStop : null,
-                icon: const Icon(Icons.stop_rounded),
-              ),
-              const SizedBox(width: 4),
-              // Skip prev
-              IconButton(
-                tooltip: 'Önceki cümle',
-                iconSize: 28,
-                onPressed:
-                    widget.hasBriefing && idx > 0 ? widget.onSkipPrev : null,
-                icon: const Icon(Icons.skip_previous_rounded),
-              ),
-              const SizedBox(width: 4),
-              // Play / Pause
-              SizedBox(
-                width: 60,
-                height: 60,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    shape: const CircleBorder(),
-                    padding: EdgeInsets.zero,
-                  ),
-                  onPressed: !widget.hasBriefing
-                      ? null
-                      : (widget.speaking ? widget.onPause : widget.onPlay),
-                  child: Icon(
-                    widget.speaking
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
-                    size: 32,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
-              // Skip next
-              IconButton(
-                tooltip: 'Sonraki cümle',
-                iconSize: 28,
-                onPressed: widget.hasBriefing && idx < count - 1
-                    ? widget.onSkipNext
-                    : null,
-                icon: const Icon(Icons.skip_next_rounded),
-              ),
-              const SizedBox(width: 4),
-              // Restart
-              IconButton.filledTonal(
-                tooltip: 'Yeniden başlat',
-                onPressed: widget.hasBriefing ? widget.onRestart : null,
-                icon: const Icon(Icons.replay_rounded),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _pitchLabel(double p) {
-    if (p <= 0.7) return 'Çok kalın';
-    if (p <= 0.9) return 'Kalın';
-    if (p <= 1.1) return 'Nötr';
-    if (p <= 1.4) return 'İnce';
-    return 'Çok ince';
-  }
 }

@@ -13,6 +13,7 @@ import '../data/repositories/edge_tts_service.dart';
 import '../data/repositories/elevenlabs_tts_service.dart';
 import '../data/repositories/openai_tts_service.dart';
 import '../providers/ai_settings_provider.dart';
+import '../providers/tts_settings_provider.dart';
 
 enum _AudioState { idle, loading, speaking }
 
@@ -224,6 +225,7 @@ class _ArticleAudioSummaryButtonState
     if (_state == _AudioState.loading) return;
 
     final ai = context.read<AiSettingsProvider>();
+    final tts = context.read<TtsSettingsProvider>();
 
     if (!ai.isReady()) {
       if (!mounted) return;
@@ -256,36 +258,36 @@ class _ArticleAudioSummaryButtonState
     _cancelled = false;
 
     try {
-      switch (ai.ttsEngine) {
+      switch (tts.ttsEngine) {
         case TtsEngineKind.system:
           await _speakWithSystem(summary);
 
         case TtsEngineKind.openai:
-          if (!ai.hasOpenaiTtsKey) {
+          if (!tts.hasOpenaiTtsKey) {
             _showError('OpenAI TTS anahtarı ayarlanmamış.');
             return;
           }
           final bytes = await _openaiTts.synthesize(
-            apiKey: ai.openaiTtsKey,
+            apiKey: tts.openaiTtsKey,
             text: _cleanForTts(summary),
-            voice: ai.openaiTtsVoice,
-            model: ai.openaiTtsModel,
+            voice: tts.openaiTtsVoice,
+            model: tts.openaiTtsModel,
           );
           if (!mounted) return;
           await _playMp3(bytes, summary);
 
         case TtsEngineKind.elevenlabs:
-          if (!ai.hasElevenLabsKey) {
+          if (!tts.hasElevenLabsKey) {
             _showError('ElevenLabs API anahtarı ayarlanmamış.');
             return;
           }
           final bytes = await _elevenLabsTts.synthesize(
-            apiKey: ai.elevenLabsApiKey,
+            apiKey: tts.elevenLabsApiKey,
             text: _cleanForTts(summary),
-            voiceId: ai.elevenLabsVoiceId,
-            modelId: ai.elevenLabsModelId,
-            stability: ai.elevenLabsStability,
-            similarityBoost: ai.elevenLabsSimilarityBoost,
+            voiceId: tts.elevenLabsVoiceId,
+            modelId: tts.elevenLabsModelId,
+            stability: tts.elevenLabsStability,
+            similarityBoost: tts.elevenLabsSimilarityBoost,
           );
           if (!mounted) return;
           await _playMp3(bytes, summary);
@@ -293,7 +295,7 @@ class _ArticleAudioSummaryButtonState
         case TtsEngineKind.edge:
           final bytes = await _edgeTts.synthesize(
             text: _cleanForTts(summary),
-            voice: ai.edgeTtsVoice,
+            voice: tts.edgeTtsVoice,
           );
           if (!mounted) return;
           await _playMp3(bytes, summary);
