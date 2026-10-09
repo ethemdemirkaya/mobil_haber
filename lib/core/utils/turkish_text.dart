@@ -91,3 +91,20 @@ bool _isSuffixChain(String rest, int depth) {
 /// "seçim", "seçimlerde", "seçimin" → "seçim"; "bakan", "bakanı" → "bakan".
 String stemTr(String token, {int prefix = 5}) =>
     token.length <= prefix ? token : token.substring(0, prefix);
+
+/// Türkçe haber metinlerinde sık geçen ama ayırt edici olmayan kelimeler
+/// ([trLower] biçiminde). Kümeleme ve ilgi profili çıkarımında süzülür.
+/// Özel isim çıkarılmaz; siyasi terim yok.
+const Set<String> trNewsStopWords = {
+  've', 'ile', 'ama', 'fakat', 'ancak', 'çok', 'daha', 'için', 'kadar',
+  'gibi', 'bir', 'iki', 'her', 'hiç', 'olan', 'olarak', 'olur', 'oldu',
+  'olmuş', 'olduğu', 'olduğunu', 'biz', 'siz', 'ben', 'sen', 'bu', 'şu',
+  'son', 'haber', 'haberi', 'haberleri', 'açıklama', 'açıklaması',
+  'açıkladı', 'yeni', 'eski', 'bugün', 'yarın', 'gün', 'günde', 'sonra',
+  'önce', 'şimdi', 'işte', 'tüm', 'bütün', 'türkiye', 'dünya', 'dakika',
+  'yıl', 'yaptı', 'yapıldı', 'göre', 'içinde', 'üzerine', 'hakkında',
+  'kim', 'kimdir', 'nedir', 'nasıl', 'neden', 'niye', 'nereye',
+  'nereden', 'nerede', 'dedi', 'etti', 'eden', 'edildi', 'ise', 'değil',
+  'var', 'yok', 'bunu', 'buna', 'başka', 'flaş', 'gelişme', 'video',
+  'izle', 'galeri', 'foto', 'tıkla', 'devamı',
+};

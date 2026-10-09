@@ -179,7 +179,7 @@ class NewsClusterService {
             first != first.toLowerCase() &&
             first == first.toUpperCase();
         for (final t in trTokens(w)) {
-          if (t.length < 3 || _stopWords.contains(t)) continue;
+          if (t.length < 3 || trNewsStopWords.contains(t)) continue;
           final stem = stemTr(t);
           tf[stem] = (tf[stem] ?? 0) + baseWeight * (properNoun ? 1.5 : 1);
         }
@@ -192,22 +192,6 @@ class NewsClusterService {
   }
 
   static final RegExp _apostrophe = RegExp("['’‘`]");
-
-  /// Türkçe haber metinlerinde sık geçen ama ayırt edici olmayan kelimeler
-  /// ([trLower] biçiminde). Özel isim çıkarılmaz; siyasi terim yok.
-  static const Set<String> _stopWords = {
-    've', 'ile', 'ama', 'fakat', 'ancak', 'çok', 'daha', 'için', 'kadar',
-    'gibi', 'bir', 'iki', 'her', 'hiç', 'olan', 'olarak', 'olur', 'oldu',
-    'olmuş', 'olduğu', 'olduğunu', 'biz', 'siz', 'ben', 'sen', 'bu', 'şu',
-    'son', 'haber', 'haberi', 'haberleri', 'açıklama', 'açıklaması',
-    'açıkladı', 'yeni', 'eski', 'bugün', 'yarın', 'gün', 'günde', 'sonra',
-    'önce', 'şimdi', 'işte', 'tüm', 'bütün', 'türkiye', 'dünya', 'dakika',
-    'yıl', 'yaptı', 'yapıldı', 'göre', 'içinde', 'üzerine', 'hakkında',
-    'kim', 'kimdir', 'nedir', 'nasıl', 'neden', 'niye', 'nereye',
-    'nereden', 'nerede', 'dedi', 'etti', 'eden', 'edildi', 'ise', 'değil',
-    'var', 'yok', 'bunu', 'buna', 'başka', 'flaş', 'gelişme', 'video',
-    'izle', 'galeri', 'foto', 'tıkla', 'devamı',
-  };
 }
 
 class _ClusterBuilder {

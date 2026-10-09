@@ -195,6 +195,7 @@ class RssNewsService {
       isFeatured: false,
       sourceUrl: link.trim(),
       sourceName: source.name,
+      sourceId: source.id,
     );
   }
 
@@ -246,6 +247,7 @@ class RssNewsService {
       isFeatured: false,
       sourceUrl: link.trim(),
       sourceName: source.name,
+      sourceId: source.id,
     );
   }
 

@@ -4,9 +4,11 @@ import 'package:provider/provider.dart';
 import '../../data/models/article.dart';
 import '../../data/models/category.dart';
 import '../../data/models/news_source.dart';
+import '../../data/repositories/personalization_service.dart';
 import '../../providers/keyword_filter_provider.dart';
 import '../../providers/news_provider.dart';
 import '../../providers/preferences_provider.dart';
+import '../../providers/reading_history_provider.dart';
 import '../../widgets/article_card.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/section_header.dart';
@@ -16,6 +18,10 @@ import '../settings/keyword_filters_screen.dart';
 
 /// "Sana Özel" — kullanıcının seçtiği kategori + kaynak + keyword
 /// kombinasyonu ile filtrelenmiş haber akışı.
+///
+/// Varsayılan sıralama okuma geçmişinden çıkarılan ilgi profiline göredir
+/// (`PersonalizationService`: zamanla sönümlenen ilgi + MMR çeşitlilik);
+/// kullanıcı "En yeni"ye geçebilir.
 ///
 /// Filtreler birleşim mantığında çalışır:
 ///   - Kategori boş ise: tüm seçili kategoriler
@@ -42,21 +48,49 @@ class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
   /// kategori + kaynak filtresi çalışır.
   bool _applyKeywords = true;
 
+  /// true: ilgi profiline göre sırala; false: en yeni üstte.
+  bool _ranked = true;
+
+  static const PersonalizationService _personalization =
+      PersonalizationService();
+
+  /// Katalog adı → id; `sourceId` taşımayan eski cache kayıtları için.
+  static final Map<String, String> _sourceIdByName = {
+    for (final s in NewsSourceCatalog.all) s.name: s.id,
+  };
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final news = context.watch<NewsProvider>();
     final prefs = context.watch<PreferencesProvider>();
     final keywords = context.watch<KeywordFilterProvider>();
+    final history = context.watch<ReadingHistoryProvider>();
 
     // Kullanıcının seçili kaynak listesi içinden filtrelenecek kaynak
     // alt-kümesi. Boş set → tüm seçili kaynaklar (yani NewsProvider'ın
     // gösterdiği her şey).
     final activeSources = prefs.effectiveSources;
+    // Ana sayfada seçili kategoriden bağımsız olarak tüm haberler.
     final filtered = _applyFilters(
-      news.articles,
+      news.articlesOf(NewsCategory.all.id),
       keywordProvider: keywords,
     );
+    final List<RankedArticle> results;
+    if (_ranked) {
+      final profile = _personalization.buildProfile(history.entries);
+      results = _personalization.rank(
+        filtered,
+        profile,
+        readIds: history.ids.toSet(),
+      );
+    } else {
+      results = [
+        for (final a in List<Article>.of(filtered)
+          ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt)))
+          RankedArticle(a, 0),
+      ];
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -92,6 +126,30 @@ class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
                   _selectedCategoryIds.clear();
                   _selectedSourceIds.clear();
                 }),
+              ),
+            ),
+
+            // ── Sıralama ──
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                child: SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(
+                      value: true,
+                      icon: Icon(Icons.auto_awesome_outlined, size: 18),
+                      label: Text('Sana göre'),
+                    ),
+                    ButtonSegment(
+                      value: false,
+                      icon: Icon(Icons.schedule, size: 18),
+                      label: Text('En yeni'),
+                    ),
+                  ],
+                  selected: {_ranked},
+                  onSelectionChanged: (v) =>
+                      setState(() => _ranked = v.first),
+                ),
               ),
             ),
 
@@ -245,7 +303,7 @@ class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
               )
             else
               SliverList.separated(
-                itemCount: filtered.length,
+                itemCount: results.length,
                 separatorBuilder: (_, _) => Divider(
                   height: 1,
                   indent: 16,
@@ -253,8 +311,9 @@ class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
                   color: cs.outlineVariant.withValues(alpha: 0.4),
                 ),
                 itemBuilder: (context, index) {
-                  final a = filtered[index];
-                  return ArticleCard(
+                  final r = results[index];
+                  final a = r.article;
+                  final card = ArticleCard(
                     article: a,
                     onTap: () {
                       Navigator.of(context).push(
@@ -266,6 +325,31 @@ class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
                         ),
                       );
                     },
+                  );
+                  if (r.reason == null) return card;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                        child: Row(
+                          children: [
+                            Icon(Icons.auto_awesome_outlined,
+                                size: 13, color: cs.primary),
+                            const SizedBox(width: 5),
+                            Text(
+                              r.reason!,
+                              style: TextStyle(
+                                color: cs.primary,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      card,
+                    ],
                   );
                 },
               ),
@@ -286,29 +370,19 @@ class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
           !_selectedCategoryIds.contains(a.categoryId)) {
         return false;
       }
-      // Kaynak filtresi (article.sourceName → catalog.id eşleme)
+      // Kaynak filtresi
       if (_selectedSourceIds.isNotEmpty) {
-        final src = NewsSourceCatalog.all.firstWhere(
-          (s) => s.name == a.sourceName,
-          orElse: () => const NewsSource(
-            id: '',
-            name: '',
-            shortName: '',
-            tagline: '',
-            domain: '',
-            brandColor: Color(0xFF000000),
-            primaryFeed: '',
-          ),
-        );
-        if (!_selectedSourceIds.contains(src.id)) return false;
+        final id = a.sourceId.isNotEmpty
+            ? a.sourceId
+            : (_sourceIdByName[a.sourceName] ?? '');
+        if (!_selectedSourceIds.contains(id)) return false;
       }
       // Keyword filtresi
       if (_applyKeywords && keywordProvider.hasKeywords) {
         if (!keywordProvider.matchesAny(a)) return false;
       }
       return true;
-    }).toList(growable: false)
-      ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+    }).toList(growable: false);
   }
 }
 

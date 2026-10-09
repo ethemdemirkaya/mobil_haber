@@ -15,6 +15,7 @@ class Article {
     this.isFeatured = false,
     this.sourceUrl = '',
     this.sourceName = '',
+    this.sourceId = '',
   });
 
   final String id;
@@ -35,6 +36,10 @@ class Article {
   /// İnsan-okuyabilir kaynak adı (ör. "TRT Haber", "Anadolu Ajansı").
   final String sourceName;
 
+  /// `NewsSourceCatalog` id'si (ör. "ntv"). Eski cache/bookmark
+  /// kayıtlarında boş olabilir; o durumda [sourceName] üzerinden eşlenir.
+  final String sourceId;
+
   bool get hasOriginalUrl => sourceUrl.isNotEmpty;
 
   Map<String, Object?> toJson() => {
@@ -50,6 +55,7 @@ class Article {
         'isFeatured': isFeatured,
         'sourceUrl': sourceUrl,
         'sourceName': sourceName,
+        'sourceId': sourceId,
       };
 
   /// Kalıcı kayıttan (cache, bookmark, geçmiş) okur. id yoksa null.
@@ -72,6 +78,7 @@ class Article {
       isFeatured: raw['isFeatured'] == true,
       sourceUrl: raw['sourceUrl']?.toString() ?? '',
       sourceName: raw['sourceName']?.toString() ?? '',
+      sourceId: raw['sourceId']?.toString() ?? '',
     );
   }
 
