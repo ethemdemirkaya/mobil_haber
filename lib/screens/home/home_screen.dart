@@ -317,10 +317,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     cachedAt: news.lastFetchAt,
                     onRetry: _refresh,
                   ),
-                )
-              else if (news.usingFallback && !news.loading)
-                SliverToBoxAdapter(
-                  child: _OfflineFallbackNotice(onRetry: _refresh),
                 ),
               SliverToBoxAdapter(
                 child: news.loading && news.featured.isEmpty
@@ -503,6 +499,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemCount: 4,
                   itemBuilder: (_, _) =>
                       const ArticleCardSkeleton(),
+                )
+              else if (news.unavailable && news.articles.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: EmptyState(
+                    icon: Icons.wifi_off_rounded,
+                    title: 'Haberlere ulaşılamadı',
+                    subtitle: 'İnternet bağlantınızı kontrol edip '
+                        'tekrar deneyin.',
+                    actionLabel: 'Tekrar dene',
+                    onAction: _refresh,
+                  ),
                 )
               else if (news.articles.isEmpty)
                 const SliverFillRemaining(
@@ -1259,51 +1267,6 @@ class _OfflineNotice extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-          ),
-          TextButton(
-            onPressed: onRetry,
-            child: const Text('Yenile'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Aggregate başarısız + mock fallback aktif olduğunda gösterilen yumuşak
-/// bilgi banner'ı (hata değil, durum bildirimi).
-class _OfflineFallbackNotice extends StatelessWidget {
-  const _OfflineFallbackNotice({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.wifi_off_rounded,
-              size: 18, color: cs.onSurfaceVariant),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Çevrimdışısınız — örnek veriler gösteriliyor.',
-              style: TextStyle(
-                color: cs.onSurface,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
             ),
           ),
           TextButton(

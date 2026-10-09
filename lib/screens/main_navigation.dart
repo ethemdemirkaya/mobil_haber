@@ -41,7 +41,9 @@ class _MainNavigationState extends State<MainNavigation> {
       if (!mounted) return;
       final news = context.read<NewsProvider>();
       final prefs = context.read<PreferencesProvider>();
-      if (news.activeSourceCount == 0) {
+      // activeSourceCount çekim bitene kadar 0 kalır; splash'ın başlattığı
+      // çekimi ikinci kez tetiklememek için "istendi mi"ye bakıyoruz.
+      if (!news.hasRequestedSources) {
         news.applySources(prefs.effectiveSources);
       }
       // Zamanlanmış brifing bildirimine dokunulmuşsa onu yakalayıp
