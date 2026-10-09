@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/utils/turkish_text.dart';
 import '../data/models/article.dart';
 
 /// Kullanıcının tanımladığı anahtar kelime filtreleri.
@@ -98,20 +99,5 @@ class KeywordFilterProvider extends ChangeNotifier {
 
   /// Türkçe karakter farklarını eziyor + lowercase.
   /// Örn: "Galatasaray" ve "galatasaray" eşit; "İstanbul" ⇔ "istanbul".
-  static String _foldFor(String s) {
-    return s
-        .toLowerCase()
-        .replaceAll('ı', 'i')
-        .replaceAll('İ', 'i')
-        .replaceAll('ş', 's')
-        .replaceAll('Ş', 's')
-        .replaceAll('ç', 'c')
-        .replaceAll('Ç', 'c')
-        .replaceAll('ö', 'o')
-        .replaceAll('Ö', 'o')
-        .replaceAll('ü', 'u')
-        .replaceAll('Ü', 'u')
-        .replaceAll('ğ', 'g')
-        .replaceAll('Ğ', 'g');
-  }
+  static String _foldFor(String s) => foldTr(s);
 }

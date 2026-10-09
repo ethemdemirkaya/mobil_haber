@@ -1,3 +1,4 @@
+import '../../core/utils/turkish_text.dart';
 import 'category.dart';
 
 class Article {
@@ -40,10 +41,12 @@ class Article {
 
   bool matchesQuery(String query) {
     if (query.trim().isEmpty) return true;
-    final q = query.toLowerCase().trim();
-    return title.toLowerCase().contains(q) ||
-        summary.toLowerCase().contains(q) ||
-        author.toLowerCase().contains(q) ||
-        category.name.toLowerCase().contains(q);
+    // Türkçe büyük/küçük harf ve klavye farkları ("saglik" ⇔ "SAĞLIK")
+    // eşleşmeyi bozmasın.
+    final q = foldTr(query.trim());
+    return foldTr(title).contains(q) ||
+        foldTr(summary).contains(q) ||
+        foldTr(author).contains(q) ||
+        foldTr(category.name).contains(q);
   }
 }
