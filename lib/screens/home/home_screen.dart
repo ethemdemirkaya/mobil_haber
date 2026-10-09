@@ -159,6 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final textTheme = Theme.of(context).textTheme;
     final news = context.watch<NewsProvider>();
     final trending = news.trending(take: 6);
+    final feed = news.homeFeed;
 
     final history = context.watch<ReadingHistoryProvider>();
     final continueReading = history
@@ -422,7 +423,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 )
               else ...[
                 SliverList.separated(
-                  itemCount: news.articles.length.clamp(0, _homeListLimit),
+                  itemCount: feed.length.clamp(0, _homeListLimit),
                   separatorBuilder: (_, _) => Divider(
                     height: 1,
                     indent: 16,
@@ -430,7 +431,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: cs.outlineVariant.withValues(alpha: 0.4),
                   ),
                   itemBuilder: (context, index) {
-                    final a = news.articles[index];
+                    final a = feed[index];
                     return ArticleCard(
                       article: a,
                       onTap: () => _openArticle(a, heroTag: 'card-img-${a.id}'),
@@ -439,7 +440,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 SliverToBoxAdapter(
                   child: _SeeAllFooter(
-                    shown: news.articles.length.clamp(0, _homeListLimit),
+                    shown: feed.length.clamp(0, _homeListLimit),
                     total: news.articles.length,
                     onSeeAll: () => _openCategory(news.selectedCategory),
                     onRefresh: _refresh,

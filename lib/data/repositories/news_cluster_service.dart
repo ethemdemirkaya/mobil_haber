@@ -127,6 +127,39 @@ class NewsClusterService {
     return clusters;
   }
 
+  /// [target]'a içerikçe en benzer haberler (TF-IDF kosinüs), benzerliği
+  /// [minSimilarity] altında kalanlar hariç. IDF [pool] üzerinden hesaplanır.
+  /// "İlgili haberler" için: yalnızca aynı kategoriden ilk 4'ü almak, örneğin
+  /// bir şirket haberinin altına alakasız bir futbol haberi getiriyordu.
+  List<Article> mostSimilar(
+    Article target,
+    List<Article> pool, {
+    int take = 4,
+    double minSimilarity = 0.12,
+  }) {
+    final candidates = [
+      for (final a in pool)
+        if (a.id != target.id) a,
+    ];
+    if (candidates.isEmpty) return const [];
+    final vectors = _vectorize([target, ...candidates]);
+    final t = vectors.first;
+    final scored = <(Article, double)>[];
+    for (var i = 0; i < candidates.length; i++) {
+      final v = vectors[i + 1];
+      var dot = 0.0;
+      final small = t.length <= v.length ? t : v;
+      final large = identical(small, t) ? v : t;
+      small.forEach((k, w) => dot += w * (large[k] ?? 0));
+      // Aynı başlığın başka kaynaktaki kopyası "ilgili" değil, aynı haber.
+      if (dot >= minSimilarity && dot < 0.9) {
+        scored.add((candidates[i], dot));
+      }
+    }
+    scored.sort((a, b) => b.$2.compareTo(a.$2));
+    return scored.take(take).map((e) => e.$1).toList(growable: false);
+  }
+
   /// Her bağımsız kaynak 1 puanla başlar ve [hotHalfLife] sürede yarıya
   /// iner. 2 kaynak az önce yayınladıysa ≈2; 3 kaynak 6 saat önce
   /// yayınladıysa ≈1.5. Böylece hem kaynak sayısı hem tazelik ölçülür.

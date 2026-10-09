@@ -27,9 +27,7 @@ class OgImageResolver {
   final http.Client _client;
 
   static const Duration _timeout = Duration(seconds: 5);
-  static const String _userAgent =
-      'Mozilla/5.0 (Linux; Android 13; mobil_haber) AppleWebKit/537.36 '
-      '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
+  static const String _userAgent = kBrowserUserAgent;
 
   // Process-genelinde tek cache — ArticleImage widget'ları paylaşıyor.
   static final Map<String, String?> _cache = <String, String?>{};

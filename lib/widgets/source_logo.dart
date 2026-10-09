@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../core/net/shared_http_client.dart';
 import '../data/models/news_source.dart';
 
 /// Haber kaynağı logosunu fallback zinciri ile yükleyen widget.
@@ -69,6 +70,7 @@ class _SourceLogoState extends State<SourceLogo> {
         height: widget.size,
         color: widget.source.brandColor.withValues(alpha: 0.10),
         child: CachedNetworkImage(
+          httpHeaders: kImageRequestHeaders,
           imageUrl: activeUrl,
           cacheKey: cacheKey,
           width: widget.size,

@@ -30,9 +30,7 @@ class RssNewsService {
   static const CategoryClassifier _classifier = CategoryClassifier();
 
   static const Duration _feedTimeout = Duration(seconds: 8);
-  static const String _userAgent =
-      'Mozilla/5.0 (Linux; Android 13; mobil_haber) AppleWebKit/537.36 '
-      '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
+  static const String _userAgent = kBrowserUserAgent;
 
   /// Birden çok kaynaktan paralel olarak haberleri toplar.
   ///
@@ -212,6 +210,7 @@ class RssNewsService {
       summary: descRaw,
       categoryNodes: el.findElements('category'),
       sourceUrl: link,
+      sourceDefault: source.defaultCategory,
     );
 
     final summary = _removePaywallTrailer(_stripHtml(descRaw));
@@ -266,6 +265,7 @@ class RssNewsService {
       summary: summaryRaw,
       categoryNodes: el.findElements('category'),
       sourceUrl: link,
+      sourceDefault: source.defaultCategory,
     );
     final summary = _removePaywallTrailer(_stripHtml(summaryRaw));
 
@@ -450,6 +450,7 @@ class RssNewsService {
     required String summary,
     required Iterable<XmlElement> categoryNodes,
     required String sourceUrl,
+    String? sourceDefault,
   }) =>
       _classifier.classify(
         explicit: explicit,
@@ -459,6 +460,7 @@ class RssNewsService {
         summary: _stripHtml(summary),
         rssCategories: categoryNodes.map((c) => c.innerText.trim()),
         url: sourceUrl,
+        sourceDefault: sourceDefault,
       );
 
   String _stripHtml(String html) => stripHtml(html);
