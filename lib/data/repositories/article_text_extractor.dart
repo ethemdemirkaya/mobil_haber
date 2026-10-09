@@ -51,7 +51,12 @@ class ArticleTextExtractor {
     final future = _fetch(url).then((text) {
       _cache[url] = text;
       return text;
-    }).whenComplete(() => _inflight.remove(url));
+    }).whenComplete(() {
+      // Blok gövde bilinçli: `=> _inflight.remove(url)` silinen Future'ı
+      // döndürür ve whenComplete onu da bekler — Future kendini bekleyip
+      // sonsuza kadar asılı kalıyordu.
+      _inflight.remove(url);
+    });
     _inflight[url] = future;
     return future;
   }

@@ -82,7 +82,7 @@
 | **Yönlülük analizi** | LLM değerlendirmesi + cihazda kural tabanlı dil sinyalleri; uyumlarına göre güven düzeyi |
 
 > **Not:** AI özellikleri [OpenRouter](https://openrouter.ai) üzerinden çalışır.
-> Varsayılan model: `openai/gpt-oss-20b:free` (ücretsiz katman).
+> Varsayılan model: `nvidia/nemotron-3-super-120b-a12b:free` (ücretsiz katman).
 > Kullanıcı kendi API anahtarını girerek istediği modeli seçebilir.
 
 ### Sesli Okuma (TTS)

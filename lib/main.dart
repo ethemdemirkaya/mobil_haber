@@ -1,5 +1,6 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'app.dart';
@@ -27,21 +28,25 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await DateFormatter.ensureInitialized();
 
-  // Tüm yan-servis init'leri timeout'lu — bir tanesi takılsa bile splash'tan
-  // çıkıp ana ekrana geçilir. Haber çekimi tamamen ayrı yolda çalışıyor.
-  // İlk kurulumda flutter_cache_manager SQLite DB'sini widget tree kurulmadan
-  // önce hazır hale getirir — aksi hâlde ilk açılışta resimler yüklenemez.
-  await _safeInit('ImageCacheManager',
-      () async => DefaultCacheManager().getFileFromCache('__warmup__'));
-
+  // Ses oturumu ve arka plan medya servisi, brifing ekranı açılmadan hazır
+  // olmalı; activity gerektirmez.
   await _safeInit('AudioSessionSetup', AudioSessionSetup.configure);
   await _safeInit('BriefingAudioHandler', BriefingAudioHandler.bootstrap);
-  await _safeInit('ScheduledBriefingService', ScheduledBriefingService.init);
-  await _safeInit('PushNotificationService', () async {
-    await PushNotificationService.init(
-      localNotifs: FlutterLocalNotificationsPlugin(),
-    );
-  }, timeout: const Duration(seconds: 8));
 
   runApp(const MobilHaberApp());
+
+  // Bildirim izni isteyen init'ler hem bağlı bir activity'ye ihtiyaç duyar
+  // hem de kullanıcının izin penceresine yanıt vermesini bekler. runApp'tan
+  // önce çalıştıklarında activity henüz yoktu ("Context null", "Unable to
+  // detect current Android Activity") ve açılışı 14 sn'ye kadar
+  // bekletiyorlardı. İlk kareden sonra, birbirini beklemeden çalışırlar.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(_safeInit('ScheduledBriefingService', ScheduledBriefingService.init,
+        timeout: const Duration(seconds: 30)));
+    unawaited(_safeInit('PushNotificationService', () async {
+      await PushNotificationService.init(
+        localNotifs: FlutterLocalNotificationsPlugin(),
+      );
+    }, timeout: const Duration(seconds: 30)));
+  });
 }

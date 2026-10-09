@@ -42,6 +42,22 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
+        <!-- audio_service: sesli brifingin arka planda çalması ve kilit ekranı /
+             bildirim panelindeki medya kontrolleri için. -->
+        <service android:name="com.ryanheise.audioservice.AudioService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+        <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+
         <!-- flutter_local_notifications: alarm reschedule & timezone refresh -->
         <receiver android:exported="false"
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
