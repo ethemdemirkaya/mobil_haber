@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../data/mock/mock_news_data.dart';
 import '../data/models/article.dart';
 import '../data/models/category.dart';
 import '../data/models/news_source.dart';
@@ -16,7 +15,9 @@ import '../data/repositories/rss_news_service.dart';
 ///   1. **Live RSS** — `RssNewsService.aggregate()` ile paralel çekim
 ///   2. **Disk cache** — son başarılı çekim SharedPreferences'a yazılır;
 ///      offline veya tüm kaynaklar erişilemez olduğunda buradan okunur
-///   3. **Mock fallback** — disk cache de yoksa örnek veriler
+///
+/// Disk cache de yoksa liste boş kalır ve [unavailable] true olur — haber
+/// uygulamasında örnek/uydurma veri göstermek kullanıcıyı yanıltır.
 class NewsProvider extends ChangeNotifier {
   NewsProvider({RssNewsService? rssService})
       : _rss = rssService ?? RssNewsService() {
@@ -30,8 +31,18 @@ class NewsProvider extends ChangeNotifier {
 
   bool _loading = true;
   String? _lastError;
-  bool _usingFallback = false;
+  bool _unavailable = false;
   bool _offline = false;
+
+  /// Devam eden çekim — aynı kaynak listesiyle gelen ikinci çağrı (splash +
+  /// MainNavigation, art arda pull-to-refresh) yeni istek atmak yerine
+  /// bunu bekler.
+  Future<void>? _inflight;
+  String? _inflightKey;
+
+  /// Çekim sürerken farklı bir kaynak listesi geldiyse, mevcut çekim
+  /// bitince bir kez daha yüklenir.
+  bool _reloadQueued = false;
   DateTime? _lastFetchAt;
   List<Article> _all = const [];
   String _selectedCategoryId = NewsCategory.all.id;
@@ -56,7 +67,13 @@ class NewsProvider extends ChangeNotifier {
   bool get loading => _loading;
   String? get lastError => _lastError;
   bool get hasError => _lastError != null;
-  bool get usingFallback => _usingFallback;
+
+  /// Canlı çekim başarısız ve disk cache de boş — gösterilecek haber yok.
+  bool get unavailable => _unavailable;
+
+  /// Kaynak listesi en az bir kez uygulandı mı? (Çekim sürüyor olsa bile.)
+  /// MainNavigation'ın splash'ın başlattığı çekimi tekrar tetiklememesi için.
+  bool get hasRequestedSources => _lastSourceList.isNotEmpty;
 
   /// Çevrimdışı modda mı? (Live çekim başarısız + disk cache'ten geldi)
   bool get offline => _offline;
@@ -164,9 +181,9 @@ class NewsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> applySources(List<NewsSource> sources) async {
+  Future<void> applySources(List<NewsSource> sources) {
     _lastSourceList = sources;
-    await _load();
+    return _load();
   }
 
   Future<void> bootstrapIfNeeded() async {
@@ -177,43 +194,57 @@ class NewsProvider extends ChangeNotifier {
     await _load();
   }
 
-  Future<void> _load() async {
+  String _sourcesKey(List<NewsSource> sources) =>
+      sources.map((s) => s.id).join(',');
+
+  Future<void> _load() {
+    final key = _sourcesKey(_lastSourceList);
+    final inflight = _inflight;
+    if (inflight != null) {
+      if (key != _inflightKey) _reloadQueued = true;
+      return inflight;
+    }
+    _inflightKey = key;
+    final future = _doLoad().whenComplete(() {
+      _inflight = null;
+      _inflightKey = null;
+      if (_reloadQueued) {
+        _reloadQueued = false;
+        // ignore: unawaited_futures
+        _load();
+      }
+    });
+    _inflight = future;
+    return future;
+  }
+
+  Future<void> _doLoad() async {
     _loading = true;
     _lastError = null;
     notifyListeners();
+    final sources = _lastSourceList;
     try {
-      if (_lastSourceList.isEmpty) {
-        // Disk cache → mock cascade
-        final restored = await _readCache();
-        if (restored.isNotEmpty) {
-          _all = restored;
-          _offline = true;
-          _usingFallback = false;
-        } else {
-          _all = await _loadMockFallback();
-          _usingFallback = true;
-          _offline = false;
-        }
+      if (sources.isEmpty) {
+        await _fallbackToCache();
         _activeSources = const [];
       } else {
-        final fetched = await _rss.aggregate(_lastSourceList, perSource: 8);
+        final fetched = await _rss.aggregate(sources, perSource: 8);
         if (fetched.isNotEmpty) {
           _all = fetched;
-          _activeSources = _lastSourceList;
-          _usingFallback = false;
+          _activeSources = sources;
+          _unavailable = false;
           _offline = false;
           _lastFetchAt = DateTime.now();
           // Disk cache'i güncelle (await yok — UI bloklanmasın).
           // ignore: unawaited_futures
-          _writeCache(fetched, _lastSourceList);
+          _writeCache(fetched, sources);
         } else {
-          // RSS boş döndü → cache → mock
-          await _fallbackToCacheOrMock();
+          await _fallbackToCache();
         }
       }
     } catch (e) {
       _lastError = 'Canlı haberler alınamadı: $e';
-      await _fallbackToCacheOrMock();
+      await _fallbackToCache();
     } finally {
       _recomputeTrending();
       _loading = false;
@@ -221,23 +252,22 @@ class NewsProvider extends ChangeNotifier {
     }
   }
 
-  /// Live çekim başarısız olduğunda disk cache'e bak; o da yoksa mock'a düş.
-  Future<void> _fallbackToCacheOrMock() async {
+  /// Live çekim başarısız olduğunda disk cache'e bak. O da yoksa ekranda
+  /// zaten bir liste varsa (önceki başarılı çekim) onu koru; hiç yoksa
+  /// [unavailable] durumuna geç.
+  Future<void> _fallbackToCache() async {
     final restored = await _readCache();
     if (restored.isNotEmpty) {
       _all = restored;
       _offline = true;
-      _usingFallback = false;
+      _unavailable = false;
+    } else if (_all.isNotEmpty) {
+      _offline = true;
+      _unavailable = false;
     } else {
-      _all = await _loadMockFallback();
       _offline = false;
-      _usingFallback = true;
+      _unavailable = true;
     }
-  }
-
-  Future<List<Article>> _loadMockFallback() async {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-    return MockNewsData.articles;
   }
 
   // ─── Disk cache (SharedPreferences, JSON serialization) ───
@@ -319,7 +349,10 @@ class NewsProvider extends ChangeNotifier {
     if (_all.isNotEmpty) return; // live çekim çoktan tamamlandı
     _all = cached;
     _offline = true;
-    _loading = false;
+    _unavailable = false;
+    // Çekim hâlâ sürüyorsa loading'i kapatma — banner'lar ve
+    // pull-to-refresh durumu doğru kalsın.
+    if (_inflight == null) _loading = false;
     _recomputeTrending();
     notifyListeners();
   }
