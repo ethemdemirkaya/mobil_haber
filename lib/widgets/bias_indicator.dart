@@ -204,35 +204,49 @@ class _BiasReportCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
+              // Kesin bir "62/100" sayısı yanıltıcı bir hassasiyet
+              // izlenimi veriyordu; yerine ölçümün güven düzeyi.
               Container(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: bandColor,
+                  color: cs.surface.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: bandColor.withValues(alpha: 0.5),
+                  ),
                 ),
                 child: Text(
-                  '${report.score}/100',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  report.confidence.label,
+                  style: TextStyle(
+                    color: bandColor,
                     fontWeight: FontWeight.w800,
                     fontSize: 11,
-                    letterSpacing: 0.3,
+                    letterSpacing: 0.2,
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          // Skor barı — 0..100
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: (report.score / 100).clamp(0, 1),
-              minHeight: 6,
-              backgroundColor: bandColor.withValues(alpha: 0.18),
-              valueColor: AlwaysStoppedAnimation(bandColor),
-            ),
+          // 4 bantlı gösterge — sürekli skor yerine kaba bant.
+          Row(
+            children: [
+              for (final b in BiasBand.values) ...[
+                Expanded(
+                  child: Container(
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: b == report.band
+                          ? bandColor
+                          : bandColor.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+                if (b != BiasBand.values.last) const SizedBox(width: 4),
+              ],
+            ],
           ),
           const SizedBox(height: 10),
           Text(
@@ -243,7 +257,20 @@ class _BiasReportCard extends StatelessWidget {
               color: cs.onSurface,
             ),
           ),
-          if (report.cues.isNotEmpty) ...[
+          if (report.confidence == BiasConfidence.low) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Yapay zeka değerlendirmesi, metindeki kural tabanlı dil '
+              'sinyalleriyle uyuşmuyor. Sonucu temkinli yorumlayın.',
+              style: TextStyle(
+                fontSize: 11.5,
+                height: 1.4,
+                fontStyle: FontStyle.italic,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ],
+          if (report.allCues.isNotEmpty) ...[
             const SizedBox(height: 10),
             Text(
               'TESPİT EDİLEN İFADELER',
@@ -259,7 +286,7 @@ class _BiasReportCard extends StatelessWidget {
               spacing: 6,
               runSpacing: 6,
               children: [
-                for (final cue in report.cues)
+                for (final cue in report.allCues)
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 3),
@@ -291,7 +318,7 @@ class _BiasReportCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Sadece dil özellikleri değerlendirilir, olgu doğruluğu '
-                  'kontrol edilmez.',
+                  'kontrol edilmez. İfadeler metinde geçtiği doğrulananlardır.',
                   style: TextStyle(
                     fontSize: 10.5,
                     color: cs.onSurfaceVariant,

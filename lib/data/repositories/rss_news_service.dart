@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
+import '../../core/utils/html_text.dart';
 import '../models/article.dart';
 import '../models/news_source.dart';
 import 'category_classifier.dart';
@@ -426,42 +427,9 @@ class RssNewsService {
         url: sourceUrl,
       );
 
-  String _stripHtml(String html) {
-    if (html.isEmpty) return '';
-    // <br> / <p> kapanışlarında yumuşak boşluk bırakıp tag'leri sök.
-    final clean = html
-        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), ' ')
-        .replaceAll(RegExp(r'</p>', caseSensitive: false), ' ')
-        .replaceAll(RegExp(r'<[^>]*>'), '')
-        .replaceAll(RegExp(r'\s+'), ' ');
-    return clean.trim();
-  }
+  String _stripHtml(String html) => stripHtml(html);
 
-  String _decodeEntities(String s) {
-    if (s.isEmpty) return s;
-    return s
-        .replaceAll('&amp;', '&')
-        .replaceAll('&lt;', '<')
-        .replaceAll('&gt;', '>')
-        .replaceAll('&quot;', '"')
-        .replaceAll('&#x27;', "'")
-        .replaceAll('&#39;', "'")
-        .replaceAll('&nbsp;', ' ')
-        .replaceAllMapped(
-          RegExp(r'&#(\d+);'),
-          (m) {
-            final code = int.tryParse(m.group(1) ?? '');
-            return code == null ? m.group(0)! : String.fromCharCode(code);
-          },
-        )
-        .replaceAllMapped(
-          RegExp(r'&#x([0-9a-fA-F]+);'),
-          (m) {
-            final code = int.tryParse(m.group(1) ?? '', radix: 16);
-            return code == null ? m.group(0)! : String.fromCharCode(code);
-          },
-        );
-  }
+  String _decodeEntities(String s) => decodeHtmlEntities(s);
 
   String _truncate(String s, int max) {
     if (s.length <= max) return s;

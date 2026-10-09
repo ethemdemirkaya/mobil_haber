@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/models/article.dart';
+import '../data/models/qa_answer.dart';
 import '../providers/ai_settings_provider.dart';
 
 /// Detail screen'den açılan AI Haber Asistanı bottom sheet.
@@ -64,7 +65,8 @@ class _ArticleQaSheetState extends State<ArticleQaSheet> {
       final last = _turns.last;
       _turns[_turns.length - 1] = _QaTurn(
         question: last.question,
-        answer: answer ?? ai.lastError ?? 'Cevap alınamadı',
+        answer: answer?.text ?? ai.lastError ?? 'Cevap alınamadı',
+        grounding: answer?.grounding,
         loading: false,
       );
     });
@@ -281,11 +283,15 @@ class _QaTurn {
     required this.question,
     required this.answer,
     required this.loading,
+    this.grounding,
   });
 
   final String question;
   final String? answer;
   final bool loading;
+
+  /// Cevabın dayanağı; hata mesajlarında null.
+  final QaGrounding? grounding;
 }
 
 class _QaTurnView extends StatelessWidget {
@@ -357,14 +363,65 @@ class _QaTurnView extends StatelessWidget {
                     ),
                   ],
                 )
-              : Text(
-                  turn.answer ?? '',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: cs.onSurface,
-                    height: 1.5,
-                  ),
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (turn.grounding != null &&
+                        turn.grounding != QaGrounding.offTopic)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: _GroundingLabel(grounding: turn.grounding!),
+                      ),
+                    Text(
+                      turn.answer ?? '',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: cs.onSurface,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
                 ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Cevabın haber metnine mi yoksa modelin genel bilgisine mi dayandığını
+/// gösteren etiket. Genel bilgi cevapları uydurma içerebileceği için
+/// kullanıcı açıkça uyarılır.
+class _GroundingLabel extends StatelessWidget {
+  const _GroundingLabel({required this.grounding});
+
+  final QaGrounding grounding;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final fromArticle = grounding == QaGrounding.article;
+    final color = fromArticle ? cs.primary : cs.tertiary;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          fromArticle ? Icons.article_outlined : Icons.public,
+          size: 13,
+          color: color,
+        ),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            fromArticle
+                ? 'Haber metnine dayanıyor'
+                : 'Genel bilgi — haberde geçmiyor, doğrulayın',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
         ),
       ],
     );

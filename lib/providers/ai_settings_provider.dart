@@ -7,8 +7,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/ai/openrouter_client.dart';
 import '../data/local/ai_cache_store.dart';
 import '../data/models/article.dart';
+import '../core/utils/turkish_text.dart';
 import '../data/models/bias_report.dart';
+import '../data/models/qa_answer.dart';
 import '../data/repositories/ai_summary_service.dart';
+import '../data/repositories/article_text_extractor.dart';
+import '../data/repositories/language_signal_analyzer.dart';
 import '../data/repositories/openrouter_models_repository.dart';
 
 /// OpenRouter modeli için "preset" tanımları.
@@ -141,15 +145,19 @@ class AiSettingsProvider extends ChangeNotifier {
     AiSummaryService? service,
     OpenRouterModelsRepository? modelsRepo,
     AiCacheStore aiCache = const AiCacheStore(),
+    ArticleTextExtractor? textExtractor,
   })  : _service = service ?? AiSummaryService(),
         _modelsRepo = modelsRepo ?? OpenRouterModelsRepository(),
-        _aiCache = aiCache {
+        _aiCache = aiCache,
+        _extractor = textExtractor ?? ArticleTextExtractor() {
     _load();
   }
 
   final AiSummaryService _service;
   final OpenRouterModelsRepository _modelsRepo;
   final AiCacheStore _aiCache;
+  final ArticleTextExtractor _extractor;
+  static const LanguageSignalAnalyzer _signals = LanguageSignalAnalyzer();
 
   // Live OpenRouter model listesi
   List<OpenRouterModel> _availableModels = const [];
@@ -199,7 +207,7 @@ class AiSettingsProvider extends ChangeNotifier {
 
   /// "${articleId}::${question}" → cevap. In-memory only — kullanıcı her
   /// soru her oturumda taze çağrılsın diye.
-  final Map<String, String> _qaCache = <String, String>{};
+  final Map<String, QaAnswer> _qaCache = <String, QaAnswer>{};
 
   /// Aktif çağrı durumu — UI loading indicator için. Aynı anda 1 çağrı.
   String? _loadingArticleId;
@@ -412,11 +420,32 @@ class AiSettingsProvider extends ChangeNotifier {
 
   /// Cache'lenmiş bias raporu — yoksa null. Yeniden çağırma ücret
   /// üretmesin diye kalıcı cache'liyoruz.
-  BiasReport? cachedBias(String articleId) => _biasCache[articleId];
+  BiasReport? cachedBias(String articleId) =>
+      _biasCache[_biasKey(articleId)];
+
+  /// Bias sonucu modele bağlıdır; model değişince eski skor gösterilmez.
+  String _biasKey(String articleId) => '$articleId::$_modelId';
+
+  /// AI'a verilecek haber metni: RSS içeriği yeterince uzunsa o, değilse
+  /// orijinal sayfadan çıkarılan gövde metni; ikisi de yoksa elimizdeki
+  /// en uzun metin.
+  Future<String> _groundingText(Article article) async {
+    final content = article.content.trim();
+    final summary = article.summary.trim();
+    final own = content.length >= summary.length ? content : summary;
+    if (own.length >= AiSummaryService.minSourceChars ||
+        !article.hasOriginalUrl) {
+      return own;
+    }
+    final extracted = await _extractor.extract(article.sourceUrl);
+    return (extracted != null && extracted.length > own.length)
+        ? extracted
+        : own;
+  }
 
   /// In-memory Q&A cache. Aynı oturumda tekrar açılırsa hızlıca dönsün
   /// diye. Kalıcı değil — token israfını önlemek için disk'e yazmıyoruz.
-  String? cachedAnswer(String articleId, String question) =>
+  QaAnswer? cachedAnswer(String articleId, String question) =>
       _qaCache['$articleId::${question.trim()}'];
 
   /// Aktif bias çağrısının makale id'si — UI loading state.
@@ -758,8 +787,17 @@ class AiSettingsProvider extends ChangeNotifier {
     _lastError = null;
     notifyListeners();
     try {
+      final text = await _groundingText(article);
+      if (text.length < AiSummaryService.minSourceChars) {
+        // Tek cümlelik açıklamayı "özetlemek" tekrar ya da uydurma üretir.
+        _lastError = 'Bu haberin özetlenecek kadar metni yok — kaynak '
+            'yalnızca kısa bir açıklama yayınlamış. Tam metni kaynağın '
+            'sitesinden okuyabilirsin.';
+        return;
+      }
       final result = await _service.summarize(
         article: article,
+        sourceText: text,
         apiKey: effectiveApiKey,
         model: _modelId,
       );
@@ -836,8 +874,9 @@ class AiSettingsProvider extends ChangeNotifier {
   /// özellikleri** (duygu yüklü kelime, tek-perspektif, yorum) puanlanır;
   /// içeriğin doğruluğu test edilmez.
   Future<BiasReport?> analyzeBias(Article article, {bool force = false}) async {
-    if (!force && _biasCache.containsKey(article.id)) {
-      return _biasCache[article.id];
+    final key = _biasKey(article.id);
+    if (!force && _biasCache.containsKey(key)) {
+      return _biasCache[key];
     }
     if (!isReady()) {
       _lastError =
@@ -849,21 +888,25 @@ class AiSettingsProvider extends ChangeNotifier {
     _lastError = null;
     notifyListeners();
     try {
+      final body = await _groundingText(article);
       final raw = await _service.generate(
         apiKey: effectiveApiKey,
         model: _modelId,
         systemPrompt: _biasSystemPrompt,
-        userPrompt: _composeBiasUserPrompt(article),
+        userPrompt: _composeBiasUserPrompt(article, body),
         maxTokens: 400,
+        // Aynı haber için tekrar üretilebilir sonuç.
+        temperature: 0,
       );
-      final report = _parseBiasJson(raw);
-      if (report == null) {
+      final llm = _parseBiasJson(raw);
+      if (llm == null) {
         _lastError = 'Yönlülük analizi anlaşılamadı (geçersiz JSON).';
-      } else {
-        _biasCache[article.id] = report;
-        // ignore: unawaited_futures
-        _persistBias(article.id, report);
+        return null;
       }
+      final report = _crossCheckBias(llm, article, body);
+      _biasCache[key] = report;
+      // ignore: unawaited_futures
+      _persistBias(key, report);
       return report;
     } on OpenRouterException catch (e) {
       _lastError = e.message;
@@ -893,9 +936,14 @@ Sinyaller:
 {
   "score": 0-100 arası tam sayı,
   "label": "Nötr" | "Hafif yönlü" | "Belirgin yönlü" | "Yüksek yönlü",
-  "cues": ["max 5 kısa örnek ifade"],
+  "cues": ["metinden BİREBİR kopyalanmış en fazla 5 kısa ifade"],
   "summary": "1-2 cümle nesnel açıklama"
 }
+
+Kurallar:
+- "cues" içindeki her ifade metinde harfi harfine geçmelidir; metinde
+  olmayan ifade yazma, ifadeyi değiştirme veya özetleme.
+- Yönlü bir ifade bulamıyorsan "cues" boş liste olsun ve skor 0-25 olsun.
 
 Skor bantları:
 - 0-25: Nötr
@@ -904,12 +952,38 @@ Skor bantları:
 - 76-100: Yüksek yönlü
 ''';
 
-  String _composeBiasUserPrompt(Article article) {
-    final body = article.content.trim().isNotEmpty
-        ? (article.content.length > 1500
-            ? '${article.content.substring(0, 1500)}…'
-            : article.content)
-        : article.summary;
+  /// LLM sonucunu metne ve kural tabanlı ölçüme karşı doğrular:
+  /// metinde geçmeyen "alıntılar" atılır, iki ölçümün uyumundan güven
+  /// düzeyi hesaplanır.
+  BiasReport _crossCheckBias(BiasReport llm, Article article, String body) {
+    final haystack = foldTr('${article.title} $body');
+    final verified = llm.cues
+        .where((c) => c.trim().isNotEmpty && haystack.contains(foldTr(c)))
+        .toList(growable: false);
+    final signals = _signals.analyze(title: article.title, body: body);
+    return BiasReport(
+      score: llm.score,
+      label: llm.label,
+      cues: verified,
+      summary: llm.summary,
+      lexicalScore: signals.score,
+      lexicalCues: signals.cues
+          .map((c) => c.text)
+          .where((t) => t != '!' && t != '?' && t != '…')
+          .toList(growable: false),
+      confidence: BiasReport.assessConfidence(
+        llmScore: llm.score,
+        lexicalScore: signals.score,
+        claimedCues: llm.cues.length,
+        verifiedCues: verified.length,
+      ),
+    );
+  }
+
+  String _composeBiasUserPrompt(Article article, String fullBody) {
+    final body = fullBody.length > 1500
+        ? '${fullBody.substring(0, 1500)}…'
+        : fullBody;
     return '''
 KAYNAK: ${article.sourceName.isNotEmpty ? article.sourceName : "Bilinmeyen"}
 MANŞET: ${article.title}
@@ -944,7 +1018,7 @@ Yalnızca JSON döndür.
   // ─────────── Haber Asistanı (Q&A) ───────────
   /// Bir makale hakkında kullanıcının özgürce sorduğu soruya cevap.
   /// In-memory cache'lidir (id+question key); kalıcı değildir.
-  Future<String?> askQuestion(Article article, String question) async {
+  Future<QaAnswer?> askQuestion(Article article, String question) async {
     final q = question.trim();
     if (q.isEmpty) return null;
     final cacheKey = '${article.id}::$q';
@@ -960,12 +1034,10 @@ Yalnızca JSON döndür.
     _lastError = null;
     notifyListeners();
     try {
-      final body = article.content.trim().isNotEmpty
-          ? (article.content.length > 2500
-              ? '${article.content.substring(0, 2500)}…'
-              : article.content)
-          : article.summary;
-      final answer = await _service.generate(
+      final text = await _groundingText(article);
+      final body =
+          text.length > 2500 ? '${text.substring(0, 2500)}…' : text;
+      final raw = await _service.generate(
         apiKey: effectiveApiKey,
         model: _modelId,
         systemPrompt: _qaSystemPrompt,
@@ -982,7 +1054,9 @@ KULLANICI SORUSU: $q
 Soruyu sınıflandır ve kurallara uygun yanıtla.
 ''',
         maxTokens: 600,
+        temperature: 0.2,
       );
+      final answer = QaAnswer.parse(raw);
       _qaCache[cacheKey] = answer;
       return answer;
     } on OpenRouterException catch (e) {
@@ -1000,24 +1074,27 @@ Soruyu sınıflandır ve kurallara uygun yanıtla.
   static const String _qaSystemPrompt = '''
 Sen Türkçe haber okuma asistanısın. Kullanıcı sana bir haber ve soru veriyor.
 
-ÖNCE SORUYU SINIFLANDIR, SONRA YANIT VER:
+ÖNCE SORUYU SINIFLANDIR, SONRA YANIT VER. Yanıtın İLK SATIRI şu
+etiketlerden biri olmalı, ardından cevap gelir:
 
-▸ TİP A — Metinden yanıtlanabilir (sayılar, isimler, olayın detayları, özet):
-  Sadece verilen haber metnindeki bilgilere dayan.
+[HABERDE] — Cevap tamamen verilen haber metnindeki bilgiye dayanıyor.
+  Sayılar, isimler, olayın ayrıntıları. Metinde yoksa bu etiketi KULLANMA.
 
-▸ TİP B — Bağlam ve önem soruları ("neden önemli?", "arkaplan", "ne anlama geliyor?", 
-  "neden oldu?", "kim etkileniyor?", "bu olayın tarihi bağlamı nedir?"):
-  Haberi referans al ama genel bilgini de kullan. Haberin konusundan hareketle
-  açıklayıcı, zengin bir cevap ver.
+[GENEL BİLGİ] — Bağlam/arka plan soruları ("neden önemli?", "arka planı
+  ne?") ya da cevabı metinde olmayan sorular. Genel bilgini kullanabilirsin
+  ama:
+  - Haberde geçmeyen güncel olayları, tarihleri veya sayıları uydurma.
+  - Emin değilsen "kesin bilgim yok" de.
+  - Bilgin güncel olmayabilir; bunu gerekirse belirt.
 
-▸ TİP C — Haberle tamamen alakasız sorular:
-  Kısa yanıt: "Bu soru haberle ilgili değil."
+[ALAKASIZ] — Soru haberle ilgili değil. Tek cümle: "Bu soru haberle
+  ilgili değil."
 
 GENEL KURALLAR:
 - 150 kelimeyi geçme — kısa ve net.
 - Türkçe yanıtla.
 - Madde işareti veya başlık koyma — düz metin yaz.
-- Tip A: spekülasyon yapma. Tip B: kamuya açık bağlamsal bilgiyi kullanabilirsin.
 - Sayıları ve özel isimleri olduğu gibi koru.
 ''';
+
 }
