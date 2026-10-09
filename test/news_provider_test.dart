@@ -2,7 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'package:pusula_news/data/local/local_db.dart';
 import 'package:pusula_news/data/models/news_source.dart';
 import 'package:pusula_news/data/repositories/rss_news_service.dart';
 import 'package:pusula_news/providers/news_provider.dart';
@@ -21,8 +23,12 @@ const String _fixture = '''
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  sqfliteFfiInit();
 
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await LocalDb.useInMemoryForTests(databaseFactoryFfi);
+  });
 
   test('aynı kaynaklarla eşzamanlı çağrılar tek çekim yapar', () async {
     var requests = 0;

@@ -11,7 +11,9 @@ class AppConstants {
 
   static const int searchHistoryMax = 10;
   static const int featuredCount = 5;
-  static const int readingHistoryMax = 20;
+  /// Kişiselleştirme sinyali olarak da kullanıldığı için geniş tutulur;
+  /// "Devam et" satırı yalnızca ilk birkaçını gösterir.
+  static const int readingHistoryMax = 500;
 
   static const String prefsOnboardingDone = 'pref_onboarding_done';
   static const String prefsReadingHistory = 'pref_reading_history';

@@ -61,7 +61,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<ReadingHistoryProvider>().markRead(widget.article.id);
+      context.read<ReadingHistoryProvider>().markRead(widget.article);
       _restoreScrollPosition();
     });
   }
