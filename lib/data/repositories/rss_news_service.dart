@@ -5,8 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
 import '../models/article.dart';
-import '../models/category.dart';
 import '../models/news_source.dart';
+import 'category_classifier.dart';
 
 /// Doğrudan istemci tarafında çalışan RSS aggregator.
 ///
@@ -25,6 +25,7 @@ class RssNewsService {
       : _client = httpClient ?? http.Client();
 
   final http.Client _client;
+  static const CategoryClassifier _classifier = CategoryClassifier();
 
   static const Duration _feedTimeout = Duration(seconds: 8);
   static const String _userAgent =
@@ -406,84 +407,22 @@ class RssNewsService {
         u.contains('iasbh.tmgrup');
   }
 
-  /// Kategori belirleme:
-  ///   1) Çağıran (NewsProvider) bir kategori dayatmışsa onu kullan.
-  ///   2) RSS `<category>` etiketleri varsa Türkçe slug'a eşle.
-  ///   3) Başlık/özet/URL içinde anahtar kelime taraması.
-  ///   4) Hiçbiri tutmazsa "gundem".
   String _resolveCategory({
     String? explicit,
     required String title,
     required String summary,
     required Iterable<XmlElement> categoryNodes,
     required String sourceUrl,
-  }) {
-    if (explicit != null && explicit.isNotEmpty && explicit != 'all') {
-      return explicit;
-    }
-    for (final c in categoryNodes) {
-      final mapped = _mapCategoryName(c.innerText.trim());
-      if (mapped != null) return mapped;
-    }
-    final blob =
-        '${title.toLowerCase()} ${summary.toLowerCase()} ${sourceUrl.toLowerCase()}';
-    for (final entry in _keywordMap.entries) {
-      for (final kw in entry.value) {
-        if (blob.contains(kw)) return entry.key;
-      }
-    }
-    return NewsCategory.all.id == 'all' ? 'gundem' : NewsCategory.all.id;
-  }
-
-  static const Map<String, List<String>> _keywordMap = {
-    'spor': [' spor', '/spor', 'futbol', 'basketbol', 'maç ', 'galatasaray',
-        'fenerbahçe', 'beşiktaş', 'olimpi', 'voleybol'],
-    'ekonomi': ['ekonomi', '/ekonomi', 'borsa', 'döviz', 'enflasyon',
-        'merkez bankası', 'piyasa', 'kripto', 'altın'],
-    'teknoloji': ['/teknoloji', 'teknoloji', 'yapay zek', ' iphone', 'samsung',
-        'android', 'yazılım', 'donanım'],
-    'bilim': ['bilim', '/bilim', 'araştırma', 'uzay', 'nasa'],
-    'saglik': ['sağlık', '/saglik', 'sağlık', 'hastane', 'aşı', 'doktor',
-        'tıp '],
-    'dunya': ['/dunya', 'dünya', 'avrupa', 'amerika', 'asya', 'putin',
-        'biden', 'trump', 'gazze', 'ukrayna'],
-    'kultur': ['/kultur', 'kültür', 'sergi', 'müzik', 'sinema'],
-    'sanat': ['sanat', '/sanat', 'tiyatro', 'opera'],
-    'egitim': ['eğitim', '/egitim', 'okul', 'üniversite', 'meb '],
-    'yasam': ['yaşam', '/yasam', 'magazin', '/magazin'],
-    'seyahat': ['seyahat', '/seyahat', 'turizm', '/turizm', 'tatil'],
-    'gundem': [' gündem', '/gundem', 'son dakika', 'cumhurbaşkan'],
-  };
-
-  String? _mapCategoryName(String name) {
-    final n = name
-        .toLowerCase()
-        .replaceAll('ı', 'i')
-        .replaceAll('ş', 's')
-        .replaceAll('ç', 'c')
-        .replaceAll('ö', 'o')
-        .replaceAll('ü', 'u')
-        .replaceAll('ğ', 'g')
-        .trim();
-    if (n.isEmpty) return null;
-    if (n.contains('gundem') || n.contains('turkiye')) return 'gundem';
-    if (n.contains('spor')) return 'spor';
-    if (n.contains('ekonomi') || n.contains('finans') || n.contains('borsa')) {
-      return 'ekonomi';
-    }
-    if (n.contains('teknoloji')) return 'teknoloji';
-    if (n.contains('bilim')) return 'bilim';
-    if (n.contains('saglik')) return 'saglik';
-    if (n.contains('dunya')) return 'dunya';
-    if (n.contains('kultur')) return 'kultur';
-    if (n.contains('sanat')) return 'sanat';
-    if (n.contains('egitim')) return 'egitim';
-    if (n.contains('yasam') || n.contains('magazin') || n.contains('hayat')) {
-      return 'yasam';
-    }
-    if (n.contains('turizm') || n.contains('seyahat')) return 'seyahat';
-    return null;
-  }
+  }) =>
+      _classifier.classify(
+        explicit: explicit,
+        title: title,
+        // Sınıflandırıcı HTML'siz metin bekliyor; img/alt etiketleri
+        // anahtar kelime sayılmasın.
+        summary: _stripHtml(summary),
+        rssCategories: categoryNodes.map((c) => c.innerText.trim()),
+        url: sourceUrl,
+      );
 
   String _stripHtml(String html) {
     if (html.isEmpty) return '';
