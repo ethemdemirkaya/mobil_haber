@@ -174,6 +174,20 @@ class AiSettingsProvider extends ChangeNotifier {
   /// OpenRouter'ın ücretsiz katmandan kaldırdığı (404 dönen) modeller.
   /// Kullanıcı bunlardan birini kaydetmişse açılışta varsayılana taşınır;
   /// aksi hâlde tüm AI özellikleri sessizce çalışmaz.
+  /// Ücretsiz bir model 404/429/5xx verdiğinde sırayla denenecek diğer
+  /// ücretsiz modeller (Ekim 2026'da OpenRouter'da doğrulandı).
+  static const List<String> _freeFallbackModels = [
+    'nvidia/nemotron-3-super-120b-a12b:free',
+    'google/gemma-4-31b-it:free',
+    'google/gemma-4-26b-a4b-it:free',
+    'nvidia/nemotron-3.5-lightning:free',
+  ];
+
+  /// Seçili model ücretsizse yedek zinciri; kullanıcı ücretli bir model
+  /// seçtiyse sessizce başka modele geçilmez.
+  List<String> get _fallbackModels =>
+      _modelId.endsWith(':free') ? _freeFallbackModels : const [];
+
   static const Set<String> _retiredModelIds = {
     'openai/gpt-oss-20b:free',
     'google/gemini-2.0-flash-exp:free',
@@ -604,6 +618,7 @@ class AiSettingsProvider extends ChangeNotifier {
         sourceText: text,
         apiKey: effectiveApiKey,
         model: _modelId,
+        fallbackModels: _fallbackModels,
       );
       _cache[article.id] = result;
       await _persistSummary(article.id, result);
@@ -664,6 +679,7 @@ class AiSettingsProvider extends ChangeNotifier {
     return _service.generate(
       apiKey: effectiveApiKey,
       model: _modelId,
+      fallbackModels: _fallbackModels,
       systemPrompt: systemPrompt,
       userPrompt: userPrompt,
       maxTokens: maxTokens,
@@ -697,6 +713,7 @@ class AiSettingsProvider extends ChangeNotifier {
       final raw = await _service.generate(
         apiKey: effectiveApiKey,
         model: _modelId,
+        fallbackModels: _fallbackModels,
         systemPrompt: _biasSystemPrompt,
         userPrompt: _composeBiasUserPrompt(article, body),
         maxTokens: 400,
@@ -846,6 +863,7 @@ Yalnızca JSON döndür.
       final raw = await _service.generate(
         apiKey: effectiveApiKey,
         model: _modelId,
+        fallbackModels: _fallbackModels,
         systemPrompt: _qaSystemPrompt,
         userPrompt: '''
 HABER BAŞLIK: ${article.title}

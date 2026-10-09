@@ -58,6 +58,12 @@ class OpenRouterClient {
   /// [apiKey] runtime'da kullanıcı tarafından girilir; bu sınıf onu hiçbir
   /// yerde saklamaz (provider/preferences katmanı saklar). [model] OpenRouter
   /// formatında olmalıdır (ör. `anthropic/claude-3.5-haiku`).
+  ///
+  /// [fallbackModels] verilirse, [model] geçici ya da modele özgü bir hatayla
+  /// (kaldırılmış model 404, kota 429, sağlayıcı 5xx, zaman aşımı, boş yanıt)
+  /// başarısız olduğunda sıradaki model denenir. Ücretsiz modeller sık
+  /// kaldırılıp kotası dolduğu için gerekli; anahtar hatası (401/402) gibi
+  /// her modelde tekrarlanacak hatalarda hemen durulur.
   Future<String> chat({
     required String apiKey,
     required String model,
@@ -66,13 +72,53 @@ class OpenRouterClient {
     int maxTokens = 600,
     double temperature = 0.3,
     Duration? timeout,
+    List<String> fallbackModels = const [],
   }) async {
     if (apiKey.isEmpty) {
       throw const OpenRouterException(
         'API anahtarı boş — Ayarlar > Yapay Zeka\'dan girin.',
       );
     }
+    final chain = [model, ...fallbackModels.where((m) => m != model)];
+    OpenRouterException? lastError;
+    for (final m in chain) {
+      try {
+        return await _chatOnce(
+          apiKey: apiKey,
+          model: m,
+          systemPrompt: systemPrompt,
+          userPrompt: userPrompt,
+          maxTokens: maxTokens,
+          temperature: temperature,
+          timeout: timeout ?? _defaultTimeout,
+        );
+      } on OpenRouterException catch (e) {
+        if (!_shouldTryNextModel(e)) rethrow;
+        lastError = e;
+      } on TimeoutException {
+        lastError = OpenRouterException('$m yanıt vermedi (zaman aşımı).');
+      }
+    }
+    throw lastError!;
+  }
 
+  /// Başka bir modelde düzelebilecek hatalar. `statusCode` null olanlar
+  /// yanıt biçimi/boş içerik hatalarıdır — modele özgüdür.
+  static bool _shouldTryNextModel(OpenRouterException e) {
+    final code = e.statusCode;
+    return code == null ||
+        const {404, 408, 429, 500, 502, 503, 504}.contains(code);
+  }
+
+  Future<String> _chatOnce({
+    required String apiKey,
+    required String model,
+    required String systemPrompt,
+    required String userPrompt,
+    required int maxTokens,
+    required double temperature,
+    required Duration timeout,
+  }) async {
     final response = await _client
         .post(
           Uri.parse('$_baseUrl/chat/completions'),
@@ -95,10 +141,16 @@ class OpenRouterClient {
             'temperature': temperature,
           }),
         )
-        .timeout(timeout ?? _defaultTimeout);
+        .timeout(timeout);
 
-    final body = utf8.decode(response.bodyBytes);
-    final decoded = body.isEmpty ? null : jsonDecode(body);
+    final body = utf8.decode(response.bodyBytes, allowMalformed: true);
+    Object? decoded;
+    try {
+      decoded = body.isEmpty ? null : jsonDecode(body);
+    } on FormatException {
+      // Ağ geçidi HTML hata sayfası döndürmüş olabilir.
+      decoded = null;
+    }
 
     if (response.statusCode != 200) {
       throw OpenRouterException(
