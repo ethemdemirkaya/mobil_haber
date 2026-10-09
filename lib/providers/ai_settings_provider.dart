@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/ai/openrouter_client.dart';
+import '../data/local/ai_cache_store.dart';
 import '../data/models/article.dart';
 import '../data/models/bias_report.dart';
 import '../data/repositories/ai_summary_service.dart';
@@ -129,7 +130,8 @@ extension AiModelTierLabel on AiModelTier {
 ///   - `pref_ai_enabled` (bool)
 ///   - `pref_ai_api_key`  (String — kullanıcı kendi kişisel cihazında saklar)
 ///   - `pref_ai_model`    (String — OpenRouter model id)
-///   - `pref_ai_cache`    (`Map<String, String>` — articleId → özet)
+///   - özet ve bias cache'leri SQLite `ai_cache` tablosunda (AiCacheStore —
+///     tür başına 300 kayıt, 30 gün)
 ///
 /// **Güvenlik notu:** API anahtarı cihazın SharedPreferences'ında
 /// düz metin saklanır. Production sürümde Keychain/Keystore (örn.
@@ -138,13 +140,16 @@ class AiSettingsProvider extends ChangeNotifier {
   AiSettingsProvider({
     AiSummaryService? service,
     OpenRouterModelsRepository? modelsRepo,
+    AiCacheStore aiCache = const AiCacheStore(),
   })  : _service = service ?? AiSummaryService(),
-        _modelsRepo = modelsRepo ?? OpenRouterModelsRepository() {
+        _modelsRepo = modelsRepo ?? OpenRouterModelsRepository(),
+        _aiCache = aiCache {
     _load();
   }
 
   final AiSummaryService _service;
   final OpenRouterModelsRepository _modelsRepo;
+  final AiCacheStore _aiCache;
 
   // Live OpenRouter model listesi
   List<OpenRouterModel> _availableModels = const [];
@@ -478,37 +483,7 @@ class AiSettingsProvider extends ChangeNotifier {
 
     _firstRunNoticeShown = prefs.getBool(_prefsFirstRunNotice) ?? false;
 
-    final raw = prefs.getString(_prefsCache);
-    if (raw != null && raw.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(raw);
-        if (decoded is Map) {
-          _cache.clear();
-          decoded.forEach((k, v) {
-            if (k is String && v is String) _cache[k] = v;
-          });
-        }
-      } catch (_) {
-        // Bozuk cache: yok say.
-      }
-    }
-    final biasRaw = prefs.getString(_prefsBiasCache);
-    if (biasRaw != null && biasRaw.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(biasRaw);
-        if (decoded is Map) {
-          _biasCache.clear();
-          decoded.forEach((k, v) {
-            if (k is String) {
-              final report = BiasReport.tryParse(v);
-              if (report != null) _biasCache[k] = report;
-            }
-          });
-        }
-      } catch (_) {
-        // Bozuk cache: yok say.
-      }
-    }
+    await _loadAiCaches(prefs);
     _initialized = true;
     if (!_initCompleter.isCompleted) _initCompleter.complete();
     notifyListeners();
@@ -644,16 +619,74 @@ class AiSettingsProvider extends ChangeNotifier {
     await prefs.setBool(_prefsFirstRunNotice, true);
   }
 
-  Future<void> _persistCache() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefsCache, jsonEncode(_cache));
+  /// Özet ve bias cache'lerini SQLite'tan yükler. Eski sürümün
+  /// SharedPreferences'taki JSON blob'larını bir kez taşıyıp siler.
+  Future<void> _loadAiCaches(SharedPreferences prefs) async {
+    try {
+      final legacySummaries = _decodeLegacyMap(prefs.getString(_prefsCache));
+      if (legacySummaries.isNotEmpty) {
+        await _aiCache.putAll(AiCacheStore.kindSummary, {
+          for (final e in legacySummaries.entries)
+            if (e.value is String) e.key: e.value as String,
+        });
+      }
+      final legacyBias = _decodeLegacyMap(prefs.getString(_prefsBiasCache));
+      if (legacyBias.isNotEmpty) {
+        await _aiCache.putAll(AiCacheStore.kindBias, {
+          for (final e in legacyBias.entries) e.key: jsonEncode(e.value),
+        });
+      }
+      await prefs.remove(_prefsCache);
+      await prefs.remove(_prefsBiasCache);
+
+      _cache
+        ..clear()
+        ..addAll(await _aiCache.load(AiCacheStore.kindSummary));
+      _biasCache.clear();
+      (await _aiCache.load(AiCacheStore.kindBias)).forEach((k, v) {
+        try {
+          final report = BiasReport.tryParse(jsonDecode(v));
+          if (report != null) _biasCache[k] = report;
+        } on FormatException {
+          // Bozuk kayıt: yok say.
+        }
+      });
+    } catch (e) {
+      debugPrint('[Pusula][AiCache] yükleme hatası: $e');
+    }
   }
 
-  Future<void> _persistBiasCache() async {
-    final prefs = await SharedPreferences.getInstance();
-    final m = <String, Object?>{};
-    _biasCache.forEach((k, v) => m[k] = v.toJson());
-    await prefs.setString(_prefsBiasCache, jsonEncode(m));
+  static Map<String, Object?> _decodeLegacyMap(String? raw) {
+    if (raw == null || raw.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        return {
+          for (final e in decoded.entries)
+            if (e.key is String) e.key as String: e.value,
+        };
+      }
+    } catch (_) {
+      // Bozuk cache: yok say.
+    }
+    return const {};
+  }
+
+  Future<void> _persistSummary(String articleId, String summary) async {
+    try {
+      await _aiCache.put(AiCacheStore.kindSummary, articleId, summary);
+    } catch (e) {
+      debugPrint('[Pusula][AiCache] yazma hatası: $e');
+    }
+  }
+
+  Future<void> _persistBias(String articleId, BiasReport report) async {
+    try {
+      await _aiCache.put(
+          AiCacheStore.kindBias, articleId, jsonEncode(report.toJson()));
+    } catch (e) {
+      debugPrint('[Pusula][AiCache] yazma hatası: $e');
+    }
   }
 
   // ─────────── Setters ───────────
@@ -702,8 +735,7 @@ class AiSettingsProvider extends ChangeNotifier {
     if (_cache.isEmpty) return;
     _cache.clear();
     notifyListeners();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_prefsCache);
+    await _aiCache.clear(AiCacheStore.kindSummary);
   }
 
   // ─────────── Actions ───────────
@@ -732,7 +764,7 @@ class AiSettingsProvider extends ChangeNotifier {
         model: _modelId,
       );
       _cache[article.id] = result;
-      await _persistCache();
+      await _persistSummary(article.id, result);
     } on OpenRouterException catch (e) {
       _lastError = e.message;
     } catch (e) {
@@ -772,7 +804,7 @@ class AiSettingsProvider extends ChangeNotifier {
     if (!_cache.containsKey(articleId)) return;
     _cache.remove(articleId);
     notifyListeners();
-    await _persistCache();
+    await _aiCache.remove(AiCacheStore.kindSummary, articleId);
   }
 
   /// Sesli brifing gibi serbest bir prompt ile model çağırma. UI'nın özel
@@ -830,7 +862,7 @@ class AiSettingsProvider extends ChangeNotifier {
       } else {
         _biasCache[article.id] = report;
         // ignore: unawaited_futures
-        _persistBiasCache();
+        _persistBias(article.id, report);
       }
       return report;
     } on OpenRouterException catch (e) {

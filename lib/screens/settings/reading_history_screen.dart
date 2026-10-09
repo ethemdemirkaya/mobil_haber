@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../data/models/article.dart';
 import '../../providers/news_provider.dart';
 import '../../providers/reading_history_provider.dart';
 import '../../widgets/article_card.dart';
@@ -17,10 +16,8 @@ class ReadingHistoryScreen extends StatelessWidget {
     final history = context.watch<ReadingHistoryProvider>();
     final news = context.watch<NewsProvider>();
 
-    final items = history.ids
-        .map(news.byId)
-        .whereType<Article>()
-        .toList(growable: false);
+    // Snapshot'lı kayıtlar haber akıştan düşse de görünür.
+    final items = history.articles(lookup: news.byId);
 
     return Scaffold(
       appBar: AppBar(

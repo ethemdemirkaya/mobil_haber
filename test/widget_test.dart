@@ -1,10 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'package:pusula_news/data/local/local_db.dart';
 import 'package:pusula_news/app.dart';
 
 void main() {
-  setUp(() {
+  sqfliteFfiInit();
+
+  setUp(() async {
+    await LocalDb.useInMemoryForTests(databaseFactoryFfi);
     // Splash, OnboardingProvider ve PreferencesProvider SharedPreferences'tan
     // veri okuyor; mock initial values vermezsek `getInstance` hiç dönmez ve
     // splash'taki `initialized` polling sonsuza kadar tıklar.

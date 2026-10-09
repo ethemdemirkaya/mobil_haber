@@ -180,39 +180,7 @@ class BookmarkProvider extends ChangeNotifier {
   }
 
   // ─── JSON serialization ───
-  Map<String, dynamic> _articleToJson(Article a) => {
-        'id': a.id,
-        'title': a.title,
-        'summary': a.summary,
-        'content': a.content,
-        'categoryId': a.categoryId,
-        'imageUrl': a.imageUrl,
-        'author': a.author,
-        'publishedAt': a.publishedAt.toIso8601String(),
-        'readMinutes': a.readMinutes,
-        'isFeatured': a.isFeatured,
-        'sourceUrl': a.sourceUrl,
-        'sourceName': a.sourceName,
-      };
+  Map<String, dynamic> _articleToJson(Article a) => a.toJson();
 
-  Article? _articleFromJson(Map<String, dynamic> m) {
-    final id = m['id']?.toString();
-    if (id == null || id.isEmpty) return null;
-    return Article(
-      id: id,
-      title: m['title']?.toString() ?? '',
-      summary: m['summary']?.toString() ?? '',
-      content: m['content']?.toString() ?? '',
-      categoryId: m['categoryId']?.toString() ?? 'gundem',
-      imageUrl: m['imageUrl']?.toString() ?? '',
-      author: m['author']?.toString() ?? 'Anonim',
-      publishedAt:
-          DateTime.tryParse(m['publishedAt']?.toString() ?? '') ??
-              DateTime.now(),
-      readMinutes: (m['readMinutes'] as num?)?.toInt() ?? 1,
-      isFeatured: m['isFeatured'] == true,
-      sourceUrl: m['sourceUrl']?.toString() ?? '',
-      sourceName: m['sourceName']?.toString() ?? '',
-    );
-  }
+  Article? _articleFromJson(Map<String, dynamic> m) => Article.tryFromJson(m);
 }

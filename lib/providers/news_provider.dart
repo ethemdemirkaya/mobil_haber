@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/local/article_cache_store.dart';
 import '../data/models/article.dart';
 import '../data/models/category.dart';
 import '../data/models/news_source.dart';
@@ -13,20 +14,24 @@ import '../data/repositories/rss_news_service.dart';
 ///
 /// Veri katmanı (öncelik sırası):
 ///   1. **Live RSS** — `RssNewsService.aggregate()` ile paralel çekim
-///   2. **Disk cache** — son başarılı çekim SharedPreferences'a yazılır;
+///   2. **Disk cache** — son başarılı çekim SQLite'a yazılır;
 ///      offline veya tüm kaynaklar erişilemez olduğunda buradan okunur
 ///
 /// Disk cache de yoksa liste boş kalır ve [unavailable] true olur — haber
 /// uygulamasında örnek/uydurma veri göstermek kullanıcıyı yanıltır.
 class NewsProvider extends ChangeNotifier {
-  NewsProvider({RssNewsService? rssService})
-      : _rss = rssService ?? RssNewsService() {
+  NewsProvider({
+    RssNewsService? rssService,
+    ArticleCacheStore cacheStore = const ArticleCacheStore(),
+  })  : _rss = rssService ?? RssNewsService(),
+        _cacheStore = cacheStore {
     // Konstruktörde async'i tetikleyemeyiz ama disk cache'i hızlıca
     // yükleyip gösterirsek splash sırasında bile bir şey görünür.
     _restoreFromCache();
   }
 
   final RssNewsService _rss;
+  final ArticleCacheStore _cacheStore;
   final NewsClusterService _clusterer = const NewsClusterService();
 
   bool _loading = true;
@@ -69,10 +74,10 @@ class NewsProvider extends ChangeNotifier {
   List<NewsSource> _activeSources = const [];
   List<NewsSource> _lastSourceList = const [];
 
-  // ─── Disk cache anahtarları ───
-  static const String _prefsCacheData = 'pref_news_cache_articles';
-  static const String _prefsCacheAt = 'pref_news_cache_at';
-  static const String _prefsCacheSources = 'pref_news_cache_sources';
+  // ─── Eski (SharedPreferences) cache anahtarları — tek seferlik taşıma ───
+  static const String _legacyPrefsData = 'pref_news_cache_articles';
+  static const String _legacyPrefsAt = 'pref_news_cache_at';
+  static const String _legacyPrefsSources = 'pref_news_cache_sources';
 
   // Public getters
   bool get loading => _loading;
@@ -279,35 +284,13 @@ class NewsProvider extends ChangeNotifier {
     }
   }
 
-  // ─── Disk cache (SharedPreferences, JSON serialization) ───
+  // ─── Disk cache (SQLite) ───
   Future<void> _writeCache(
       List<Article> articles, List<NewsSource> sources) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final list = articles
-          .map((a) => {
-                'id': a.id,
-                'title': a.title,
-                'summary': a.summary,
-                'content': a.content,
-                'categoryId': a.categoryId,
-                'imageUrl': a.imageUrl,
-                'author': a.author,
-                'publishedAt': a.publishedAt.toIso8601String(),
-                'readMinutes': a.readMinutes,
-                'isFeatured': a.isFeatured,
-                'sourceUrl': a.sourceUrl,
-                'sourceName': a.sourceName,
-              })
-          .toList(growable: false);
-      await prefs.setString(_prefsCacheData, jsonEncode(list));
-      await prefs.setString(
-        _prefsCacheAt,
-        DateTime.now().toIso8601String(),
-      );
-      await prefs.setStringList(
-        _prefsCacheSources,
-        sources.map((s) => s.id).toList(),
+      await _cacheStore.replaceAll(
+        articles,
+        sourceIds: sources.map((s) => s.id).toList(growable: false),
       );
     } catch (e) {
       debugPrint('[Pusula][NewsCache] yazma hatası: $e');
@@ -316,38 +299,43 @@ class NewsProvider extends ChangeNotifier {
 
   Future<List<Article>> _readCache() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_prefsCacheData);
-      if (raw == null || raw.isEmpty) return const [];
-      final decoded = jsonDecode(raw);
-      if (decoded is! List) return const [];
-      final cachedAt = prefs.getString(_prefsCacheAt);
-      if (cachedAt != null) {
-        _lastFetchAt = DateTime.tryParse(cachedAt);
-      }
-      return decoded
-          .whereType<Map>()
-          .map((m) => Article(
-                id: m['id']?.toString() ?? '',
-                title: m['title']?.toString() ?? '',
-                summary: m['summary']?.toString() ?? '',
-                content: m['content']?.toString() ?? '',
-                categoryId: m['categoryId']?.toString() ?? 'gundem',
-                imageUrl: m['imageUrl']?.toString() ?? '',
-                author: m['author']?.toString() ?? 'Anonim',
-                publishedAt: DateTime.tryParse(
-                        m['publishedAt']?.toString() ?? '') ??
-                    DateTime.now(),
-                readMinutes: (m['readMinutes'] as num?)?.toInt() ?? 1,
-                isFeatured: m['isFeatured'] == true,
-                sourceUrl: m['sourceUrl']?.toString() ?? '',
-                sourceName: m['sourceName']?.toString() ?? '',
-              ))
-          .toList(growable: false);
+      await _migrateLegacyCache();
+      final cached = await _cacheStore.read();
+      if (cached.cachedAt != null) _lastFetchAt = cached.cachedAt;
+      return cached.articles;
     } catch (e) {
       debugPrint('[Pusula][NewsCache] okuma hatası: $e');
       return const [];
     }
+  }
+
+  bool _legacyChecked = false;
+
+  /// Eski sürüm haber cache'ini SharedPreferences'tan SQLite'a bir kez
+  /// taşır ve eski anahtarları siler.
+  Future<void> _migrateLegacyCache() async {
+    if (_legacyChecked) return;
+    _legacyChecked = true;
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_legacyPrefsData);
+    if (raw == null) return;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List && await _cacheStore.isEmpty) {
+        final articles =
+            decoded.map(Article.tryFromJson).whereType<Article>().toList();
+        await _cacheStore.replaceAll(
+          articles,
+          sourceIds: prefs.getStringList(_legacyPrefsSources) ?? const [],
+          at: DateTime.tryParse(prefs.getString(_legacyPrefsAt) ?? ''),
+        );
+      }
+    } catch (e) {
+      debugPrint('[Pusula][NewsCache] eski cache taşınamadı: $e');
+    }
+    await prefs.remove(_legacyPrefsData);
+    await prefs.remove(_legacyPrefsAt);
+    await prefs.remove(_legacyPrefsSources);
   }
 
   /// Konstruktör çağrısı sırasında — splash hızla bir şey gösterirken
@@ -369,10 +357,7 @@ class NewsProvider extends ChangeNotifier {
 
   Future<void> clearCache() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_prefsCacheData);
-      await prefs.remove(_prefsCacheAt);
-      await prefs.remove(_prefsCacheSources);
+      await _cacheStore.clear();
     } catch (e) {
       debugPrint('[Pusula][NewsCache] temizlik hatası: $e');
     }

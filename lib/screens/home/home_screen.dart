@@ -199,11 +199,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final trending = news.trending(take: 6);
 
     final history = context.watch<ReadingHistoryProvider>();
-    final continueReading = history.ids
-        .map(news.byId)
-        .whereType<Article>()
-        .take(8)
-        .toList(growable: false);
+    final continueReading =
+        history.articles(lookup: news.byId).take(8).toList(growable: false);
 
     return Scaffold(
       body: SafeArea(
