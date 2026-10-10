@@ -25,8 +25,11 @@ foreach ($entry in $catalog.images) {
     Export-Size $master (Join-Path $iconDir $entry.filename) $size
 }
 $launchDir = Join-Path $projectRoot 'ios/Runner/Assets.xcassets/LaunchImage.imageset'
-$launch = Join-Path $projectRoot 'docs/design/screenshots/launch-mark.png'
-Export-Size $launch (Join-Path $launchDir 'LaunchImage.png') 80
-Export-Size $launch (Join-Path $launchDir 'LaunchImage@2x.png') 160
-Export-Size $launch (Join-Path $launchDir 'LaunchImage@3x.png') 240
-Write-Output 'Android and iOS launcher assets packaged from the Flutter mark.'
+$launch = Join-Path $projectRoot 'docs/design/screenshots/native-launch-mascot.png'
+Export-Size $launch (Join-Path $launchDir 'LaunchImage.png') 288
+Export-Size $launch (Join-Path $launchDir 'LaunchImage@2x.png') 576
+Export-Size $launch (Join-Path $launchDir 'LaunchImage@3x.png') 864
+$nativeDir = Join-Path $projectRoot 'android/app/src/main/res/drawable-nodpi'
+New-Item -ItemType Directory -Path $nativeDir -Force | Out-Null
+Copy-Item -LiteralPath $launch -Destination (Join-Path $nativeDir 'pusula_launch_mascot.png') -Force
+Write-Output 'Launcher icons and mascot launch assets packaged for Android and iOS.'
