@@ -6,6 +6,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/ai_settings_provider.dart';
 import '../../providers/bookmark_provider.dart';
+import '../../providers/keyword_filter_provider.dart';
 import '../../providers/reading_history_provider.dart';
 import '../../providers/reading_theme_provider.dart';
 import '../../providers/search_provider.dart';
@@ -46,7 +47,7 @@ class SettingsScreen extends StatelessWidget {
           _NavTile(
             icon: AppIcons.broadcast,
             title: 'Canlı Haberler',
-            subtitle: 'AA, TRT, NTV, Sözcü, BBC, Hacker News + dış API\'ler',
+            subtitle: 'Bir kaynağın son haberlerine tek tek göz at',
             page: LiveNewsScreen(),
           ),
           _Divider(),
@@ -57,12 +58,7 @@ class SettingsScreen extends StatelessWidget {
             page: SourcePreferencesScreen(),
           ),
           _Divider(),
-          _NavTile(
-            icon: AppIcons.hash,
-            title: 'Anahtar Kelime Filtreleri',
-            subtitle: 'İlgi alanların: Galatasaray, Bitcoin, FED…',
-            page: KeywordFiltersScreen(),
-          ),
+          _KeywordFiltersNavTile(),
           _Divider(),
           _AiSettingsNavTile(),
           _Divider(),
@@ -468,4 +464,25 @@ void _snack(BuildContext context, String message) {
     ..showSnackBar(
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
+}
+
+/// Anahtar kelime satırı kullanıcının gerçek kelimelerini gösterir
+/// (eskiden sabit "Galatasaray, Bitcoin, FED…" örneği yazıyordu).
+class _KeywordFiltersNavTile extends StatelessWidget {
+  const _KeywordFiltersNavTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final keywords = context.watch<KeywordFilterProvider>().keywords;
+    final subtitle = keywords.isEmpty
+        ? 'İlgilendiğin kelimeleri ekle, eşleşen haberler öne çıksın'
+        : 'İlgi alanların: ${keywords.take(3).join(', ')}'
+            '${keywords.length > 3 ? '…' : ''}';
+    return _NavTile(
+      icon: AppIcons.hash,
+      title: 'Anahtar Kelime Filtreleri',
+      subtitle: subtitle,
+      page: const KeywordFiltersScreen(),
+    );
+  }
 }
