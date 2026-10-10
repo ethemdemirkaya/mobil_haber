@@ -82,51 +82,105 @@ class _OriginalLinkCta extends StatelessWidget {
   }
 }
 
-class _AskAiCta extends StatelessWidget {
-  const _AskAiCta({required this.article, required this.accent});
+/// One reading aid section, with no competing promotional cards.
+class _ArticleHelpSection extends StatelessWidget {
+  const _ArticleHelpSection({
+    required this.article,
+    required this.isSepia,
+    required this.sepiaText,
+  });
   final Article article;
-  final Color accent;
+  final bool isSepia;
+  final Color sepiaText;
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
-    return Material(
-      color: cs.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: cs.outlineVariant),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          ArticleQaSheet.show(context, article);
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(14),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 16),
+        const Divider(height: 1),
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            Expanded(
+              child: Semantics(
+                header: true,
+                child: Text(
+                  'Okuma yardımı',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontSize: 24, height: 1.25),
+                ),
+              ),
+            ),
+            if (MediaQuery.textScalerOf(context).scale(16) <= 24) ...[
+              const SizedBox(width: 12),
+              const PusulaMascot(pose: MascotPose.curious, size: 52),
+            ],
+          ],
+        ),
+        const SizedBox(height: 20),
+        _AiSummarySection(
+          article: article,
+          isSepia: isSepia,
+          sepiaText: sepiaText,
+        ),
+        const Divider(height: 1),
+        TextButton(
+          onPressed: () {
+            HapticFeedback.selectionClick();
+            ArticleQaSheet.show(context, article);
+          },
+          style: TextButton.styleFrom(
+            foregroundColor: cs.onSurface,
+            minimumSize: const Size(0, 64),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
+          ),
           child: Row(
             children: [
-              const PusulaMascot(pose: MascotPose.curious, size: 58),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Bu haber hakkında sor', style: text.titleSmall),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Arka planını ve neden önemli olduğunu keşfet.',
-                      style: text.bodySmall?.copyWith(height: 1.4),
-                    ),
-                  ],
+              Icon(
+                AppIcons.messageQuestion,
+                size: 24,
+                color: cs.onSurfaceVariant,
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Text(
+                  'Bu haber hakkında soru sor',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
-              Icon(AppIcons.chevronRight, size: 20, color: cs.onSurfaceVariant),
+              Icon(AppIcons.chevronRight, size: 22, color: cs.onSurfaceVariant),
             ],
           ),
         ),
-      ),
+        const Divider(height: 1),
+        Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            key: ValueKey('language-help-${article.id}'),
+            tilePadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            childrenPadding: const EdgeInsets.only(top: 8, bottom: 16),
+            leading: Icon(AppIcons.scale, size: 24, color: cs.onSurfaceVariant),
+            title: const Text(
+              'Haberin dilini incele',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+                height: 1.4,
+              ),
+            ),
+            children: [BiasIndicator(article: article, embedded: true)],
+          ),
+        ),
+        const Divider(height: 1),
+      ],
     );
   }
 }

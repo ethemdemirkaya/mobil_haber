@@ -37,214 +37,139 @@ class _AiSummarySectionState extends State<_AiSummarySection> {
     final cs = Theme.of(context).colorScheme;
 
     if (!ai.isReady()) {
-      return _DisabledHint(
-        reason: !ai.enabled
-            ? 'Yapay zeka özetleri kapalı.'
-            : 'API anahtarı veya model eksik.',
+      return const _DisabledHint(
+        reason: 'Dinleme ve özet için yapay zekayı ayarlardan açabilirsiniz.',
       );
     }
-
     final cached = ai.cachedSummary(widget.article.id);
     final loading = ai.loadingArticleId == widget.article.id;
-
-    if (cached == null) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (ai.lastError != null && !loading)
-            Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: cs.errorContainer.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    AppIcons.alertCircle,
-                    size: 16,
-                    color: cs.onErrorContainer,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      ai.lastError!,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: cs.onErrorContainer,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          // ── Sesli Özetle — birincil aksiyon ──────────────────────────
-          ArticleAudioSummaryButton(
-            article: widget.article,
-            large: true,
-            expand: true,
-            readAlongNotifier: _readAlongNotifier,
-          ),
-          const SizedBox(height: 10),
-          Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: loading
-                  ? null
-                  : () {
-                      HapticFeedback.selectionClick();
-                      context.read<AiSettingsProvider>().summarize(
-                        widget.article,
-                      );
-                    },
-              child: AnimatedOpacity(
-                opacity: loading ? 0.55 : 1.0,
-                duration: const Duration(milliseconds: 200),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 13,
-                    horizontal: 18,
-                  ),
-                  decoration: BoxDecoration(
-                    color: cs.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: cs.outlineVariant.withValues(alpha: 0.7),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (loading)
-                        SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: cs.primary,
-                          ),
-                        )
-                      else
-                        Icon(
-                          AppIcons.sparkles,
-                          size: 15,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          loading ? 'Özet üretiliyor…' : 'Metin özeti oluştur',
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            color: cs.onSurface,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
-    // ── Özet mevcut — metin kartı + sesli dinle butonu ──────────────────
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: cs.primary.withValues(alpha: 0.25),
-              width: 1,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(AppIcons.sparkles, size: 16, color: cs.primary),
-                  const SizedBox(width: 6),
-                  Text(
-                    'YAPAY ZEKA ÖZETİ',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                      color: cs.primary,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    ai.currentModelLabel,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: ai.isLoadingFor(widget.article.id)
-                        ? null
-                        : () async {
-                            HapticFeedback.selectionClick();
-                            final aiRef = context.read<AiSettingsProvider>();
-                            await aiRef.invalidate(widget.article.id);
-                            if (!context.mounted) return;
-                            await aiRef.summarize(widget.article);
-                          },
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: ai.isLoadingFor(widget.article.id)
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(AppIcons.refresh, size: 16),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              // ── Sesli okuma sırasında aktif satır vurgulanır ──────────
-              ValueListenableBuilder<ReadAlongState>(
-                valueListenable: _readAlongNotifier,
-                builder: (context, state, _) => _ReadAlongText(
-                  text: cached,
-                  readAlongState: state,
-                  baseStyle: TextStyle(
-                    color: widget.isSepia ? widget.sepiaText : cs.onSurface,
-                    fontSize: 14,
-                    height: 1.55,
-                    fontFamily: widget.isSepia ? 'serif' : null,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        // ── Sesli dinle — özet üretildikten sonra hemen kullanılabilir ──
         ArticleAudioSummaryButton(
           article: widget.article,
           large: true,
           expand: true,
           readAlongNotifier: _readAlongNotifier,
         ),
+        if (ai.lastError != null && !loading)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Semantics(
+              liveRegion: true,
+              child: Text(
+                ai.lastError!,
+                style: TextStyle(fontSize: 16, color: cs.error, height: 1.5),
+              ),
+            ),
+          ),
+        const SizedBox(height: 8),
+        if (cached == null)
+          TextButton(
+            onPressed: loading
+                ? null
+                : () {
+                    HapticFeedback.selectionClick();
+                    context.read<AiSettingsProvider>().summarize(
+                      widget.article,
+                    );
+                  },
+            style: TextButton.styleFrom(
+              foregroundColor: cs.onSurface,
+              minimumSize: const Size(0, 64),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
+            ),
+            child: Row(
+              children: [
+                Icon(AppIcons.article, size: 24, color: cs.onSurfaceVariant),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    loading ? 'Kısa özet hazırlanıyor…' : 'Kısa özeti oku',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      height: 1.4,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (loading)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  Icon(
+                    AppIcons.chevronRight,
+                    size: 22,
+                    color: cs.onSurfaceVariant,
+                  ),
+              ],
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Kısa özet',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Özeti yeniden hazırla',
+                      onPressed: loading
+                          ? null
+                          : () async {
+                              final aiRef = context.read<AiSettingsProvider>();
+                              await aiRef.invalidate(widget.article.id);
+                              if (!mounted) return;
+                              await aiRef.summarize(widget.article);
+                            },
+                      icon: const Icon(AppIcons.refresh),
+                    ),
+                  ],
+                ),
+                if (loading)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: LinearProgressIndicator(),
+                  ),
+                const SizedBox(height: 8),
+                Semantics(
+                  liveRegion: true,
+                  child: ValueListenableBuilder<ReadAlongState>(
+                    valueListenable: _readAlongNotifier,
+                    builder: (context, state, _) => _ReadAlongText(
+                      text: cached,
+                      readAlongState: state,
+                      baseStyle: TextStyle(
+                        color: widget.isSepia ? widget.sepiaText : cs.onSurface,
+                        fontSize: 18,
+                        height: 1.65,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Yapay zeka özeti · Kaynak metninden hazırlanır.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -316,73 +241,23 @@ class _ReadAlongText extends StatelessWidget {
 class _DisabledHint extends StatelessWidget {
   const _DisabledHint({required this.reason});
   final String reason;
-
   @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => Navigator.of(
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Text(reason, style: const TextStyle(fontSize: 16, height: 1.5)),
+      const SizedBox(height: 12),
+      OutlinedButton.icon(
+        onPressed: () => Navigator.of(
           context,
         ).push(MaterialPageRoute(builder: (_) => const AiSettingsScreen())),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: cs.outlineVariant.withValues(alpha: 0.55),
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: cs.primaryContainer.withValues(alpha: 0.45),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  AppIcons.lock,
-                  size: 18,
-                  color: cs.primary.withValues(alpha: 0.6),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Yapay zeka özetlerini etkinleştir',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13.5,
-                        color: cs.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      reason,
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(AppIcons.chevronRight, color: cs.onSurfaceVariant, size: 20),
-            ],
-          ),
+        style: OutlinedButton.styleFrom(minimumSize: const Size(0, 56)),
+        icon: const Icon(AppIcons.settings),
+        label: const Text(
+          'Yapay zeka ayarlarını aç',
+          style: TextStyle(fontSize: 17),
         ),
       ),
-    );
-  }
+    ],
+  );
 }

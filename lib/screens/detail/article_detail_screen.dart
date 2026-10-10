@@ -487,13 +487,15 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                         children: [
                           Icon(AppIcons.sparkles, size: 16, color: cs.primary),
                           const SizedBox(width: 6),
-                          Text(
-                            'KAYNAKTAN ÖNİZLEME',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.4,
-                              color: cs.primary,
+                          Expanded(
+                            child: Text(
+                              'KAYNAKTAN ÖNİZLEME',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.4,
+                                color: cs.primary,
+                              ),
                             ),
                           ),
                         ],
@@ -540,18 +542,11 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                       const SizedBox(height: 18),
                       // AI özet bölümü — kullanıcı etkinleştirdiyse "Özetle"
                       // butonu, üretilmiş bir özet varsa kart olarak gösterir.
-                      _AiSummarySection(
+                      _ArticleHelpSection(
                         article: article,
                         isSepia: isSepia,
                         sepiaText: sepiaText,
                       ),
-                      const SizedBox(height: 12),
-                      // Yönlülük analizi — manşetin dil tarafsızlığı.
-                      // Margin sıfırla çünkü zaten parent'ta padding var.
-                      BiasIndicator(article: article),
-                      const SizedBox(height: 12),
-                      // Haber asistanı CTA — alt kenarda zarif promo
-                      _AskAiCta(article: article, accent: cs.primary),
                       const SizedBox(height: 18),
                       // CTA artık sticky alt kenarda — burada yalnızca
                       // harici kaynak yoksa bilgi rozeti gösteriliyor.
@@ -590,7 +585,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                                   'butonu kullanın.',
                         style: textTheme.bodySmall?.copyWith(
                           color: cs.onSurfaceVariant,
-                          fontStyle: FontStyle.italic,
+                          fontSize: 14,
+                          height: 1.5,
                         ),
                       ),
                     ],

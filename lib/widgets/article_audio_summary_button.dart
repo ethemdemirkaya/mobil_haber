@@ -414,127 +414,59 @@ class _LargeButton extends StatelessWidget {
     required this.onTap,
     this.expand = false,
   });
-
   final _AudioState state;
   final VoidCallback onTap;
   final bool expand;
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final isLoading = state == _AudioState.loading;
-    final isSpeaking = state == _AudioState.speaking;
-
-    final Color baseColor = isSpeaking
-        ? cs.errorContainer
-        : cs.surfaceContainerLow;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: baseColor,
-        border: Border.all(color: cs.outlineVariant),
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.transparent,
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-            spreadRadius: -2,
-          ),
-        ],
+    final loading = state == _AudioState.loading;
+    final speaking = state == _AudioState.speaking;
+    return FilledButton(
+      onPressed: loading ? null : onTap,
+      style: FilledButton.styleFrom(
+        backgroundColor: cs.onSurface,
+        foregroundColor: cs.surface,
+        minimumSize: const Size(0, 64),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          splashColor: Colors.white.withValues(alpha: 0.15),
-          highlightColor: Colors.white.withValues(alpha: 0.06),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 18, 14),
-            child: Row(
-              mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.10),
-                    shape: BoxShape.circle,
-                  ),
-                  child: isLoading
-                      ? SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: cs.onSurface,
-                          ),
-                        )
-                      : Icon(
-                          isSpeaking
-                              ? AppIcons.playerStop
-                              : AppIcons.headphones,
-                          color: cs.onSurface,
-                          size: 24,
-                        ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        isLoading
-                            ? 'Özet hazırlanıyor…'
-                            : isSpeaking
-                            ? 'Durdur'
-                            : 'Özeti dinle',
-                        style: TextStyle(
-                          color: cs.onSurface,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15.5,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        isLoading
-                            ? 'Yapay zeka özeti hazırlıyor'
-                            : isSpeaking
-                            ? 'Sesli okuma devam ediyor'
-                            : 'Haberin ana noktalarını sesli dinle',
-                        style: TextStyle(
-                          color: cs.onSurfaceVariant,
-                          fontSize: 11.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Icon(
-                  isSpeaking
-                      ? AppIcons.waveSine
-                      : isLoading
-                      ? AppIcons.hourglass
-                      : AppIcons.chevronRight,
-                  color: cs.onSurfaceVariant,
-                  size: 20,
-                ),
-              ],
+      child: Row(
+        mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+        children: [
+          Icon(speaking ? AppIcons.playerStop : AppIcons.headphones, size: 24),
+          const SizedBox(width: 14),
+          Flexible(
+            fit: expand ? FlexFit.tight : FlexFit.loose,
+            child: Text(
+              loading
+                  ? 'Özet hazırlanıyor…'
+                  : speaking
+                  ? 'Sesli okumayı durdur'
+                  : 'Sesli özeti dinle',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                height: 1.35,
+              ),
             ),
           ),
-        ),
+          if (loading) ...[
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: cs.surface,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
 }
-
-// ─── Kompakt buton ────────────────────────────────────────────────────────────
 
 class _CompactButton extends StatelessWidget {
   const _CompactButton({required this.state, required this.onTap});
