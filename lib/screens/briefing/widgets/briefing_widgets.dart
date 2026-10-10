@@ -106,44 +106,111 @@ class _TtsWarningBanner extends StatelessWidget {
   }
 }
 
-class _HighlightedText extends StatelessWidget {
+/// Brifing metni; okunan cümle vurgulanır ve görünür alana kaydırılır.
+class _HighlightedText extends StatefulWidget {
   const _HighlightedText({
     required this.utterances,
     required this.currentIndex,
-    required this.speaking,
+    required this.active,
   });
 
   final List<String> utterances;
   final int currentIndex;
-  final bool speaking;
+
+  /// Çalıyor ya da duraklatılmış — vurgu ikisinde de görünür.
+  final bool active;
+
+  @override
+  State<_HighlightedText> createState() => _HighlightedTextState();
+}
+
+class _HighlightedTextState extends State<_HighlightedText> {
+  double _width = 0;
+
+  TextStyle _baseStyle(BuildContext context) =>
+      Theme.of(context).textTheme.bodyLarge!.copyWith(
+            height: 1.7,
+            fontSize: 20,
+            fontFamily: 'Newsreader',
+          );
+
+  @override
+  void didUpdateWidget(covariant _HighlightedText old) {
+    super.didUpdateWidget(old);
+    if (widget.active &&
+        (widget.currentIndex != old.currentIndex || !old.active)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToCurrent());
+    }
+  }
+
+  /// Okunan cümlenin satırını ekranın üst üçte birine getirir. Eskiden
+  /// metin kaymıyordu; okunan cümle çoğu zaman ekran dışında kalıyordu.
+  void _scrollToCurrent() {
+    if (!mounted || _width <= 0) return;
+    final scrollable = Scrollable.maybeOf(context);
+    final box = context.findRenderObject() as RenderBox?;
+    final scrollBox = scrollable?.context.findRenderObject() as RenderBox?;
+    if (scrollable == null || box == null || scrollBox == null) return;
+
+    var charOffset = 0;
+    for (var i = 0; i < widget.currentIndex; i++) {
+      charOffset += widget.utterances[i].length + 1;
+    }
+    final painter = TextPainter(
+      text: TextSpan(
+        style: _baseStyle(context),
+        text: widget.utterances.map((u) => '$u ').join(),
+      ),
+      textDirection: TextDirection.ltr,
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout(maxWidth: _width);
+    final caret = painter.getOffsetForCaret(
+      TextPosition(offset: charOffset),
+      Rect.zero,
+    );
+    painter.dispose();
+
+    final position = scrollable.position;
+    final lineTop = box.localToGlobal(Offset(0, caret.dy), ancestor: scrollBox);
+    final target = (position.pixels +
+            lineTop.dy -
+            position.viewportDimension * 0.3)
+        .clamp(position.minScrollExtent, position.maxScrollExtent);
+    if ((target - position.pixels).abs() < 8) return;
+    position.animateTo(
+      target,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    return SelectableText.rich(
-      TextSpan(
-        children: [
-          for (var i = 0; i < utterances.length; i++)
-            TextSpan(
-              text: '${utterances[i]} ',
-              style: TextStyle(
-                color: cs.onSurface,
-                backgroundColor: speaking && i == currentIndex
-                    ? cs.primary.withValues(alpha: 0.18)
-                    : null,
-                fontWeight: speaking && i == currentIndex
-                    ? FontWeight.w700
-                    : FontWeight.w400,
-              ),
-            ),
-        ],
-      ),
-      style: textTheme.bodyLarge?.copyWith(
-        height: 1.7,
-        fontSize: 20,
-        fontFamily: 'Newsreader',
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _width = constraints.maxWidth;
+        return SelectableText.rich(
+          TextSpan(
+            children: [
+              for (var i = 0; i < widget.utterances.length; i++)
+                TextSpan(
+                  text: '${widget.utterances[i]} ',
+                  style: TextStyle(
+                    color: cs.onSurface,
+                    backgroundColor: widget.active && i == widget.currentIndex
+                        ? cs.primary.withValues(alpha: 0.18)
+                        : null,
+                    fontWeight: widget.active && i == widget.currentIndex
+                        ? FontWeight.w700
+                        : FontWeight.w400,
+                  ),
+                ),
+            ],
+          ),
+          style: _baseStyle(context),
+        );
+      },
     );
   }
 }

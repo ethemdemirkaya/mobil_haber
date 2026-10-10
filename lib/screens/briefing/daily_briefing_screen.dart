@@ -11,15 +11,13 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/ai/openrouter_client.dart';
-import '../../core/tts/briefing_audio_cache.dart';
 import '../../core/tts/briefing_audio_handler.dart';
+import '../../core/tts/briefing_player.dart';
+import '../../core/tts/tts_engine_factory.dart';
 import '../../data/models/article.dart';
 import '../../data/models/category.dart';
 import '../../data/repositories/daily_briefing_service.dart';
-import '../../data/repositories/edge_tts_service.dart';
-import '../../data/repositories/elevenlabs_tts_service.dart';
 import '../../data/repositories/market_widget_service.dart';
-import '../../data/repositories/openai_tts_service.dart';
 import '../../providers/ai_settings_provider.dart';
 import '../../providers/news_provider.dart';
 import '../../providers/preferences_provider.dart';
@@ -56,17 +54,19 @@ class DailyBriefingScreen extends StatefulWidget {
 class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   final FlutterTts _tts = FlutterTts();
   final DailyBriefingService _service = DailyBriefingService();
-  final OpenAiTtsService _openaiTts = OpenAiTtsService();
-  final ElevenLabsTtsService _elevenLabsTts = ElevenLabsTtsService();
-  final EdgeTtsService _edgeTts = EdgeTtsService();
+  late final TtsEngineFactory _engines =
+      TtsEngineFactory(systemTts: _tts, player: _audioPlayer);
   final MarketWidgetService _marketService = MarketWidgetService();
-  StreamSubscription<void>? _audioCompleteSub;
   StreamSubscription<BriefingLockAction>? _lockActionSub;
   MarketSnapshot? _market;
-  // Aktif OpenAI playback'in completer'ı. Pause/stop bunu manuel olarak
-  // complete eder; aksi halde subscription cancel edilince completer
-  // resolved olmaz ve `await` 3 dk timeout'a kadar asılır.
-  Completer<void>? _openaiPlaybackCompleter;
+
+  /// Cümleleri sırayla çalan oynatıcı — hız, ileri sarma ve duraklatma
+  /// mantığı burada değil, [BriefingPlayer]'da (birim testli).
+  final BriefingPlayer _player = BriefingPlayer();
+
+  /// Oynatıcıya verilen motorun ayar imzası; ayarlar değişince motor
+  /// yeniden kurulur.
+  String? _engineKey;
 
   /// Lock-screen kontrolü için audio_service handler'ı varsa onun
   /// player'ını kullanırız (notification'a state yansır); yoksa local
@@ -85,13 +85,6 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   // TTS state
   bool _ttsReady = false;
   bool _ttsSupported = true; // false → bu platformda hiç çalıştırılamaz
-  bool _speaking = false;
-  bool _paused = false;
-
-  /// Hız çarpanı: 0.75 / 1.0 / 1.25 / 1.5 / 2.0 (1.0 = normal)
-  double _speedMultiplier = 1.0;
-  // Ton ayarı: 0.5 (kalın) — 2.0 (ince), 1.0 = nötr.
-  double _pitch = 1.0;
 
   // ─── Uyku zamanlayıcısı ───
   // Belirlenen sürenin sonunda playback otomatik durur. UI dropdown'unda
@@ -99,14 +92,6 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   Timer? _sleepTimer;
   Duration? _sleepDuration;
   DateTime? _sleepEndsAt;
-
-  // Cümle parçaları + ilerleme.
-  List<String> _utterances = const [];
-  int _utteranceIndex = 0;
-  // Her play/pause/stop eyleminde artar; _playFromIndex bu değeri yakalar.
-  // Eski döngüler nesil uyuşmazlığı görünce erken çıkar — race condition yok.
-  int _playGeneration = 0;
-  Completer<void>? _utteranceCompleter;
 
   // Kategori state + cache (in-memory; ekran kapanınca temizlenir).
   late BriefingTopic _topic;
@@ -129,6 +114,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   void initState() {
     super.initState();
     _topic = const BriefingTopic(); // Genel
+    _player.addListener(_onPlayerChanged);
     _bootstrap();
   }
 
@@ -139,28 +125,34 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     if (!BriefingAudioHandler.isBooted) return;
     _lockActionSub = BriefingAudioHandler.instance.actions.listen((action) {
       if (!mounted) return;
+      // Eskiden ileri/geri önce durdurup (indeks 0) sonra çalıyordu —
+      // kilit ekranındaki "sonraki cümle" başa sarıyordu.
       switch (action) {
         case BriefingLockAction.play:
-          _play();
-          break;
+          _player.play();
         case BriefingLockAction.pause:
-          _pause();
-          break;
+          _player.pause();
         case BriefingLockAction.stop:
-          _stop();
-          break;
+          _player.stop();
         case BriefingLockAction.skipNext:
-          if (_utteranceIndex < _utterances.length - 1) {
-            _utteranceIndex++;
-            _stop().then((_) => _play());
-          }
-          break;
+          _player.skipNext();
         case BriefingLockAction.skipPrev:
-          if (_utteranceIndex > 0) {
-            _utteranceIndex--;
-            _stop().then((_) => _play());
-          }
-          break;
+          _player.skipPrevious();
+      }
+    });
+  }
+
+  /// Oynatıcı durumu değişince ekranı ve (varsa) hata uyarısını güncelle.
+  void _onPlayerChanged() {
+    if (!mounted) return;
+    final err = _player.error;
+    setState(() {
+      if (err is MissingPluginException) {
+        _ttsSupported = false;
+        _ttsWarning = 'Sesli okuma motoru bu cihazda kullanılamıyor. '
+            'Uygulamayı tamamen kapatıp yeniden açın (hot reload yetmez).';
+      } else if (err != null) {
+        _ttsWarning = 'Sesli okuma sırasında hata: $err';
       }
     });
   }
@@ -188,8 +180,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
         _activeEngine == TtsEngineKind.elevenlabs ||
         _activeEngine == TtsEngineKind.edge;
     if (_briefing != null && _briefing!.isNotEmpty && canPlay) {
-      await Future<void>.delayed(const Duration(milliseconds: 300));
-      if (mounted) _play();
+      _ensureEngine();
+      await _player.play();
     }
   }
 
@@ -300,43 +292,17 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
           'Türkçe ses paketini yüklemeyi deneyin.';
     }
 
-    await _safeCall(
-      'setSpeechRate',
-      () async => _tts.setSpeechRate(_speedMultiplier * 0.5),
-    );
-    await _safeCall('setPitch', () async => _tts.setPitch(_pitch));
     await _safeCall('setVolume', () async => _tts.setVolume(1.0));
     await _safeCall(
       'awaitSpeakCompletion',
       () async => _tts.awaitSpeakCompletion(false),
     );
 
-    // Handler kayıtları sync — try/catch'e gerek yok ama güvenlik için.
-    try {
-      _tts.setStartHandler(_onSpeechStart);
-      _tts.setCompletionHandler(_onSpeechCompletion);
-      _tts.setCancelHandler(_onSpeechCancel);
-      _tts.setErrorHandler(_onSpeechError);
-      _tts.setPauseHandler(() {
-        if (!mounted) return;
-        setState(() {
-          _speaking = false;
-          _paused = true;
-        });
-      });
-      _tts.setContinueHandler(() {
-        if (!mounted) return;
-        setState(() {
-          _speaking = true;
-          _paused = false;
-        });
-      });
-    } catch (e) {
-      debugPrint('[Pusula][TTS] handler kaydı hata: $e');
-    }
-
     _ttsReady = true;
-    if (mounted) setState(() {});
+    if (mounted) {
+      _ensureEngine(force: true);
+      setState(() {});
+    }
   }
 
   /// Tek bir TTS metodunu güvenli çağırır; başarı (true/false) döner.
@@ -379,51 +345,14 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     }
   }
 
-  void _onSpeechStart() {
-    if (!mounted) return;
-    setState(() {
-      _speaking = true;
-      _paused = false;
-    });
-  }
-
-  void _onSpeechCompletion() {
-    final completer = _utteranceCompleter;
-    _utteranceCompleter = null;
-    if (completer != null && !completer.isCompleted) completer.complete();
-  }
-
-  void _onSpeechCancel() {
-    final completer = _utteranceCompleter;
-    _utteranceCompleter = null;
-    if (completer != null && !completer.isCompleted) completer.complete();
-    if (!mounted) return;
-    // _paused kasıtlı olarak sıfırlanmıyor — _pause()/_stop() yönetir.
-    // Sıfırlansaydı _pause() sonrası loop devam ederdi (race condition).
-    setState(() => _speaking = false);
-  }
-
-  void _onSpeechError(dynamic msg) {
-    debugPrint('[Pusula][TTS] error: $msg');
-    final completer = _utteranceCompleter;
-    _utteranceCompleter = null;
-    if (completer != null && !completer.isCompleted) completer.complete();
-    if (!mounted) return;
-    setState(() {
-      _speaking = false;
-      _paused = false;
-      _ttsWarning = 'Sesli okuma sırasında hata: $msg';
-    });
-  }
-
   @override
   void dispose() {
-    _tts.stop();
-    _audioCompleteSub?.cancel();
+    _player.removeListener(_onPlayerChanged);
+    _player.dispose();
     _lockActionSub?.cancel();
     _sleepTimer?.cancel();
     _localAudioPlayer.dispose();
-    _elevenLabsTts.close();
+    _engines.close();
     super.dispose();
   }
 
@@ -443,7 +372,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
       _sleepEndsAt = DateTime.now().add(duration);
       _sleepTimer = Timer(duration, () async {
         if (!mounted) return;
-        await _stop();
+        await _player.stop();
         if (!mounted) return;
         setState(() {
           _sleepTimer = null;
@@ -503,11 +432,10 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
         if (!mounted) return;
         setState(() {
           _briefing = cached.text;
-          _utterances = cached.utterances;
-          _utteranceIndex = 0;
           _generating = false;
           _error = null;
         });
+        await _player.load(cached.utterances);
         return;
       }
     }
@@ -517,9 +445,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
       _generating = true;
       _error = null;
       _briefing = null;
-      _utterances = const [];
-      _utteranceIndex = 0;
     });
+    await _player.load(const []);
 
     try {
       // Brifing girişine hava + döviz cümlesini AI'a aktar — spiker
@@ -538,7 +465,11 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
       final raw = await ai.generate(
         systemPrompt: DailyBriefingService.systemPromptFor(_topic),
         userPrompt: userPrompt,
-        maxTokens: 700,
+        // Akıl yürüten modeller yanıttan önce token harcıyor; 700'de
+        // brifing yarıda kesilebiliyordu.
+        maxTokens: 1500,
+        // Haber metni: yaratıcılık değil sadakat.
+        temperature: 0.3,
       );
       final cleaned = _service.sanitizeForSpeech(raw);
       if (cleaned.isEmpty) {
@@ -551,10 +482,9 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
       if (!mounted) return;
       setState(() {
         _briefing = cleaned;
-        _utterances = parts;
-        _utteranceIndex = 0;
         _generating = false;
       });
+      await _player.load(parts);
       // Lock screen "Now Playing" başlığını set et.
       if (BriefingAudioHandler.isBooted) {
         // ignore: unawaited_futures
@@ -579,389 +509,54 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   }
 
   List<Article> _filterArticles(NewsProvider news) {
-    if (_topic.isGeneral) return news.latest(take: 6);
-    final cat = _topic.category!;
-    final list = news.articlesOf(cat.id);
-    if (list.isEmpty) return const [];
-    final sorted = List<Article>.of(list)
+    if (_topic.isGeneral) {
+      return DailyBriefingService.selectArticles(
+        trending: news.trending(take: 4),
+        latest: news.latest(take: 80),
+      );
+    }
+    final catId = _topic.category!.id;
+    final inCategory = List<Article>.of(news.articlesOf(catId))
       ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-    return sorted.take(6).toList(growable: false);
+    return DailyBriefingService.selectArticles(
+      trending:
+          news.trending(take: 10).where((a) => a.categoryId == catId).toList(),
+      latest: inCategory,
+    );
   }
 
   // ─────────────── Playback ───────────────
 
-  /// Sırayla tüm cümleleri çalar. Aktif motora göre branch:
-  ///   - system: flutter_tts.speak() + completion handler
-  ///   - openai: OpenAI'dan MP3 indir, audioplayers ile çal, onPlayerComplete bekle
-  Future<void> _playFromIndex(int startIndex) async {
-    if (_utterances.isEmpty) return;
-    final engine = _activeEngine;
-    // Sistem TTS hazır değilse sadece sistem motoru engellensin;
-    // OpenAI ve ElevenLabs API tabanlı olduğu için sistem TTS'e ihtiyaç duymaz.
-    if (engine == TtsEngineKind.system && !_ttsReady) return;
-
-    final generation = _playGeneration;
-    setState(() {
-      _utteranceIndex = startIndex;
-      _paused = false;
-      _speaking = true;
-    });
-
-    for (var i = startIndex; i < _utterances.length; i++) {
-      if (!mounted) return;
-      if (generation != _playGeneration) return;
-      setState(() => _utteranceIndex = i);
-      try {
-        if (engine == TtsEngineKind.openai) {
-          await _speakViaOpenAi(_utterances[i]);
-        } else if (engine == TtsEngineKind.elevenlabs) {
-          await _speakViaElevenLabs(_utterances[i]);
-        } else if (engine == TtsEngineKind.edge) {
-          await _speakViaEdge(_utterances[i]);
-        } else {
-          await _speakViaSystem(_utterances[i]);
-        }
-      } catch (e) {
-        debugPrint('[Pusula][TTS] cümle $i için hata: $e');
+  /// Seçili TTS ayarlarına göre motoru kurar; ayarlar değişmediyse
+  /// dokunmaz. Bulut motoru hata verirse cihaz sesine geçilir.
+  void _ensureEngine({bool force = false}) {
+    final tts = context.read<TtsSettingsProvider>();
+    final key = TtsEngineFactory.keyFor(tts);
+    if (!force && key == _engineKey) return;
+    _engineKey = key;
+    final kind = tts.ttsEngine;
+    _player.setEngine(_engines.build(
+      tts,
+      onFallback: (e) {
         if (!mounted) return;
         setState(() {
-          _ttsWarning = 'Sesli okuma sırasında hata: $e';
+          _ttsWarning = '${kind.label} şu an kullanılamıyor '
+              '(${TtsEngineFactory.shortError(e)}). Cihazın sesiyle devam '
+              'ediliyor.';
         });
-        break;
-      }
-      if (!mounted) return;
-      if (generation != _playGeneration) return;
-    }
-    if (!mounted) return;
-    if (generation == _playGeneration) {
-      setState(() => _speaking = false);
-    }
-  }
-
-  Future<void> _speakViaSystem(String text) async {
-    final completer = Completer<void>();
-    _utteranceCompleter = completer;
-    try {
-      final result = await _tts.speak(text);
-      if (result == 0) {
-        if (!completer.isCompleted) completer.complete();
-        throw Exception('Sistem TTS speak() 0 döndü.');
-      }
-    } on MissingPluginException catch (e) {
-      if (!completer.isCompleted) completer.complete();
-      if (mounted) {
-        setState(() {
-          _ttsSupported = false;
-          _ttsWarning =
-              'Sesli okuma motoru bu cihazda kullanılamıyor. '
-              'Uygulamayı tamamen kapatıp yeniden açın (hot reload yetmez).';
-        });
-      }
-      throw Exception(e.message ?? 'MissingPlugin');
-    }
-    await completer.future;
-  }
-
-  Future<void> _speakViaOpenAi(String text) async {
-    final tts = context.read<TtsSettingsProvider>();
-    if (tts.openaiTtsKey.isEmpty) {
-      throw const OpenAiTtsException(
-        'OpenAI TTS anahtarı yok. Ayarlar > Yapay Zeka > Sesli Okuma '
-        'Motoru bölümünden girin.',
-      );
-    }
-    final openaiSpeed = _speedMultiplier;
-
-    // 1) Disk cache kontrolü — aynı (text + voice + model + speed)
-    //    kombinasyonu için MP3 varsa API'ye gitmeden direkt çal.
-    final cached = await BriefingAudioCache.find(
-      text: text,
-      voice: tts.openaiTtsVoice,
-      model: tts.openaiTtsModel,
-      speed: openaiSpeed,
-    );
-
-    Source playerSource;
-    if (cached != null) {
-      debugPrint('[Pusula][OpenAI TTS] cache hit: ${cached.path}');
-      playerSource = DeviceFileSource(cached.path);
-    } else {
-      // 2) Cache miss → API çağrısı + disk'e kaydet.
-      final bytes = await _openaiTts.synthesize(
-        apiKey: tts.openaiTtsKey,
-        text: text,
-        voice: tts.openaiTtsVoice,
-        model: tts.openaiTtsModel,
-        speed: openaiSpeed,
-      );
-      // ignore: unawaited_futures
-      BriefingAudioCache.store(
-        text: text,
-        voice: tts.openaiTtsVoice,
-        model: tts.openaiTtsModel,
-        speed: openaiSpeed,
-        bytes: bytes,
-      );
-      playerSource = BytesSource(bytes);
-    }
-
-    // 3) Çal + sonraki cümleye geç completion ile.
-    // Race fix: `_openaiPlaybackCompleter` state field; pause/stop bunu
-    // manuel complete edince `await` hemen sonlanır, 3 dk asılı kalmaz.
-    await _audioCompleteSub?.cancel();
-    final completer = Completer<void>();
-    _openaiPlaybackCompleter = completer;
-    _audioCompleteSub = _audioPlayer.onPlayerComplete.listen((_) {
-      if (!completer.isCompleted) completer.complete();
-    });
-    try {
-      await _audioPlayer.stop();
-      await _audioPlayer.play(playerSource);
-      await completer.future.timeout(
-        const Duration(minutes: 3),
-        onTimeout: () {
-          debugPrint('[Pusula][OpenAI TTS] playback timeout');
-        },
-      );
-    } finally {
-      await _audioCompleteSub?.cancel();
-      _audioCompleteSub = null;
-      // Aynı completer artık aktif değil — referansı temizle.
-      if (identical(_openaiPlaybackCompleter, completer)) {
-        _openaiPlaybackCompleter = null;
-      }
-    }
-  }
-
-  Future<void> _speakViaElevenLabs(String text) async {
-    final tts = context.read<TtsSettingsProvider>();
-    if (tts.elevenLabsApiKey.isEmpty) {
-      throw const ElevenLabsException(
-        'ElevenLabs API anahtarı yok. Ayarlar > Yapay Zeka > Sesli Okuma '
-        'Motoru bölümünden girin.',
-      );
-    }
-
-    final speedForCache = _elevenlabsSpeed();
-
-    // 1) Disk cache kontrolü — aynı (text + voice + model + speed)
-    //    kombinasyonu için MP3 varsa API'ye gitmeden direkt çal.
-    final cached = await BriefingAudioCache.find(
-      text: text,
-      voice: tts.elevenLabsVoiceId,
-      model: tts.elevenLabsModelId,
-      speed: speedForCache,
-    );
-
-    Source playerSource;
-    if (cached != null) {
-      debugPrint('[Pusula][ElevenLabs TTS] cache hit: ${cached.path}');
-      playerSource = DeviceFileSource(cached.path);
-    } else {
-      // 2) Cache miss → API çağrısı + disk'e kaydet.
-      final bytes = await _elevenLabsTts.synthesize(
-        apiKey: tts.elevenLabsApiKey,
-        text: text,
-        voiceId: tts.elevenLabsVoiceId,
-        modelId: tts.elevenLabsModelId,
-        stability: tts.elevenLabsStability,
-        similarityBoost: tts.elevenLabsSimilarityBoost,
-        speed: speedForCache,
-      );
-      // ignore: unawaited_futures
-      BriefingAudioCache.store(
-        text: text,
-        voice: tts.elevenLabsVoiceId,
-        model: tts.elevenLabsModelId,
-        speed: speedForCache,
-        bytes: bytes,
-      );
-      playerSource = BytesSource(bytes);
-    }
-
-    // 3) Çal + sonraki cümleye geç completion ile.
-    await _audioCompleteSub?.cancel();
-    final completer = Completer<void>();
-    _openaiPlaybackCompleter = completer;
-    _audioCompleteSub = _audioPlayer.onPlayerComplete.listen((_) {
-      if (!completer.isCompleted) completer.complete();
-    });
-    try {
-      await _audioPlayer.stop();
-      await _audioPlayer.play(playerSource);
-      await completer.future.timeout(
-        const Duration(minutes: 3),
-        onTimeout: () {
-          debugPrint('[Pusula][ElevenLabs TTS] playback timeout');
-        },
-      );
-    } finally {
-      await _audioCompleteSub?.cancel();
-      _audioCompleteSub = null;
-      if (identical(_openaiPlaybackCompleter, completer)) {
-        _openaiPlaybackCompleter = null;
-      }
-    }
-  }
-
-  /// _speedMultiplier [0.75,2.0] → ElevenLabs speed [0.7,1.2]
-  double _elevenlabsSpeed() {
-    if (_speedMultiplier <= 1.0) {
-      return (0.7 + (_speedMultiplier - 0.75) * 0.3 / 0.25).clamp(0.7, 1.2);
-    } else {
-      return (1.0 + (_speedMultiplier - 1.0) * 0.2).clamp(0.7, 1.2);
-    }
-  }
-
-  Future<void> _speakViaEdge(String text) async {
-    final tts = context.read<TtsSettingsProvider>();
-    final voice = tts.edgeTtsVoice;
-    final ratePct = ((_speedMultiplier - 1.0) * 100).round();
-
-    final cached = await BriefingAudioCache.find(
-      text: text,
-      voice: voice,
-      model: 'edge',
-      speed: _speedMultiplier,
-    );
-
-    Source playerSource;
-    if (cached != null) {
-      debugPrint('[Pusula][Edge TTS] cache hit: ${cached.path}');
-      playerSource = DeviceFileSource(cached.path);
-    } else {
-      final bytes = await _edgeTts.synthesize(
-        text: text,
-        voice: voice,
-        ratePct: ratePct,
-      );
-      // ignore: unawaited_futures
-      BriefingAudioCache.store(
-        text: text,
-        voice: voice,
-        model: 'edge',
-        speed: _speedMultiplier,
-        bytes: bytes,
-      );
-      playerSource = BytesSource(bytes);
-    }
-
-    await _audioCompleteSub?.cancel();
-    final completer = Completer<void>();
-    _openaiPlaybackCompleter = completer;
-    _audioCompleteSub = _audioPlayer.onPlayerComplete.listen((_) {
-      if (!completer.isCompleted) completer.complete();
-    });
-    try {
-      await _audioPlayer.stop();
-      await _audioPlayer.play(playerSource);
-      await completer.future.timeout(
-        const Duration(minutes: 3),
-        onTimeout: () {
-          debugPrint('[Pusula][Edge TTS] playback timeout');
-        },
-      );
-    } finally {
-      await _audioCompleteSub?.cancel();
-      _audioCompleteSub = null;
-      if (identical(_openaiPlaybackCompleter, completer)) {
-        _openaiPlaybackCompleter = null;
-      }
-    }
-  }
-
-  Future<void> _play() async {
-    if (_utterances.isEmpty) return;
-    final engine = _activeEngine;
-    // API-tabanlı motorlar sistem TTS'e ihtiyaç duymaz.
-    if (engine == TtsEngineKind.system && !_ttsReady) return;
-    HapticFeedback.selectionClick();
-    if (_paused) {
-      await _playFromIndex(_utteranceIndex);
-    } else {
-      await _playFromIndex(0);
-    }
-  }
-
-  Future<void> _pause() async {
-    HapticFeedback.selectionClick();
-    _playGeneration++;
-    setState(() => _paused = true);
-    final engine = _activeEngine;
-    if (engine == TtsEngineKind.openai ||
-        engine == TtsEngineKind.elevenlabs ||
-        engine == TtsEngineKind.edge) {
-      await _audioPlayer.stop();
-      // Aktif completer'ı manuel complete et — `_speakVia*`'deki
-      // `await completer.future` döner, döngü `_paused` üzerinden break eder.
-      final c = _openaiPlaybackCompleter;
-      if (c != null && !c.isCompleted) c.complete();
-      _audioCompleteSub?.cancel();
-      _audioCompleteSub = null;
-    } else {
-      await _tts.stop();
-    }
-  }
-
-  Future<void> _stop() async {
-    HapticFeedback.selectionClick();
-    _playGeneration++;
-    setState(() {
-      _paused = false;
-      _utteranceIndex = 0;
-      _speaking = false;
-    });
-    final engine = _activeEngine;
-    if (engine == TtsEngineKind.openai ||
-        engine == TtsEngineKind.elevenlabs ||
-        engine == TtsEngineKind.edge) {
-      await _audioPlayer.stop();
-      final c = _openaiPlaybackCompleter;
-      if (c != null && !c.isCompleted) c.complete();
-      _audioCompleteSub?.cancel();
-      _audioCompleteSub = null;
-    } else {
-      await _tts.stop();
-    }
+      },
+    ));
   }
 
   Future<void> _restart() async {
-    await _stop();
-    await Future<void>.delayed(const Duration(milliseconds: 150));
-    if (!mounted) return;
-    await _play();
-  }
-
-  Future<void> _jumpToUtterance(int targetIndex) async {
-    if (_utterances.isEmpty) return;
-    final idx = targetIndex.clamp(0, _utterances.length - 1);
-    final wasPlaying = _speaking;
-    _playGeneration++;
-    setState(() {
-      _utteranceIndex = idx;
-      _paused = !wasPlaying;
-      _speaking = false;
-    });
-    final engine = _activeEngine;
-    if (engine == TtsEngineKind.openai ||
-        engine == TtsEngineKind.elevenlabs ||
-        engine == TtsEngineKind.edge) {
-      await _audioPlayer.stop();
-      final c = _openaiPlaybackCompleter;
-      if (c != null && !c.isCompleted) c.complete();
-      _audioCompleteSub?.cancel();
-      _audioCompleteSub = null;
-    } else {
-      await _tts.stop();
-    }
-    if (!mounted) return;
-    if (wasPlaying) await _playFromIndex(idx);
+    await _player.stop();
+    await _player.play();
   }
 
   Future<void> _selectTopic(BriefingTopic t) async {
     if (t.cacheKey == _topic.cacheKey) return;
     HapticFeedback.selectionClick();
-    await _stop();
+    await _player.stop();
     setState(() {
       _topic = t;
       _error = null;
@@ -973,15 +568,12 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
         _activeEngine == TtsEngineKind.openai ||
         _activeEngine == TtsEngineKind.elevenlabs ||
         _activeEngine == TtsEngineKind.edge;
-    if (_briefing != null && canPlayAfterSelect) {
-      await Future<void>.delayed(const Duration(milliseconds: 300));
-      if (mounted) _play();
-    }
+    if (_briefing != null && canPlayAfterSelect) await _player.play();
   }
 
   Future<void> _refresh() async {
     HapticFeedback.lightImpact();
-    await _stop();
+    await _player.stop();
     await _generate(forceRefresh: true);
     if (!mounted) return;
     final canPlayAfterRefresh =
@@ -989,7 +581,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
         _activeEngine == TtsEngineKind.openai ||
         _activeEngine == TtsEngineKind.elevenlabs ||
         _activeEngine == TtsEngineKind.edge;
-    if (_briefing != null && canPlayAfterRefresh) _play();
+    if (_briefing != null && canPlayAfterRefresh) await _player.play();
   }
 
   // ─────────────── Build ───────────────
@@ -1005,6 +597,12 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     // Motor/anahtar değişince oynatıcı durumu da güncellensin.
     final tts = context.watch<TtsSettingsProvider>();
     final topics = _availableTopics(news);
+    // TTS ayarları (motor, ses, anahtar) değiştiyse motoru yenile.
+    if (_ttsReady) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _ensureEngine();
+      });
+    }
 
     // AI provider hazır + ready ama _error "yapılandırılmamış" diyorsa,
     // kullanıcı Settings'te düzeltmiş demektir → error'ı temizle.
@@ -1089,10 +687,10 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
             if (_ttsWarning != null) _TtsWarningBanner(message: _ttsWarning!),
             Expanded(child: _buildBody(context, cs, textTheme)),
             _PlayerBar(
-              speaking: _speaking,
-              paused: _paused,
+              speaking: _player.isPlaying,
+              paused: _player.isPaused,
               hasBriefing:
-                  _utterances.isNotEmpty &&
+                  _player.utterances.isNotEmpty &&
                   ((_activeEngine == TtsEngineKind.system &&
                           _ttsReady &&
                           _ttsSupported) ||
@@ -1101,48 +699,30 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
                       (_activeEngine == TtsEngineKind.elevenlabs &&
                           tts.hasElevenLabsKey) ||
                       _activeEngine == TtsEngineKind.edge),
-              speedMultiplier: _speedMultiplier,
-              pitch: _pitch,
+              speedMultiplier: _player.speed,
+              pitch: _player.pitch,
+              pitchSupported: _player.supportsPitch,
               sleepEndsAt: _sleepEndsAt,
-              utteranceIndex: _utteranceIndex,
-              utteranceCount: _utterances.length,
-              onPlay: _play,
-              onPause: _pause,
-              onStop: _stop,
+              utteranceIndex: _player.index,
+              utteranceCount: _player.utterances.length,
+              onPlay: () {
+                HapticFeedback.selectionClick();
+                _player.play();
+              },
+              onPause: () {
+                HapticFeedback.selectionClick();
+                _player.pause();
+              },
+              onStop: () {
+                HapticFeedback.selectionClick();
+                _player.stop();
+              },
               onRestart: _restart,
-              onSkipPrev: () => _jumpToUtterance(_utteranceIndex - 1),
-              onSkipNext: () => _jumpToUtterance(_utteranceIndex + 1),
-              onSeekTo: _jumpToUtterance,
-              onSpeedChanged: (s) async {
-                setState(() => _speedMultiplier = s);
-                await _safeCall(
-                  'setSpeechRate',
-                  () async => _tts.setSpeechRate(s * 0.5),
-                );
-                if (_speaking) {
-                  final idx = _utteranceIndex;
-                  _playGeneration++;
-                  if (!mounted) return;
-                  final engine = _activeEngine;
-                  if (engine == TtsEngineKind.openai ||
-                      engine == TtsEngineKind.elevenlabs ||
-                      engine == TtsEngineKind.edge) {
-                    await _audioPlayer.stop();
-                    final c = _openaiPlaybackCompleter;
-                    if (c != null && !c.isCompleted) c.complete();
-                    _audioCompleteSub?.cancel();
-                    _audioCompleteSub = null;
-                  } else {
-                    await _tts.stop();
-                  }
-                  if (!mounted) return;
-                  await _playFromIndex(idx);
-                }
-              },
-              onPitchChanged: (p) async {
-                setState(() => _pitch = p);
-                await _safeCall('setPitch', () async => _tts.setPitch(p));
-              },
+              onSkipPrev: _player.skipPrevious,
+              onSkipNext: _player.skipNext,
+              onSeekTo: _player.seek,
+              onSpeedChanged: _player.setSpeed,
+              onPitchChanged: _player.setPitch,
             ),
           ],
         ),
@@ -1253,7 +833,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${_utterances.length} cümle • '
+                        '${_player.utterances.length} cümle • '
                         'yapay zeka tarafından son haberlerden derlenmiştir.',
                         style: tt.bodySmall?.copyWith(
                           color: cs.onSurfaceVariant,
@@ -1267,9 +847,9 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
           ),
           const SizedBox(height: 16),
           _HighlightedText(
-            utterances: _utterances,
-            currentIndex: _utteranceIndex,
-            speaking: _speaking,
+            utterances: _player.utterances,
+            currentIndex: _player.index,
+            active: _player.isPlaying || _player.isPaused,
           ),
           const SizedBox(height: 24),
         ],

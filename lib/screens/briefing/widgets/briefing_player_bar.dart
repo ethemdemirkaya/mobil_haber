@@ -7,6 +7,7 @@ class _PlayerBar extends StatefulWidget {
     required this.hasBriefing,
     required this.speedMultiplier,
     required this.pitch,
+    required this.pitchSupported,
     required this.sleepEndsAt,
     required this.utteranceIndex,
     required this.utteranceCount,
@@ -26,6 +27,9 @@ class _PlayerBar extends StatefulWidget {
   final bool hasBriefing;
   final double speedMultiplier;
   final double pitch;
+
+  /// Ton ayarı yalnızca sistem TTS'te çalışır; diğer motorlarda gizlenir.
+  final bool pitchSupported;
   final DateTime? sleepEndsAt;
   final int utteranceIndex;
   final int utteranceCount;
@@ -220,28 +224,30 @@ class _PlayerBarState extends State<_PlayerBar> {
                     showCheckmark: false,
                   ),
                 ),
-              const SizedBox(width: 4),
-              IconButton(
-                tooltip: _showAdvanced
-                    ? 'Gelişmiş ayarları gizle'
-                    : 'Ton ayarı',
-                iconSize: 18,
-                visualDensity: VisualDensity.compact,
-                onPressed: () => setState(() => _showAdvanced = !_showAdvanced),
-                icon: Icon(
-                  _showAdvanced
-                      ? AppIcons.adjustmentsHorizontal
-                      : AppIcons.adjustmentsHorizontal,
-                  color: _showAdvanced ? cs.primary : cs.onSurfaceVariant,
+              if (widget.pitchSupported) const SizedBox(width: 4),
+              if (widget.pitchSupported)
+                IconButton(
+                  tooltip: _showAdvanced
+                      ? 'Gelişmiş ayarları gizle'
+                      : 'Ton ayarı',
+                  iconSize: 18,
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () =>
+                      setState(() => _showAdvanced = !_showAdvanced),
+                  icon: Icon(
+                    _showAdvanced
+                        ? AppIcons.adjustmentsHorizontal
+                        : AppIcons.adjustmentsHorizontal,
+                    color: _showAdvanced ? cs.primary : cs.onSurfaceVariant,
+                  ),
                 ),
-              ),
             ],
           ),
           // ── Collapsible pitch slider ──
           AnimatedSize(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
-            child: _showAdvanced
+            child: _showAdvanced && widget.pitchSupported
                 ? Row(
                     children: [
                       Icon(

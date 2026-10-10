@@ -83,15 +83,35 @@ class OpenRouterClient {
     OpenRouterException? lastError;
     for (final m in chain) {
       try {
-        return await _chatOnce(
-          apiKey: apiKey,
-          model: m,
-          systemPrompt: systemPrompt,
-          userPrompt: userPrompt,
-          maxTokens: maxTokens,
-          temperature: temperature,
-          timeout: timeout ?? _defaultTimeout,
-        );
+        try {
+          return await _chatOnce(
+            apiKey: apiKey,
+            model: m,
+            systemPrompt: systemPrompt,
+            userPrompt: userPrompt,
+            maxTokens: maxTokens,
+            temperature: temperature,
+            timeout: timeout ?? _defaultTimeout,
+            disableReasoning: true,
+          );
+        } on OpenRouterException catch (e) {
+          // Muhakemesi kapatılamayan modeller parametreyi 400 ile
+          // reddedebilir: aynı modeli parametresiz bir kez daha dene.
+          if (e.statusCode != 400 ||
+              !e.message.toLowerCase().contains('reason')) {
+            rethrow;
+          }
+          return await _chatOnce(
+            apiKey: apiKey,
+            model: m,
+            systemPrompt: systemPrompt,
+            userPrompt: userPrompt,
+            maxTokens: maxTokens,
+            temperature: temperature,
+            timeout: timeout ?? _defaultTimeout,
+            disableReasoning: false,
+          );
+        }
       } on OpenRouterException catch (e) {
         if (!_shouldTryNextModel(e)) rethrow;
         lastError = e;
@@ -118,6 +138,7 @@ class OpenRouterClient {
     required int maxTokens,
     required double temperature,
     required Duration timeout,
+    required bool disableReasoning,
   }) async {
     final response = await _client
         .post(
@@ -139,6 +160,11 @@ class OpenRouterClient {
             ],
             'max_tokens': maxTokens,
             'temperature': temperature,
+            // Haber özeti/brifing/bias muhakeme gerektirmez. Açık kalınca
+            // bazı ücretsiz modeller tüm token bütçesini muhakemeye harcıyor
+            // (boş yanıt) ya da muhakemeyi metnin içine yazıyordu
+            // ("Here's a thinking process: …" sesli okunuyordu).
+            if (disableReasoning) 'reasoning': {'enabled': false},
           }),
         )
         .timeout(timeout);
@@ -183,7 +209,14 @@ class OpenRouterClient {
         'Model boş içerik döndürdü.',
       );
     }
-    return content.trim();
+    final cleaned = stripReasoning(content);
+    if (cleaned.isEmpty || looksLikeLeakedReasoning(cleaned)) {
+      // statusCode null → sıradaki model denenir.
+      throw const OpenRouterException(
+        'Model yanıt yerine muhakeme metni döndürdü.',
+      );
+    }
+    return cleaned;
   }
 
   /// Verilen API anahtarının geçerli olup olmadığını kısa bir "ping" ile
@@ -202,6 +235,28 @@ class OpenRouterClient {
       timeout: const Duration(seconds: 20),
     );
   }
+
+  static final RegExp _thinkBlock = RegExp(
+    r'<(think|thinking|reasoning)>[\s\S]*?</\1>\s*',
+    caseSensitive: false,
+  );
+
+  /// `<think>…</think>` gibi etiketli muhakeme bloklarını atar.
+  static String stripReasoning(String content) =>
+      content.replaceAll(_thinkBlock, '').trim();
+
+  static final RegExp _leakedReasoning = RegExp(
+    r"^(\W*)(here'?s (a|my) (thinking|thought) process|thinking process|"
+    r"okay[,.!]|ok[,.] so|let me |let's |alright[,.]|first[,.] i |"
+    r"\**\s*analy[sz]e (the )?(user|request|input)|\d\.\s+\**analy[sz]e)",
+    caseSensitive: false,
+  );
+
+  /// Model muhakemesini etiketsiz olarak metnin başına yazmış mı?
+  /// (Uygulama Türkçe çıktı istiyor; İngilizce "Okay, let me…" ile
+  /// başlayan yanıt muhakeme sızıntısıdır.)
+  static bool looksLikeLeakedReasoning(String content) =>
+      _leakedReasoning.hasMatch(content.trimLeft());
 
   String _extractErrorMessage(dynamic decoded, int status) {
     // Özel durum: 429 — provider rate-limit. Kullanıcıya ne yapacağını söyle.

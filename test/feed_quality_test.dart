@@ -59,6 +59,17 @@ void main() {
       );
     });
 
+    test('siyasi tartışma "festival" kelimesi yüzünden kültüre düşmez', () {
+      expect(
+        c.classify(
+          title: "Zeytin festivalinde ortalık karıştı! İYİ Partili vekil "
+              "eleştirdi AKP'li vekil köpürdü",
+          summary: '',
+        ),
+        'gundem',
+      );
+    });
+
     test('genel kaynakta basketbol haberi spora gider', () {
       expect(
         c.classify(title: "Anadolu Efes, Olympiakos'a kaybetti", summary: ''),
