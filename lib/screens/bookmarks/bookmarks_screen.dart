@@ -1,3 +1,4 @@
+import '../../widgets/editorial_art.dart';
 import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -175,6 +176,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       body: saved.isEmpty
           ? IllustratedEmptyState(
               icon: AppIcons.bookmark,
+              art: EditorialArtKind.saved,
               title: 'Kayıtlı haber yok',
               subtitle:
                   'Daha sonra okumak istediğin haberlerdeki yer-imi ikonuna dokun — burada toplanırlar.',

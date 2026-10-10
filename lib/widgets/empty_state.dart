@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'editorial_art.dart';
 
 class EmptyState extends StatelessWidget {
   const EmptyState({
@@ -8,9 +9,11 @@ class EmptyState extends StatelessWidget {
     this.subtitle,
     this.actionLabel,
     this.onAction,
+    this.art,
   });
 
   final IconData icon;
+  final EditorialArtKind? art;
   final String title;
   final String? subtitle;
   final String? actionLabel;
@@ -27,11 +30,14 @@ class EmptyState extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset(
-              'assets/brand/wise-owl.png',
-              height: 132,
-              excludeFromSemantics: true,
-            ),
+            if (art != null)
+              EditorialArt(kind: art!)
+            else
+              Image.asset(
+                'assets/brand/wise-owl.png',
+                height: 132,
+                excludeFromSemantics: true,
+              ),
             const SizedBox(height: 20),
             Text(
               title,

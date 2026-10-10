@@ -1,3 +1,8 @@
+import 'package:pusula_news/widgets/pusula_launch_scene.dart';
+import 'package:pusula_news/screens/splash/splash_screen.dart';
+import 'package:pusula_news/providers/onboarding_provider.dart';
+import 'package:pusula_news/widgets/editorial_art.dart';
+import 'package:pusula_news/widgets/empty_state.dart';
 import 'package:pusula_news/data/local/article_cache_store.dart';
 import 'package:pusula_news/data/local/ai_cache_store.dart';
 import 'package:pusula_news/data/local/reading_history_store.dart';
@@ -364,7 +369,7 @@ void main() {
             builder: (context, child) => MediaQuery(
               data: MediaQuery.of(
                 context,
-              ).copyWith(textScaler: TextScaler.linear(dark ? 1.5 : 1)),
+              ).copyWith(textScaler: TextScaler.linear(dark ? 2 : 1)),
               child: child!,
             ),
             home: RepaintBoundary(
@@ -390,6 +395,17 @@ void main() {
         key,
         dark ? 'detail-dark-large-type' : 'detail-light-top',
       );
+      await tester.ensureVisible(find.text('Okuma yardımı'));
+      await tester.pumpAndSettle();
+      await capture(
+        tester,
+        key,
+        dark ? 'reading-help-dark-200' : 'reading-help-light',
+      );
+      await tester.ensureVisible(find.text('Haberin dilini incele'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Haberin dilini incele'));
+      await tester.pumpAndSettle();
       await tester.ensureVisible(find.byType(BiasIndicator));
       await tester.pumpAndSettle();
       await capture(
@@ -404,8 +420,187 @@ void main() {
         findsOneWidget,
       );
       expect(tester.takeException(), isNull);
+      await tester.ensureVisible(find.text('Kısa özeti oku'));
+      await tester.pumpAndSettle();
+      final summaryButton = tester.getSize(
+        find
+            .ancestor(
+              of: find.text('Kısa özeti oku'),
+              matching: find.byType(TextButton),
+            )
+            .first,
+      );
+      expect(summaryButton.height, greaterThanOrEqualTo(64));
+      await tester.tap(find.text('Kısa özeti oku'));
+      await tester.pumpAndSettle();
+      expect(find.text('Kısa özet'), findsOneWidget);
+      expect(
+        find.text('Kütüphanelerde yeni okuma alanları açılıyor.'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.ensureVisible(find.text('Kısa özet'));
+      await tester.pumpAndSettle();
+      await capture(
+        tester,
+        key,
+        dark ? 'reading-summary-dark-200' : 'reading-summary-light',
+      );
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
+    });
+  }
+
+  for (final dark in [false, true]) {
+    testWidgets('Mascot launch fits and respects reduced motion $dark', (
+      tester,
+    ) async {
+      await fonts();
+      tester.view.physicalSize = Size(dark ? 320 : 390, dark ? 640 : 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final key = GlobalKey();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: dark ? AppTheme.dark() : AppTheme.light(),
+          home: RepaintBoundary(
+            key: key,
+            child: MediaQuery(
+              data: MediaQueryData(
+                size: Size(dark ? 320 : 390, dark ? 640 : 844),
+                textScaler: TextScaler.linear(dark ? 2 : 1),
+              ),
+              child: const PusulaLaunchScene(progress: .4),
+            ),
+          ),
+        ),
+      );
+      if (!dark) {
+        await tester.runAsync(
+          () async => precacheImage(
+            const AssetImage('assets/brand/wise-owl-welcome.png'),
+            tester.element(find.byType(PusulaLaunchScene)),
+          ),
+        );
+      }
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await capture(
+        tester,
+        key,
+        dark ? 'mascot-launch-dark-large' : 'mascot-launch-light',
+      );
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => OnboardingProvider()),
+            ChangeNotifierProvider(create: (_) => PreferencesProvider()),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.light(),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(disableAnimations: true),
+              child: child!,
+            ),
+            home: const SplashScreen(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(find.byType(OnboardingScreen), findsOneWidget);
+      expect(find.byType(PusulaLaunchScene), findsNothing);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+  }
+  testWidgets('Launch greeting finishes and reveals onboarding', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => OnboardingProvider()),
+          ChangeNotifierProvider(create: (_) => PreferencesProvider()),
+        ],
+        child: MaterialApp(theme: AppTheme.light(), home: const SplashScreen()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(PusulaLaunchScene), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(find.byType(PusulaLaunchScene), findsNothing);
+    expect(find.byType(OnboardingScreen), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('Export native mascot with Android safe circle padding', (
+    tester,
+  ) async {
+    final key = GlobalKey();
+    tester.view.physicalSize = const Size(288, 288);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: RepaintBoundary(
+          key: key,
+          child: const Center(
+            child: Image(
+              image: AssetImage('assets/brand/wise-owl-welcome.png'),
+              width: 136,
+              height: 136,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await capture(tester, key, 'native-launch-mascot');
+  });
+  for (final kind in EditorialArtKind.values) {
+    testWidgets('Editorial illustration renders $kind in dark theme', (
+      tester,
+    ) async {
+      await fonts();
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final key = GlobalKey();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: RepaintBoundary(
+            key: key,
+            child: Scaffold(
+              body: EmptyState(
+                icon: Icons.bookmark,
+                art: kind,
+                title: switch (kind) {
+                  EditorialArtKind.saved => 'Okumak istediklerin burada',
+                  EditorialArtKind.briefing => 'Gündeme kulak ver',
+                  EditorialArtKind.perspectives => 'Bir olay, farklı bakışlar',
+                },
+                subtitle: 'Haberleri kendi zamanında keşfet.',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.runAsync(
+        () async => precacheImage(
+          AssetImage('assets/brand/editorial-${kind.name}.png'),
+          tester.element(find.byType(EmptyState)),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await capture(tester, key, 'editorial-${kind.name}-dark');
     });
   }
   testWidgets('Navigation fits large type and selects every destination', (
@@ -461,6 +656,15 @@ class _ReviewAi extends AiSettingsProvider {
   _ReviewAi() : super(aiCache: const _ReviewAiStore());
   @override
   bool isReady() => true;
+  String? _summary;
+  @override
+  String? cachedSummary(String articleId) => _summary;
+  @override
+  Future<void> summarize(Article article) async {
+    _summary = 'Kütüphanelerde yeni okuma alanları açılıyor.';
+    notifyListeners();
+  }
+
   @override
   BiasReport? cachedBias(String articleId) => const BiasReport(
     score: 10,

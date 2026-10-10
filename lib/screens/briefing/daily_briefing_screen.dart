@@ -1,3 +1,5 @@
+import '../../core/app_startup.dart';
+import '../../widgets/editorial_art.dart';
 import 'package:pusula_news/core/theme/app_icons.dart';
 import 'dart:async';
 
@@ -69,7 +71,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   /// Lock-screen kontrolü için audio_service handler'ı varsa onun
   /// player'ını kullanırız (notification'a state yansır); yoksa local
   /// player. Hem mobile hem desktop'ta çalışır.
-  AudioPlayer get _audioPlayer => BriefingAudioHandler.isBooted
+  late final AudioPlayer _audioPlayer = BriefingAudioHandler.isBooted
       ? BriefingAudioHandler.instance.player
       : _localAudioPlayer;
   final AudioPlayer _localAudioPlayer = AudioPlayer();
@@ -128,7 +130,6 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     super.initState();
     _topic = const BriefingTopic(); // Genel
     _bootstrap();
-    _wireLockScreenActions();
   }
 
   /// Lock screen / bildirim panel butonlarını dinle. Kullanıcı oradan
@@ -165,12 +166,15 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   }
 
   Future<void> _bootstrap() async {
+    final audioReady = AppStartup.prepareAudio();
     // ÖNEMLİ: AiSettingsProvider async _load() ile başlatılıyor; biz
     // _generate'i ondan önce çağırırsak `_enabled = false` (default)
     // okur ve "yapılandırılmamış" hatası verir. Provider initialized
     // olana kadar bekle.
     await _waitForAiInit();
+    await audioReady;
     if (!mounted) return;
+    _wireLockScreenActions();
 
     // TTS init + AI generate + market widget paralel başlasın.
     final ttsFuture = _initTts();
@@ -1152,10 +1156,12 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            const EditorialArt(kind: EditorialArtKind.briefing, size: 144),
+            const SizedBox(height: 20),
             const SizedBox(
-              width: 44,
-              height: 44,
-              child: CircularProgressIndicator(strokeWidth: 3),
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
             ),
             const SizedBox(height: 24),
             Text(

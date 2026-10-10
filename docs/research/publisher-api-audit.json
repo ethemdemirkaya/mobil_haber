@@ -1,0 +1,992 @@
+{
+  "checked_at": "2026-10-09T22:19:14.089076+00:00",
+  "method": "Public unauthenticated GET; HTML/script inspection, not browser network capture.",
+  "discovery_inventory": [
+    {
+      "source": "aa",
+      "url": "https://www.aa.com.tr/tr/ekonomi/kazakistandan-turkiyeye-dijital-para-alaninda-isbirligi-mesaji/4084103",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "trthaber",
+      "url": "https://www.trthaber.com/haber/gundem/sosyal-medyada-yas-sinirlamasina-iliskin-yonetmelik-resmi-gazetede-959702.html",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "sabah",
+      "url": "https://www.sabah.com.tr/yasam/tasacak-bu-deniz-yeni-bolum-fragmani-yayinlandi-trt-1-ile-tasacak-bu-deniz-34-bolum-fragmani-izle-7677417",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "sozcu",
+      "url": "https://www.sozcu.com.tr/irfan-saraloglu-ndan-barcelona-aciklamasi-turk-milletine-layik-olmaya-calisacagiz-p367772",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "hurriyet",
+      "url": "https://www.hurriyet.com.tr/gundem/maltepedeki-bina-faciasinda-mimar-ve-santiye-sefi-tutuklandi-43335914",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "milliyet",
+      "url": "https://www.milliyet.com.tr/dunya/suudi-arabistan-kral-halid-havalimaninda-yolcu-ve-ucus-trafigi-normale-dondu-7676536",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "cumhuriyet",
+      "url": "https://www.cumhuriyet.com.tr/turkiye/gogsunden-bicakla-yaraladilar-hayatini-kaybetti-2545023",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "haberturk",
+      "url": "https://www.haberturk.com/gundem/bayrakli-belediyesi-ne-yonelik-operasyonda-15-tutuklama-3918612",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "cnnturk",
+      "url": "https://www.cnnturk.com/turkiye/son-dakika-resmi-gazetede-yayimlandi-sanal-medyada-15-yas-duzenlemesi-3477291",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "ntv",
+      "url": "https://www.ntv.com.tr/turkiye/sosyal-medyaya-15-yas-siniri-yeni-duzenleme-resmi-gazetede-1745607",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "yenisafak",
+      "url": "https://www.yenisafak.com/video/gundem/vatman-koltuguna-oturan-erdogandan-ab-komiseri-kosa-biz-buradayken-korkmayin-4863024",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "diken",
+      "url": "https://www.diken.com.tr/trump-rusya-piyasaya-milyonlarca-ton-dizel-yakit-tedarik-edecek/?utm_source=rss&utm_medium=rss&utm_campaign=trump-rusya-piyasaya-milyonlarca-ton-dizel-yakit-tedarik-edecek",
+      "json_alternates": [
+        "https://www.diken.com.tr/wp-json/wp/v2/posts/1774455"
+      ],
+      "wp_roots": [
+        "https://www.diken.com.tr/wp-json/"
+      ],
+      "embedded_ids": []
+    },
+    {
+      "source": "bbcturkce",
+      "url": "https://www.bbc.com/turkce/articles/cx4g19m3p298o?at_medium=RSS&at_campaign=rss",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": [
+        "__NEXT_DATA__"
+      ]
+    },
+    {
+      "source": "dwturkce",
+      "url": "https://www.dw.com/tr/akp-tasfiye-edilen-fonlara-ilişkin-kanun-teklifini-sundu/a-79621844?maca=tur-rss-tur-all-1495-rdf",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "euronews",
+      "url": "https://tr.euronews.com/2026/10/09/iran-devrim-muhafizlari-hurmuzde-petrol-tankerini-vurdu-tehditler-tum-bolgeye-yayiliyor",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": [
+        "euronews-initial-server-data"
+      ]
+    },
+    {
+      "source": "indyturkce",
+      "url": "https://www.indyturk.com/node/783622/haber/k%C4%B1sa-haberler",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "gazeteduvar",
+      "url": "https://www.gazeteduvar.com.tr/arda-gulerden-vincenzo-montellaya-veda-haber-1766665",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "artigercek",
+      "url": "https://artigercek.com/gozden-kacmasin/asansor-aynalarinin-arkasindaki-gizli-amac-ne-gercek-sebebi-cok-baska-cikti-351408h",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "karar",
+      "url": "https://www.karar.com/ekonomi-haberleri/iller-bankasinin-sermayesi-250-milyar-liraya-yukseltildi-2077435",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "halktv",
+      "url": "https://halktv.com.tr/turkiye/son-dakika-15-yas-altina-yasaklandi-sosyal-medya-duzenlemesi-resmi-gazetede-1060670h",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "tele1",
+      "url": "https://www.tele1.com.tr/ak-partili-ala-daha-fazla-demokrasinin-kimseye-bir-zarari-yok",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "odatv",
+      "url": "https://www.odatv.com/guncel/cumhurbaskani-erdogan-hizli-tren-hattinda-ilk-surusu-yapti-120165994",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "aydinlik",
+      "url": "https://www.aydinlik.com.tr/haber/sosyal-medyada-yas-sinirlamasi-resmi-gazetede-593796",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "yenicag",
+      "url": "https://www.yenicaggazetesi.com/2026-2027-egitim-yilinin-ilk-tatili-belli-oldu-iste-kritik-tarihler-1080536h.htm",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "veryansintv",
+      "url": "https://www.veryansintv.com/t24e-erisim-engeli-itiraz-reddedildi-karar-aymye-tasinacak",
+      "json_alternates": [
+        "https://www.veryansintv.com/wp-json/wp/v2/posts/829056"
+      ],
+      "wp_roots": [
+        "https://www.veryansintv.com/wp-json/"
+      ],
+      "embedded_ids": []
+    },
+    {
+      "source": "medyascope",
+      "url": "https://medyascope.tv/2026/10/10/11-yilin-ardindan-10-ekimi-hatirlamak-ugur-gumuskaya-yazdi/",
+      "json_alternates": [
+        "https://medyascope.tv/wp-json/wp/v2/posts/873013"
+      ],
+      "wp_roots": [
+        "https://medyascope.tv/wp-json/"
+      ],
+      "embedded_ids": []
+    },
+    {
+      "source": "gercekgundem",
+      "url": "https://www.gercekgundem.com/guncel/kritik-yonetmelik-resmi-gazetede-cocuklara-sosyal-medya-yasagi-geldi-580207",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "vatan",
+      "url": "https://www.gazetevatan.com/video/ineklerin-huzunlu-ayriligi-sosyal-medyada-viral-oldu-video-2316999",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "turkiyegazetesi",
+      "url": "https://www.turkiyegazetesi.com.tr/spor/irfan-saraloglundan-barcelona-mesaji-taraftarimiz-galibiyet-beklemeli-1821730",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "internethaber",
+      "url": "https://www.internethaber.com/jasat-ekipleri-yillar-sonra-harekete-gecti-riza-guzel-olayinda-kimler-yakalandi-kemik-parcalari-nerede-bulundu-2463412h.htm",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "nethaber",
+      "url": "https://www.nethaber.com/siyaset/bakan-kurumdan-ozgur-ozele-sert-mesaj-gozlerindeki-bandi-cikar-etrafina-bak-43943",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "bloomberght",
+      "url": "https://www.bloomberght.com/trump-putin-ile-dizel-yakit-tedarikinde-anlastik-3791013",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "dunyagazetesi",
+      "url": "https://www.dunya.com/gundem/sosyal-medyada-15-yas-siniri-resmi-gazetede-yayimlandi-haberi-843313",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "ekonomim",
+      "url": "https://www.ekonomim.com/ekonomi/iller-bankasinin-sermayesi-250-milyar-liraya-cikarildi-karar-resmi-gazetede-haberi-923725",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "webrazzi",
+      "url": "https://webrazzi.com/2026/10/09/apple-yapay-zeka-girisimi-huxeun-ekibini-ve-teknolojisini-bunyesine-katiyor/",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "shiftdelete",
+      "url": "https://shiftdelete.net/microsoft-365-aile-yapay-zeka-paylasimi",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "donanimhaber",
+      "url": "https://www.donanimhaber.com/openai-in-geliri-beklentilerin-20-milyar-dolar-altinda-kaldi--211440",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": [
+        "ng-state"
+      ]
+    },
+    {
+      "source": "webtekno",
+      "url": "https://www.webtekno.com/tim-cook-apple-yeni-ceosu-hakkinda-enteresan-aciklama-h226732.html",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "chiponline",
+      "url": "https://www.chip.com.tr/galeri/telekinezi-gercek-mi-zihin-gucuyle-nesneleri-hareket-ettirebilir-miyiz_184463.html",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "tamindir",
+      "url": "https://www.tamindir.com/haber/ucuz-android-telefon-zararli-yazilim_112229/",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "fotomac",
+      "url": "https://www.fotomac.com.tr/fenerbahce/2025/05/31/fenerbahcede-dzeko-ve-tadic-icin-neden-veda-toreni-duzenlenmedi-iste-o-flas-gercek",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "aspor",
+      "url": "https://www.aspor.com.tr/kasimpasa/2026/10/09/emre-belozoglu-galatasaray-maglubiyetini-yorumladi-hepimize-aci-bir-ders-oldu",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "posta",
+      "url": "https://www.posta.com.tr/gundem/maltepede-enkaz-altinda-kalan-kedi-saatler-sonra-canli-cikarildi-3049763",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "aksam",
+      "url": "https://www.aksam.com.tr/guncel/feto-tarzi-cellatlik/haber-1704969",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "takvim",
+      "url": "https://www.takvim.com.tr/guncel/2026/10/09/sosyal-medyada-15-yas-altina-yasak-dogrulanmayan-hesaplara-kapatma-sarti",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "ahaber",
+      "url": "https://www.ahaber.com.tr/yasam/2026/10/10/zonguldak-alaplida-tirin-carptigi-80-yasindaki-adam-oldu",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "star",
+      "url": "https://www.star.com.tr/spor/milli-atici-nedim-tolga-tuncerden-altin-madalya-haber-2045608/",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "bianet",
+      "url": "https://bianet.org/haber/abd-hegseth-in-kursuna-dizme-gosterisine-bm-den-iskence-uyarisi-kongre-deki-iki-partiden-de-tepki-324285",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "mynet",
+      "url": "https://haber.mynet.com/resmi-gazete-de-yayimlandi-15-yasini-kucukler-herhangi-bir-sosyal-medya-hesabi-acamayacak-veya-kullanamayacak-110107315872",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "haberglobal",
+      "url": "https://haberglobal.com/gundem/iller-bankasinin-sermayesi-250-milyar-liraya-cikarildi-548002",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "dailysabah",
+      "url": "https://www.dailysabah.com/politics/diplomacy/turkiye-condemns-houthi-attacks-on-saudi-airports-urges-restraint",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    },
+    {
+      "source": "aaenglish",
+      "url": "https://www.aa.com.tr/en/americas/us-homeland-security-chief-blasts-new-york-city-mayor-over-sanctuary-policies/4084127",
+      "json_alternates": [],
+      "wp_roots": [],
+      "embedded_ids": []
+    }
+  ],
+  "live_results": [
+    {
+      "kind": "wordpress_public_api",
+      "base": "https://www.diken.com.tr/wp-json/wp/v2/posts",
+      "pages": [
+        {
+          "url": "https://www.diken.com.tr/wp-json/wp/v2/posts?per_page=2&page=1",
+          "status": 200,
+          "final_url": "https://www.diken.com.tr/wp-json/wp/v2/posts?per_page=2&page=1",
+          "content_type": "application/json; charset=UTF-8",
+          "etag": false,
+          "last_modified": false,
+          "bytes": 59403,
+          "seconds": 1.58,
+          "items": [
+            {
+              "id": 1774455,
+              "link": "https://www.diken.com.tr/trump-rusya-piyasaya-milyonlarca-ton-dizel-yakit-tedarik-edecek/",
+              "body_chars": 1679,
+              "has_date_gmt": true,
+              "has_modified_gmt": true,
+              "featured_media": 1774457,
+              "author": 143,
+              "categories": [
+                13
+              ]
+            },
+            {
+              "id": 1774424,
+              "link": "https://www.diken.com.tr/bayrakli-belediyesi-sorusturmasi-eski-baskan-sandal-dahil-22-kisi-tutuklandi/",
+              "body_chars": 1293,
+              "has_date_gmt": true,
+              "has_modified_gmt": true,
+              "featured_media": 1772595,
+              "author": 143,
+              "categories": [
+                14
+              ]
+            }
+          ]
+        },
+        {
+          "url": "https://www.diken.com.tr/wp-json/wp/v2/posts?per_page=2&page=2",
+          "status": 200,
+          "final_url": "https://www.diken.com.tr/wp-json/wp/v2/posts?per_page=2&page=2",
+          "content_type": "application/json; charset=UTF-8",
+          "etag": false,
+          "last_modified": false,
+          "bytes": 61251,
+          "seconds": 1.37,
+          "items": [
+            {
+              "id": 1774448,
+              "link": "https://www.diken.com.tr/panamada-77-buyuklugunde-deprem/",
+              "body_chars": 913,
+              "has_date_gmt": true,
+              "has_modified_gmt": true,
+              "featured_media": 1619674,
+              "author": 143,
+              "categories": [
+                13
+              ]
+            },
+            {
+              "id": 1774440,
+              "link": "https://www.diken.com.tr/gazeteciler-saban-sevinc-ve-mustafa-balci-tutuklandi/",
+              "body_chars": 2839,
+              "has_date_gmt": true,
+              "has_modified_gmt": true,
+              "featured_media": 1657788,
+              "author": 143,
+              "categories": [
+                14
+              ]
+            }
+          ]
+        }
+      ],
+      "distinct_ids": 4,
+      "detail": {
+        "url": "https://www.diken.com.tr/wp-json/wp/v2/posts/1774455?_embed=wp:featuredmedia,author",
+        "status": 200,
+        "final_url": "https://www.diken.com.tr/wp-json/wp/v2/posts/1774455?_embed=wp:featuredmedia,author",
+        "content_type": "application/json; charset=UTF-8",
+        "etag": false,
+        "last_modified": false,
+        "bytes": 52747,
+        "seconds": 1.19,
+        "body_chars": 1679,
+        "embedded_relations": [
+          "author",
+          "wp:featuredmedia"
+        ]
+      }
+    },
+    {
+      "kind": "wordpress_public_api",
+      "base": "https://medyascope.tv/wp-json/wp/v2/posts",
+      "pages": [
+        {
+          "url": "https://medyascope.tv/wp-json/wp/v2/posts?per_page=2&page=1",
+          "status": 200,
+          "final_url": "https://medyascope.tv/wp-json/wp/v2/posts?per_page=2&page=1",
+          "content_type": "application/json; charset=UTF-8",
+          "etag": false,
+          "last_modified": false,
+          "bytes": 65866,
+          "seconds": 1.59,
+          "items": [
+            {
+              "id": 873013,
+              "link": "https://medyascope.tv/2026/10/10/11-yilin-ardindan-10-ekimi-hatirlamak-ugur-gumuskaya-yazdi/",
+              "body_chars": 7780,
+              "has_date_gmt": true,
+              "has_modified_gmt": true,
+              "featured_media": 483399,
+              "author": 209,
+              "categories": [
+                14185
+              ]
+            },
+            {
+              "id": 873019,
+              "link": "https://medyascope.tv/2026/10/09/bugun-bilmeniz-gerekenler-9-ekim-2026/",
+              "body_chars": 2492,
+              "has_date_gmt": true,
+              "has_modified_gmt": true,
+              "featured_media": 873022,
+              "author": 648,
+              "categories": [
+                82889
+              ]
+            }
+          ]
+        },
+        {
+          "url": "https://medyascope.tv/wp-json/wp/v2/posts?per_page=2&page=2",
+          "status": 200,
+          "final_url": "https://medyascope.tv/wp-json/wp/v2/posts?per_page=2&page=2",
+          "content_type": "application/json; charset=UTF-8",
+          "etag": false,
+          "last_modified": false,
+          "bytes": 83323,
+          "seconds": 1.3,
+          "items": [
+            {
+              "id": 872611,
+              "link": "https://medyascope.tv/2026/10/09/saban-sevinc-ve-mustafa-balci-tutuklandi/",
+              "body_chars": 10142,
+              "has_date_gmt": true,
+              "has_modified_gmt": true,
+              "featured_media": 872836,
+              "author": 648,
+              "categories": [
+                54521,
+                14184
+              ]
+            },
+            {
+              "id": 873008,
+              "link": "https://medyascope.tv/2026/10/09/hakikat-iddiasindan-sorumluluga-medyascope-okurlari-yaziyor/",
+              "body_chars": 7102,
+              "has_date_gmt": true,
+              "has_modified_gmt": true,
+              "featured_media": 873011,
+              "author": 648,
+              "categories": [
+                101192
+              ]
+            }
+          ]
+        }
+      ],
+      "distinct_ids": 4,
+      "detail": {
+        "url": "https://medyascope.tv/wp-json/wp/v2/posts/873013?_embed=wp:featuredmedia,author",
+        "status": 200,
+        "final_url": "https://medyascope.tv/wp-json/wp/v2/posts/873013?_embed=wp:featuredmedia,author",
+        "content_type": "application/json; charset=UTF-8",
+        "etag": false,
+        "last_modified": false,
+        "bytes": 50239,
+        "seconds": 1.78,
+        "body_chars": 7780,
+        "embedded_relations": [
+          "author",
+          "wp:featuredmedia"
+        ]
+      }
+    },
+    {
+      "kind": "wordpress_public_api",
+      "base": "https://shiftdelete.net/wp-json/wp/v2/posts",
+      "pages": [
+        {
+          "url": "https://shiftdelete.net/wp-json/wp/v2/posts?per_page=2&page=1",
+          "status": 200,
+          "final_url": "https://shiftdelete.net/wp-json/wp/v2/posts?per_page=2&page=1",
+          "content_type": "application/json; charset=UTF-8",
+          "etag": false,
+          "last_modified": false,
+          "bytes": 52335,
+          "seconds": 0.91,
+          "items": [
+            {
+              "id": 1287710,
+              "link": "https://shiftdelete.net/microsoft-365-aile-yapay-zeka-paylasimi",
+              "body_chars": 3187,
+              "has_date_gmt": true,
+              "has_modified_gmt": true,
+              "featured_media": 1287713,
+              "author": 502316,
+              "categories": [
+                1,
+                61,
+                764339,
+                66
+              ]
+            },
+            {
+              "id": 1287761,
+              "link": "https://shiftdelete.net/syntropia-duosolis-hibrit-gunes-paneli",
+              "body_chars": 3274,
+              "has_date_gmt": true,
+              "has_modified_gmt": true,
+              "featured_media": 1287765,
+              "author": 502316,
+              "categories": [
+                69,
+                1,
+                51,
+                61
+              ]
+            }
+          ]
+        },
+        {
+          "url": "https://shiftdelete.net/wp-json/wp/v2/posts?per_page=2&page=2",
+          "status": 200,
+          "final_url": "https://shiftdelete.net/wp-json/wp/v2/posts?per_page=2&page=2",
+          "content_type": "application/json; charset=UTF-8",
+          "etag": false,
+          "last_modified": false,
+          "bytes": 49802,
+          "seconds": 0.75,
+          "items": [
+            {
+              "id": 1287748,
+              "link": "https://shiftdelete.net/gigabyte-intel-raptor-lake-next-bios-guncellemesi",
+              "body_chars": 2991,
+              "has_date_gmt": true,
+              "has_modified_gmt": true,
+              "featured_media": 1287751,
+              "author": 502316,
+              "categories": [
+                72,
+                15,
+                79,
+                1,
+                61,
+                66,
+                31
+              ]
+            },
+            {
+              "id": 1287752,
+              "link": "https://shiftdelete.net/iqoo-neo12-ozellikleri-185-hz-oled-ekran",
+              "body_chars": 2999,
+              "has_date_gmt": true,
+              "has_modified_gmt": true,
+              "featured_media": 1287755,
+              "author": 502316,
+              "categories": [
+                71,
+                1,
+                37,
+                61
+              ]
+            }
+          ]
+        }
+      ],
+      "distinct_ids": 4,
+      "detail": {
+        "url": "https://shiftdelete.net/wp-json/wp/v2/posts/1287710?_embed=wp:featuredmedia,author",
+        "status": 200,
+        "final_url": "https://shiftdelete.net/wp-json/wp/v2/posts/1287710?_embed=wp:featuredmedia,author",
+        "content_type": "application/json; charset=UTF-8",
+        "etag": false,
+        "last_modified": false,
+        "bytes": 39613,
+        "seconds": 0.7,
+        "body_chars": 3187,
+        "embedded_relations": [
+          "author",
+          "wp:featuredmedia"
+        ]
+      }
+    },
+    {
+      "kind": "publisher_category_api",
+      "pages": [
+        {
+          "url": "https://htapi.haberturk.com/api/v1/haber/kategori/ht/gundem",
+          "status": 200,
+          "final_url": "https://htapi.haberturk.com/api/v1/haber/kategori/ht/gundem",
+          "content_type": "application/json",
+          "etag": false,
+          "last_modified": true,
+          "bytes": 257721,
+          "seconds": 1.01,
+          "distinct_news": 73,
+          "with_spot": 72,
+          "with_image": 73,
+          "news_keys": [
+            "absoluteUrl",
+            "advertisement",
+            "ampUrl",
+            "appUrl",
+            "category",
+            "fastLinkText",
+            "gtmTracker",
+            "image",
+            "lastMinuteNews",
+            "newsId",
+            "newsMetaData",
+            "officialAdId",
+            "slug",
+            "spot",
+            "title",
+            "type",
+            "updatedDateTime",
+            "updatedDateTimeFormatted",
+            "updatedElapsedTimeFormatted",
+            "url",
+            "urlTarget",
+            "writer"
+          ],
+          "next": "https://htapi.haberturk.com/api/v1/haber/kategori/ht/gundem/p2"
+        },
+        {
+          "url": "https://htapi.haberturk.com/api/v1/haber/kategori/ht/gundem/p2",
+          "status": 200,
+          "final_url": "https://htapi.haberturk.com/api/v1/haber/kategori/ht/gundem/p2",
+          "content_type": "application/json",
+          "etag": false,
+          "last_modified": false,
+          "bytes": 90259,
+          "seconds": 4.34,
+          "distinct_news": 36,
+          "with_spot": 36,
+          "with_image": 36,
+          "news_keys": [
+            "absoluteUrl",
+            "ampUrl",
+            "appUrl",
+            "category",
+            "createdDateFormatted",
+            "createdDateTimeFormatted",
+            "createdTimeFormatted",
+            "fastLinkText",
+            "gtmTracker",
+            "image",
+            "lastMinuteNews",
+            "newsId",
+            "newsMetaData",
+            "slug",
+            "spot",
+            "title",
+            "type",
+            "updatedDateFormatted",
+            "updatedDateTime",
+            "updatedDateTimeFormatted",
+            "updatedElapsedTimeFormatted",
+            "updatedTimeFormatted",
+            "url",
+            "urlTarget",
+            "writer"
+          ],
+          "next": "https://htapi.haberturk.com/api/v1/haber/kategori/ht/gundem/p3"
+        }
+      ],
+      "detail_api_verified": false
+    },
+    {
+      "url": "https://www.donanimhaber.com/openai-in-geliri-beklentilerin-20-milyar-dolar-altinda-kaldi--211440",
+      "status": 200,
+      "final_url": "https://www.donanimhaber.com/openai-in-geliri-beklentilerin-20-milyar-dolar-altinda-kaldi--211440",
+      "content_type": "text/html;charset=UTF-8",
+      "etag": false,
+      "last_modified": false,
+      "bytes": 217186,
+      "seconds": 1.07,
+      "kind": "embedded_structured_data",
+      "source": "donanimhaber",
+      "embedded_api_url": "https://api.donanimhaber.com/prod/web/api/News/GetNewsDetailPage",
+      "embedded_status": 200,
+      "direct_api_request_verified": false,
+      "body_chars": 4178,
+      "content_list_chars": 7236,
+      "image_count": 16,
+      "fields": [
+        "Id",
+        "VideoId",
+        "Url",
+        "Image",
+        "ImageCount",
+        "ColorAvarage",
+        "TextColor",
+        "SubTextColor",
+        "EditorColor",
+        "Title",
+        "SeoTitle",
+        "DateWellFormed",
+        "CreateDate",
+        "CreateDateTime",
+        "DateUpdated",
+        "ThreadId",
+        "TotalRead",
+        "OnlineUser",
+        "OnlineGuest",
+        "OnlineMember",
+        "ShortContent",
+        "SourceUrl",
+        "TotalComment",
+        "IsLocked",
+        "RelatedNews",
+        "Duration",
+        "IsFavorite",
+        "FavoriteCount",
+        "ShareCount",
+        "CommentCount",
+        "Images",
+        "ContentList",
+        "Member",
+        "Category",
+        "Awards",
+        "Type",
+        "GalleryDateWellFormed",
+        "GalleryId",
+        "GalleryTotalRead",
+        "SurveyId",
+        "EditorsChooseMessageId",
+        "TotalReputation",
+        "MyReputation",
+        "SourceUrlList",
+        "SourceUrlInfos",
+        "NewsUrl",
+        "IsPopular",
+        "TotalWatch",
+        "VideoLength",
+        "AiSummary",
+        "NarrationAudio",
+        "Tags",
+        "RawContent",
+        "StructuredDataImageBig",
+        "StructuredDataImageMedium",
+        "StructuredDataImageSmall",
+        "Img1200x675",
+        "YoutubePlayerActive",
+        "YoutubeUrl",
+        "ContentImages",
+        "BreadcrumbList",
+        "YoutubeEmbedUrl",
+        "CanChangeEditorsChooseMessageId",
+        "TagSeoQueries",
+        "Sort",
+        "PreviousSort",
+        "TableOfContentsHtml",
+        "RelatedTags",
+        "TotalReachCount",
+        "OgImage",
+        "IsQuizSolvedByUser"
+      ]
+    },
+    {
+      "url": "https://www.bbc.com/turkce/articles/cx4g19m3p298o?at_medium=RSS&at_campaign=rss",
+      "status": 200,
+      "final_url": "https://www.bbc.com/turkce/articles/cx4g19m3p298o?at_medium=RSS&at_campaign=rss",
+      "content_type": "text/html; charset=utf-8",
+      "etag": false,
+      "last_modified": false,
+      "bytes": 282733,
+      "seconds": 1.16,
+      "kind": "embedded_structured_data",
+      "source": "bbcturkce",
+      "page_data_fields": [
+        "metadata",
+        "content",
+        "promo",
+        "secondaryColumn",
+        "mostRead",
+        "portraitVideoItems",
+        "countryCuration",
+        "countryTopicIdToReorder"
+      ],
+      "text_nodes": 89,
+      "text_node_chars": 11170,
+      "note": "Text-node total may include headings/captions and is not a completeness metric."
+    },
+    {
+      "url": "https://tr.euronews.com/2026/10/09/iran-devrim-muhafizlari-hurmuzde-petrol-tankerini-vurdu-tehditler-tum-bolgeye-yayiliyor",
+      "status": 200,
+      "final_url": "https://tr.euronews.com/2026/10/09/iran-devrim-muhafizlari-hurmuzde-petrol-tankerini-vurdu-tehditler-tum-bolgeye-yayiliyor",
+      "content_type": "text/html; charset=UTF-8",
+      "etag": true,
+      "last_modified": false,
+      "bytes": 372369,
+      "seconds": 1.21,
+      "kind": "embedded_structured_data",
+      "source": "euronews",
+      "article_fields": [
+        "id",
+        "cid",
+        "livestream",
+        "technicalTags",
+        "relatedIds",
+        "preferredRatio",
+        "program",
+        "isWire",
+        "agencyKey",
+        "masterCMS",
+        "adobeFromBreakingNews",
+        "contentType",
+        "lastPublishedAt",
+        "createdAt",
+        "publishedAt",
+        "firstPublishedAt",
+        "lastModified",
+        "path",
+        "isMagazine",
+        "leadin",
+        "pfpRelated",
+        "title",
+        "versionId",
+        "plainText",
+        "advertising",
+        "advertisingData",
+        "isLiveCoverage",
+        "canonical",
+        "isBreakingNews",
+        "type",
+        "numberWords",
+        "isOpinion",
+        "grapeshotCategories",
+        "versions",
+        "daletEventName",
+        "contextualSignals",
+        "isAutoPublished",
+        "isAutoLocalised",
+        "isReviewed",
+        "localisationTechnology",
+        "daletPyramidId",
+        "excludeSocialMedia",
+        "hasVuukle",
+        "authors"
+      ],
+      "long_text_fields": {
+        "plainText": 4618
+      }
+    },
+    {
+      "url": "https://apiv2.sozcu.com.tr/",
+      "status": 200,
+      "final_url": "https://apiv2.sozcu.com.tr/",
+      "content_type": "text/html; charset=utf-8",
+      "etag": false,
+      "last_modified": false,
+      "bytes": 578,
+      "seconds": 0.75,
+      "declared_docs": [
+        {
+          "url": "https://apiv2.sozcu.com.tr/swagger-integration",
+          "status": 404,
+          "final_url": "https://apiv2.sozcu.com.tr/swagger-integration",
+          "content_type": "",
+          "etag": false,
+          "last_modified": false,
+          "bytes": 0,
+          "seconds": 0.66
+        },
+        {
+          "url": "https://apiv2.sozcu.com.tr/swagger-webapp",
+          "status": 404,
+          "final_url": "https://apiv2.sozcu.com.tr/swagger-webapp",
+          "content_type": "",
+          "etag": false,
+          "last_modified": false,
+          "bytes": 0,
+          "seconds": 0.73
+        },
+        {
+          "url": "https://apiv2.sozcu.com.tr/swagger-mobileapp",
+          "status": 404,
+          "final_url": "https://apiv2.sozcu.com.tr/swagger-mobileapp",
+          "content_type": "",
+          "etag": false,
+          "last_modified": false,
+          "bytes": 0,
+          "seconds": 0.61
+        }
+      ]
+    }
+  ]
+}

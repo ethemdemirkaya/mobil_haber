@@ -73,3 +73,12 @@ Dinleme pozu — assets/brand/wise-owl-listening.png:
 Merak pozu — assets/brand/wise-owl-curious.png:
 
 > Create one new pose of this exact elderly wise owl news app mascot. Preserve its round spectacles, grandfather eyebrows, charcoal engraving lines, cream feather colors and deep red scarf. Full body centered with clear generous padding on transparent background. Curious pose: looking toward viewer with friendly raised eyebrow, one wing resting on chin thoughtfully, other holding a small closed newspaper under arm. No headphones. Same restrained sophisticated vintage editorial ink illustration, warm and cute, no glossy 3D, no text, no background or extra characters.
+
+
+## Okuma yardımı — ikinci düzenleme
+
+Bağımsız özet, ses ve soru kartları tek okuma yardım bölümüne dönüştürüldü. Bir belirgin ses düğmesi; altında geniş, çerçevesiz özet ve soru satırları. Dil değerlendirmesi isteğe bağlı açılır bölümde. Hazırlanan özet aynı yerde gösterilir; model kimliği okuma akışından çıkarıldı. Eylem etiketleri 18 sp, ana dokunma alanları en az 64 dp. %200 yazı boyutunda dekoratif maskot gizlenir. Küçük önizleme üst başlığı satır kırabilir.
+
+Test: 57 test geçti; haber araçları testi 320 piksel / %200 koyu tema ve 390 piksel açık temada çalışıyor. Özet oluşturma sonrası sonuç, dil analizi ayrıntıları ve eylem yüksekliği kontrol ediliyor. reading-help-*.png ve reading-summary-*.png yeni düzenin test görselleridir.
+
+Imagegen ile üretilebilecek 10 görsel konum ve promptlar: [image-opportunities.md](image-opportunities.md). Bu turda yeni görseller üretilmedi; yerleşim önerileri belirlendi.

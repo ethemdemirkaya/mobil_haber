@@ -353,7 +353,7 @@ class _DailyBriefingCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              const PusulaMascot(pose: MascotPose.listening, size: 56),
+              const EditorialArt(kind: EditorialArtKind.briefing, size: 64),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
