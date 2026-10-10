@@ -8,7 +8,10 @@ import '../../core/utils/turkish_text.dart';
 ///   3. URL yol segmentleri (`/spor/`, `/ekonomi/` …).
 ///   4. Anahtar kelime puanlaması — başlıktaki eşleşme 2, özetteki 1 puan;
 ///      en az [_minScore] puan alan en yüksek kategori seçilir.
-///   5. Hiçbiri tutmazsa `gundem`.
+///      Konu odaklı kaynaklarda ([sourceDefault] verilmişse) başka bir
+///      kategoriye geçmek için en az [_overrideScore] puan gerekir —
+///      Investing'deki "Fenerbahçe hisseleri" haberi spor değil ekonomidir.
+///   5. Kaynağın varsayılan kategorisi, o da yoksa `gundem`.
 ///
 /// Eşleşme alt-dize (`contains`) ile değil, kelime + Türkçe ek zinciri ile
 /// yapılır: "yaşındaki" artık "aşı" (sağlık), "operasyon" artık "opera"
@@ -18,6 +21,7 @@ class CategoryClassifier {
 
   static const String fallback = 'gundem';
   static const int _minScore = 2;
+  static const int _overrideScore = 4;
 
   String classify({
     String? explicit,
@@ -25,6 +29,7 @@ class CategoryClassifier {
     required String summary,
     Iterable<String> rssCategories = const [],
     String url = '',
+    String? sourceDefault,
   }) {
     if (explicit != null && explicit.isNotEmpty && explicit != 'all') {
       return explicit;
@@ -50,6 +55,12 @@ class CategoryClassifier {
         bestScore = score;
         best = entry.key;
       }
+    }
+    if (sourceDefault != null) {
+      return (best != null && best != sourceDefault &&
+              bestScore >= _overrideScore)
+          ? best
+          : sourceDefault;
     }
     if (best != null && bestScore >= _minScore) return best;
     return fallback;
@@ -125,7 +136,8 @@ class CategoryClassifier {
       'spor', 'futbol', 'basketbol', 'voleybol', 'maç', 'lig', 'süper lig',
       'galatasaray', 'fenerbahçe', 'beşiktaş', 'trabzonspor', 'olimpiyat',
       'teknik direktör', 'transfer', 'şampiyonlar ligi', 'milli takım',
-      'gol', 'derbi',
+      'gol', 'derbi', 'euroleague', 'nba', 'tenis', 'formula', 'olympiakos',
+      'anadolu efes',
     ],
     'ekonomi': [
       'ekonomi', 'borsa', 'döviz', 'dolar', 'euro', 'enflasyon',

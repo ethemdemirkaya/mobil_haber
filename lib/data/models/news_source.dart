@@ -19,6 +19,7 @@ class NewsSource {
     required this.primaryFeed,
     this.categoryFeeds = const {},
     this.recommended = false,
+    this.defaultCategory,
     this.country = 'TR',
     this.language = 'tr',
     this.kind = SourceKind.rss,
@@ -51,6 +52,11 @@ class NewsSource {
 
   /// Onboarding'de varsayılan olarak işaretli gelsin.
   final bool recommended;
+
+  /// Konu odaklı kaynakların kategorisi (ör. ekonomi, spor). Haber
+  /// metninden kategori çıkarılamadığında `gundem` yerine bu kullanılır;
+  /// genel yayınlarda null.
+  final String? defaultCategory;
 
   /// ISO ülke kodu.
   final String country;
@@ -213,6 +219,7 @@ class NewsSourceCatalog {
       domain: 'milliyet.com.tr',
       brandColor: Color(0xFFD7152C),
       primaryFeed: 'https://www.milliyet.com.tr/rss/rssNew/sondakika',
+      recommended: true,
     ),
 
     NewsSource(
@@ -223,6 +230,7 @@ class NewsSourceCatalog {
       domain: 'cumhuriyet.com.tr',
       brandColor: Color(0xFFC8102E),
       primaryFeed: 'https://www.cumhuriyet.com.tr/rss/son_dakika.xml',
+      recommended: true,
     ),
 
     NewsSource(
@@ -237,6 +245,7 @@ class NewsSourceCatalog {
         'ekonomi': 'https://www.haberturk.com/rss/ekonomi.xml',
         'spor': 'https://www.haberturk.com/rss/spor.xml',
       },
+      recommended: true,
     ),
 
     NewsSource(
@@ -452,6 +461,7 @@ class NewsSourceCatalog {
       domain: 'medyascope.tv',
       brandColor: Color(0xFF00897B),
       primaryFeed: 'https://medyascope.tv/feed/',
+      recommended: true,
     ),
 
     NewsSource(
@@ -523,6 +533,7 @@ class NewsSourceCatalog {
     // içerik üretimi farklı, ayrı kaynak olarak listelendi.
     NewsSource(
       id: 'investingtr',
+      defaultCategory: 'ekonomi',
       name: 'Investing.com Türkçe',
       shortName: 'Investing TR',
       tagline: 'Borsa, döviz, kripto ve emtia haberleri',
@@ -535,11 +546,11 @@ class NewsSourceCatalog {
         'ekonomi': 'https://tr.investing.com/rss/news.rss',
         'finans': 'https://tr.investing.com/rss/news_357.rss', // Borsa
       },
-      recommended: true,
     ),
 
     NewsSource(
       id: 'bloomberght',
+      defaultCategory: 'ekonomi',
       name: 'Bloomberg HT',
       shortName: 'Bloomberg HT',
       tagline: 'Türkiye\'nin uluslararası finans kanalı',
@@ -551,6 +562,7 @@ class NewsSourceCatalog {
 
     NewsSource(
       id: 'dunyagazetesi',
+      defaultCategory: 'ekonomi',
       name: 'Dünya Gazetesi',
       shortName: 'Dünya',
       tagline: 'Ekonomi ve iş dünyası gazetesi',
@@ -561,6 +573,7 @@ class NewsSourceCatalog {
 
     NewsSource(
       id: 'bigpara',
+      defaultCategory: 'ekonomi',
       name: 'Bigpara',
       shortName: 'Bigpara',
       tagline: 'Hürriyet bünyesinde finans portalı',
@@ -571,6 +584,7 @@ class NewsSourceCatalog {
 
     NewsSource(
       id: 'ekonomim',
+      defaultCategory: 'ekonomi',
       name: 'Ekonomim',
       shortName: 'Ekonomim',
       tagline: 'Eski "Dünya online" — ekonomi haberleri',
@@ -588,6 +602,7 @@ class NewsSourceCatalog {
     // ───── Teknoloji ─────
     NewsSource(
       id: 'webrazzi',
+      defaultCategory: 'teknoloji',
       name: 'Webrazzi',
       shortName: 'Webrazzi',
       tagline: 'Türkiye\'nin teknoloji yayını',
@@ -598,6 +613,7 @@ class NewsSourceCatalog {
 
     NewsSource(
       id: 'shiftdelete',
+      defaultCategory: 'teknoloji',
       name: 'ShiftDelete.Net',
       shortName: 'ShiftDelete',
       tagline: 'Teknoloji incelemeleri ve haberleri',
@@ -608,6 +624,7 @@ class NewsSourceCatalog {
 
     NewsSource(
       id: 'donanimhaber',
+      defaultCategory: 'teknoloji',
       name: 'Donanım Haber',
       shortName: 'DH',
       tagline: 'Donanım ve teknoloji haberleri',
@@ -618,6 +635,7 @@ class NewsSourceCatalog {
 
     NewsSource(
       id: 'webtekno',
+      defaultCategory: 'teknoloji',
       name: 'Webtekno',
       shortName: 'Webtekno',
       tagline: 'Türkiye\'nin teknoloji ve bilim portalı',
@@ -629,6 +647,7 @@ class NewsSourceCatalog {
 
     NewsSource(
       id: 'chiponline',
+      defaultCategory: 'teknoloji',
       name: 'CHIP Online',
       shortName: 'CHIP',
       tagline: 'Teknoloji incelemeleri ve dergi içeriği',
@@ -639,6 +658,7 @@ class NewsSourceCatalog {
 
     NewsSource(
       id: 'tamindir',
+      defaultCategory: 'teknoloji',
       name: 'Tamindir',
       shortName: 'Tamindir',
       tagline: 'Teknoloji haberleri ve uygulama incelemeleri',
@@ -650,6 +670,7 @@ class NewsSourceCatalog {
     // ───── Spor ─────
     NewsSource(
       id: 'fotomac',
+      defaultCategory: 'spor',
       name: 'Fotomaç',
       shortName: 'Fotomaç',
       tagline: 'Spor — Türkiye\'nin önde gelen spor gazetesi',
@@ -660,6 +681,7 @@ class NewsSourceCatalog {
 
     NewsSource(
       id: 'aspor',
+      defaultCategory: 'spor',
       name: 'A Spor',
       shortName: 'A Spor',
       tagline: 'Futbol, basketbol ve diğer spor branşları',

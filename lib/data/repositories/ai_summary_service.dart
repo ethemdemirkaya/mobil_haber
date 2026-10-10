@@ -29,7 +29,7 @@ Kurallar:
 
   /// Özetlenecek metin bu uzunluğun altındaysa özet üretilmez — tek
   /// cümlelik RSS açıklamasını "özetlemek" ya tekrar ya da uydurma üretir.
-  static const int minSourceChars = 400;
+  static const int minSourceChars = 300;
 
   /// [sourceText] (makalenin gövdesi; RSS içeriği ya da sayfadan çıkarılan
   /// metin) üzerinden madde madde özet üretir.

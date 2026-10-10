@@ -104,11 +104,45 @@ class NewsProvider extends ChangeNotifier {
   List<NewsSource> get activeSources => _activeSources;
   int get activeSourceCount => _activeSources.length;
 
-  List<Article> get featured {
-    if (_all.isEmpty) return const [];
-    final byDate = List<Article>.of(_all)
+  /// Manşet carousel'i — kümelerle birlikte bir kez hesaplanır
+  /// (bkz. [_pickFeatured]).
+  List<Article> get featured => _featured;
+  List<Article> _featured = const [];
+
+  /// Ana sayfadaki "Son haberler" listesi. "Tümü" seçiliyken manşette ve
+  /// Gündem kartlarında zaten gösterilen haberler tekrar edilmez; aynı
+  /// haber üç bölümde birden görünüyordu.
+  List<Article> get homeFeed {
+    if (_selectedCategoryId != NewsCategory.all.id) return articles;
+    final shown = {
+      for (final a in _featured) a.id,
+      for (final c in _trendingClusters) c.articles.first.id,
+    };
+    return _all.where((a) => !shown.contains(a.id)).toList(growable: false);
+  }
+
+  /// Gündem kümelerine girmeyen, görseli olan, her biri farklı kaynaktan en
+  /// yeni haberler; görselli haber azsa görselsizlerle tamamlanır.
+  List<Article> _pickFeatured({int take = 5}) {
+    final inTrending = {
+      for (final c in _trendingClusters)
+        for (final a in c.articles) a.id,
+    };
+    final byDate = _all.where((a) => !inTrending.contains(a.id)).toList()
       ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-    return byDate.take(5).toList(growable: false);
+    final picked = <Article>[];
+    final sources = <String>{};
+    for (final withImage in [true, false]) {
+      for (final a in byDate) {
+        if (picked.length >= take) break;
+        if (a.imageUrl.isNotEmpty != withImage) continue;
+        if (!sources.add(a.sourceName.isEmpty ? a.id : a.sourceName)) {
+          continue;
+        }
+        picked.add(a);
+      }
+    }
+    return List.unmodifiable(picked);
   }
 
   List<Article> get articles {
@@ -143,13 +177,20 @@ class NewsProvider extends ChangeNotifier {
   /// Çapraz bakış kümeleri (≥2 bağımsız kaynak), gündem skoruna göre sıralı.
   List<NewsCluster> get clusters => _clusters;
 
+  /// İçerikçe benzer haberler. Benzer bulunamazsa boş döner ve detay
+  /// ekranı bölümü gizler — aynı kategoriyle "doldurmak" alakasız haber
+  /// gösteriyordu. Liste değişene kadar haber başına önbellekli (detay
+  /// ekranı her yeniden çizimde sorar).
   List<Article> related(Article article, {int take = 4}) {
-    return _all
-        .where((a) =>
-            a.id != article.id && a.categoryId == article.categoryId)
-        .take(take)
-        .toList(growable: false);
+    final cached = _relatedCache[article.id];
+    if (cached != null) return cached;
+    final result = List<Article>.unmodifiable(
+        _clusterer.mostSimilar(article, _all, take: take));
+    _relatedCache[article.id] = result;
+    return result;
   }
+
+  final Map<String, List<Article>> _relatedCache = <String, List<Article>>{};
 
   Article? byId(String id) {
     for (final a in _all) {
@@ -169,6 +210,7 @@ class NewsProvider extends ChangeNotifier {
   /// Kümeleri ve gündemi yeniden hesapla. _load sonrası ve cache restore
   /// sonrası çağrılır; büyük listelerde hesap ayrı isolate'te yapılır.
   Future<void> _recomputeClusters() async {
+    _relatedCache.clear();
     final generation = ++_clusterGeneration;
     final snapshot = _all;
     List<NewsCluster> clusters = const [];
@@ -193,6 +235,7 @@ class NewsProvider extends ChangeNotifier {
     _clusters = clusters;
     _trendingClusters = trending;
     _trendingSourceCount = counts;
+    _featured = _pickFeatured();
   }
 
   Future<void> applySources(List<NewsSource> sources) {

@@ -1,4 +1,5 @@
 import 'package:pusula_news/core/theme/app_icons.dart';
+import '../../core/net/shared_http_client.dart';
 import '../../widgets/pusula_mascot.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';

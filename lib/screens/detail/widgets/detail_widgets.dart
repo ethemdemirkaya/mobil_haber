@@ -283,6 +283,7 @@ class _SourceAvatar extends StatelessWidget {
       child: ClipOval(
         child: source != null
             ? CachedNetworkImage(
+                httpHeaders: kImageRequestHeaders,
                 imageUrl: source.logoUrl,
                 fit: BoxFit.contain,
                 placeholder: (_, _) => _letter(brandColor, source.shortName),
@@ -340,6 +341,7 @@ class _SourceBadge extends StatelessWidget {
                 height: size,
                 color: source.brandColor.withValues(alpha: 0.10),
                 child: CachedNetworkImage(
+                  httpHeaders: kImageRequestHeaders,
                   imageUrl: source.logoUrl,
                   fit: BoxFit.contain,
                   placeholder: (_, _) =>

@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/net/shared_http_client.dart';
 import '../data/repositories/og_image_resolver.dart';
 import '../providers/preferences_provider.dart';
 
@@ -108,6 +109,7 @@ class _ArticleImageState extends State<ArticleImage> {
       child: activeUrl.isEmpty
           ? _buildPlaceholderOrLoading(cs)
           : CachedNetworkImage(
+              httpHeaders: kImageRequestHeaders,
               imageUrl: activeUrl,
               fit: widget.fit,
               height: widget.height,

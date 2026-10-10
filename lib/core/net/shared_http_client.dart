@@ -15,3 +15,15 @@ final http.Client sharedHttpClient = http.Client();
 void closeIfOwned(http.Client client) {
   if (!identical(client, sharedHttpClient)) client.close();
 }
+
+/// Haber sitelerine ve görsel CDN'lerine gönderilen tarayıcı kullanıcı
+/// ajanı. Bazı CDN'ler (ör. content-media.investing.com) varsayılan
+/// `Dart/x.y (dart:io)` ajanına 403 döndürüyor.
+const String kBrowserUserAgent =
+    'Mozilla/5.0 (Linux; Android 13; mobil_haber) AppleWebKit/537.36 '
+    '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
+
+/// Ağdan görsel yüklerken (`CachedNetworkImage.httpHeaders`) kullanılır.
+const Map<String, String> kImageRequestHeaders = {
+  'User-Agent': kBrowserUserAgent,
+};

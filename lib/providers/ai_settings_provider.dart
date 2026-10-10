@@ -590,9 +590,13 @@ class AiSettingsProvider extends ChangeNotifier {
       final text = await _groundingText(article);
       if (text.length < AiSummaryService.minSourceChars) {
         // Tek cümlelik açıklamayı "özetlemek" tekrar ya da uydurma üretir.
-        _lastError = 'Bu haberin özetlenecek kadar metni yok — kaynak '
-            'yalnızca kısa bir açıklama yayınlamış. Tam metni kaynağın '
-            'sitesinden okuyabilirsin.';
+        _lastError = _extractor.isBlocked(article.sourceUrl)
+            ? '${Uri.tryParse(article.sourceUrl)?.host ?? 'Kaynak site'} '
+                'otomatik erişime izin vermiyor; bu haber özetlenemiyor. '
+                'Tamamını kaynağın sitesinden okuyabilirsin.'
+            : 'Bu haberin özetlenecek kadar metni yok — kaynak '
+                'yalnızca kısa bir açıklama yayınlamış. Tam metni kaynağın '
+                'sitesinden okuyabilirsin.';
         return;
       }
       final result = await _service.summarize(
