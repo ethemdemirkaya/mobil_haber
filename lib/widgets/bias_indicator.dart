@@ -7,7 +7,12 @@ import '../providers/ai_settings_provider.dart';
 
 /// Language assessment shares the article's content width at every text size.
 class BiasIndicator extends StatelessWidget {
-  const BiasIndicator({super.key, required this.article});
+  const BiasIndicator({
+    super.key,
+    required this.article,
+    this.embedded = false,
+  });
+  final bool embedded;
   final Article article;
   @override
   Widget build(BuildContext context) {
@@ -29,29 +34,43 @@ class BiasIndicator extends StatelessWidget {
     };
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.outlineVariant),
-      ),
+      padding: EdgeInsets.all(embedded ? 0 : 16),
+      decoration: embedded
+          ? null
+          : BoxDecoration(
+              color: cs.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: cs.outlineVariant),
+            ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(AppIcons.scale, size: 20, color: cs.onSurfaceVariant),
-              const SizedBox(width: 10),
-              Expanded(child: Text('Haberin dili', style: text.titleSmall)),
-              if (loading)
-                const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-            ],
-          ),
+          if (!embedded)
+            Row(
+              children: [
+                Icon(AppIcons.scale, size: 20, color: cs.onSurfaceVariant),
+                const SizedBox(width: 10),
+                Expanded(child: Text('Haberin dili', style: text.titleSmall)),
+                if (loading)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
           const SizedBox(height: 10),
+          if (embedded && loading)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Semantics(
+                liveRegion: true,
+                child: Text(
+                  'Haberin dili inceleniyor…',
+                  style: text.bodyMedium?.copyWith(fontSize: 17, height: 1.5),
+                ),
+              ),
+            ),
           if (report != null) ...[
             Wrap(
               spacing: 12,
@@ -62,11 +81,17 @@ class BiasIndicator extends StatelessWidget {
                   report.label,
                   style: text.labelLarge?.copyWith(color: status),
                 ),
-                Text(report.confidence.label, style: text.bodySmall),
+                Text(
+                  report.confidence.label,
+                  style: text.bodySmall?.copyWith(fontSize: 15, height: 1.5),
+                ),
               ],
             ),
             const SizedBox(height: 10),
-            Text(report.summary, style: text.bodyMedium?.copyWith(height: 1.5)),
+            Text(
+              report.summary,
+              style: text.bodyMedium?.copyWith(fontSize: 17, height: 1.6),
+            ),
             Theme(
               data: Theme.of(
                 context,
@@ -74,7 +99,10 @@ class BiasIndicator extends StatelessWidget {
               child: ExpansionTile(
                 tilePadding: EdgeInsets.zero,
                 childrenPadding: EdgeInsets.zero,
-                title: Text('Değerlendirme hakkında', style: text.bodySmall),
+                title: Text(
+                  'Değerlendirme hakkında',
+                  style: text.bodySmall?.copyWith(fontSize: 15, height: 1.5),
+                ),
                 children: [
                   if (report.confidence == BiasConfidence.low)
                     Padding(
@@ -116,6 +144,7 @@ class BiasIndicator extends StatelessWidget {
                       ? 'Manşetteki duygusal ve yönlendirici ifadeleri incele.'
                       : 'Dil değerlendirmesi için Ayarlar’dan yapay zekayı etkinleştir.'),
               style: text.bodyMedium?.copyWith(
+                fontSize: 17,
                 color: error == null ? cs.onSurfaceVariant : cs.error,
                 height: 1.5,
               ),
@@ -126,7 +155,8 @@ class BiasIndicator extends StatelessWidget {
                 child: TextButton(
                   onPressed: loading ? null : () => ai.analyzeBias(article),
                   child: Text(
-                    error == null ? 'Dili değerlendir' : 'Tekrar dene',
+                    error == null ? 'Değerlendirmeyi başlat' : 'Tekrar dene',
+                    style: const TextStyle(fontSize: 17),
                   ),
                 ),
               ),

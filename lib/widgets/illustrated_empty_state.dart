@@ -1,3 +1,4 @@
+import 'editorial_art.dart';
 import 'package:flutter/material.dart';
 import 'empty_state.dart';
 
@@ -10,8 +11,10 @@ class IllustratedEmptyState extends StatelessWidget {
     this.actionLabel,
     this.onAction,
     this.tone,
+    this.art,
   });
   final IconData icon;
+  final EditorialArtKind? art;
   final String title;
   final String? subtitle, actionLabel;
   final VoidCallback? onAction;
@@ -19,6 +22,7 @@ class IllustratedEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) => EmptyState(
     icon: icon,
+    art: art,
     title: title,
     subtitle: subtitle,
     actionLabel: actionLabel,
