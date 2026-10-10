@@ -38,6 +38,7 @@ Kurallar:
     required String sourceText,
     required String apiKey,
     required String model,
+    List<String> fallbackModels = const [],
   }) async {
     final text = sourceText.length > 3500
         ? '${sourceText.substring(0, 3500)}…'
@@ -61,6 +62,7 @@ Lütfen bu haberi yukarıdaki kurallara göre en fazla $bullets madde halinde
       systemPrompt: _systemPrompt(bullets),
       userPrompt: user,
       temperature: 0.1,
+      fallbackModels: fallbackModels,
     );
   }
 
@@ -80,6 +82,7 @@ Lütfen bu haberi yukarıdaki kurallara göre en fazla $bullets madde halinde
     required String userPrompt,
     int maxTokens = 1000,
     double temperature = 0.4,
+    List<String> fallbackModels = const [],
   }) {
     return _client.chat(
       apiKey: apiKey,
@@ -88,6 +91,7 @@ Lütfen bu haberi yukarıdaki kurallara göre en fazla $bullets madde halinde
       userPrompt: userPrompt,
       maxTokens: maxTokens,
       temperature: temperature,
+      fallbackModels: fallbackModels,
     );
   }
 }
