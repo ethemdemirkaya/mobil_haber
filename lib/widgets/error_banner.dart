@@ -1,3 +1,4 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 
 class ErrorBanner extends StatelessWidget {
@@ -24,7 +25,7 @@ class ErrorBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.cloud_off_outlined, color: cs.onErrorContainer),
+          Icon(AppIcons.cloudOff, color: cs.onErrorContainer),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -36,13 +37,10 @@ class ErrorBanner extends StatelessWidget {
               ),
             ),
           ),
-          TextButton(
-            onPressed: onRetry,
-            child: const Text('Tekrar dene'),
-          ),
+          TextButton(onPressed: onRetry, child: const Text('Tekrar dene')),
           if (onDismiss != null)
             IconButton(
-              icon: const Icon(Icons.close, size: 18),
+              icon: const Icon(AppIcons.x, size: 18),
               color: cs.onErrorContainer,
               onPressed: onDismiss,
             ),

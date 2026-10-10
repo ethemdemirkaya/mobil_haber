@@ -1,0 +1,9 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="80dp" android:height="80dp" android:viewportWidth="128" android:viewportHeight="128">
+    <path android:strokeColor="@color/pusula_brand" android:strokeWidth="7.04" android:fillColor="#00000000"
+        android:pathData="M115.2,64A51.2,51.2 0,1 1,12.8 64A51.2,51.2 0,1 1,115.2 64"/>
+    <group android:pivotX="64" android:pivotY="64" android:rotation="45">
+        <path android:fillColor="@color/pusula_brand" android:fillType="evenOdd"
+            android:pathData="M64,20.48L78.336,64L64,107.52L49.664,64Z M71.168,64A7.168,7.168 0,1 0,56.832 64A7.168,7.168 0,1 0,71.168 64Z"/>
+    </group>
+</vector>

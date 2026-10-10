@@ -32,7 +32,7 @@ class _TopicChipsRow extends StatelessWidget {
           final accent = t.category?.color ?? cs.primary;
           return ChoiceChip(
             avatar: Icon(
-              t.category?.icon ?? Icons.podcasts,
+              t.category?.icon ?? AppIcons.broadcast,
               size: 16,
               color: selected ? cs.onPrimary : accent,
             ),
@@ -48,8 +48,11 @@ class _TopicChipsRow extends StatelessWidget {
                 ),
                 if (hasCached && !selected) ...[
                   const SizedBox(width: 6),
-                  Icon(Icons.check_circle,
-                      size: 12, color: cs.onSurfaceVariant),
+                  Icon(
+                    AppIcons.circleCheck,
+                    size: 12,
+                    color: cs.onSurfaceVariant,
+                  ),
                 ],
               ],
             ),
@@ -85,8 +88,7 @@ class _TtsWarningBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.warning_amber_rounded,
-              size: 18, color: cs.onTertiaryContainer),
+          Icon(AppIcons.alertTriangle, size: 18, color: cs.onTertiaryContainer),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -139,7 +141,8 @@ class _HighlightedText extends StatelessWidget {
       ),
       style: textTheme.bodyLarge?.copyWith(
         height: 1.7,
-        fontSize: 16,
+        fontSize: 20,
+        fontFamily: 'Newsreader',
       ),
     );
   }

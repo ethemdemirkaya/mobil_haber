@@ -33,25 +33,76 @@ class AppTheme {
   AppTheme._();
 
   static ThemeData light({AppFontScale scale = AppFontScale.medium}) {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColors.brandSeed,
-      brightness: Brightness.light,
-    );
+    final colorScheme = _colors(Brightness.light);
     return _buildTheme(colorScheme, scale);
   }
 
   static ThemeData dark({AppFontScale scale = AppFontScale.medium}) {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColors.brandSeed,
-      brightness: Brightness.dark,
-    );
+    final colorScheme = _colors(Brightness.dark);
     return _buildTheme(colorScheme, scale);
+  }
+
+  static ColorScheme _colors(Brightness brightness) {
+    final dark = brightness == Brightness.dark;
+    return ColorScheme(
+      brightness: brightness,
+      primary: dark ? const Color(0xFFF09097) : AppColors.brandSeed,
+      onPrimary: dark ? const Color(0xFF3C0A12) : Colors.white,
+      primaryContainer: dark
+          ? const Color(0xFF46252A)
+          : const Color(0xFFF3E1E0),
+      onPrimaryContainer: dark
+          ? const Color(0xFFFFDADB)
+          : const Color(0xFF721A27),
+      secondary: dark ? const Color(0xFFC8BEB1) : const Color(0xFF655B50),
+      onSecondary: dark ? const Color(0xFF26221D) : Colors.white,
+      secondaryContainer: dark
+          ? const Color(0xFF36312B)
+          : const Color(0xFFECE6DC),
+      onSecondaryContainer: dark
+          ? const Color(0xFFECE6DC)
+          : const Color(0xFF302A24),
+      tertiary: dark ? const Color(0xFFC8BEB1) : const Color(0xFF655B50),
+      onTertiary: dark ? const Color(0xFF26221D) : Colors.white,
+      tertiaryContainer: dark
+          ? const Color(0xFF36312B)
+          : const Color(0xFFECE6DC),
+      onTertiaryContainer: dark
+          ? const Color(0xFFECE6DC)
+          : const Color(0xFF302A24),
+      error: dark ? const Color(0xFFFFB4AB) : const Color(0xFFB3261E),
+      onError: dark ? const Color(0xFF690005) : Colors.white,
+      surface: dark ? const Color(0xFF191816) : const Color(0xFFF6F3EE),
+      onSurface: dark ? const Color(0xFFEDE8DF) : const Color(0xFF242321),
+      onSurfaceVariant: dark
+          ? const Color(0xFFBDB6AC)
+          : const Color(0xFF6D675F),
+      outline: dark ? const Color(0xFF82796F) : const Color(0xFF8C8378),
+      outlineVariant: dark ? const Color(0xFF3E3933) : const Color(0xFFDED8CE),
+      surfaceContainerLowest: dark
+          ? const Color(0xFF141311)
+          : const Color(0xFFFFFDFA),
+      surfaceContainerLow: dark
+          ? const Color(0xFF211F1C)
+          : const Color(0xFFFBF9F5),
+      surfaceContainer: dark
+          ? const Color(0xFF26231F)
+          : const Color(0xFFF0ECE5),
+      surfaceContainerHigh: dark
+          ? const Color(0xFF2D2925)
+          : const Color(0xFFEBE5DC),
+      surfaceContainerHighest: dark
+          ? const Color(0xFF342F29)
+          : const Color(0xFFE8E2D8),
+    );
   }
 
   static ThemeData _buildTheme(ColorScheme colorScheme, AppFontScale scale) {
     final base = ThemeData(
       colorScheme: colorScheme,
       useMaterial3: true,
+      fontFamily: 'Inter',
+      visualDensity: VisualDensity.standard,
       scaffoldBackgroundColor: colorScheme.surface,
     );
     final f = scale.factor;
@@ -62,11 +113,12 @@ class AppTheme {
         foregroundColor: colorScheme.onSurface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        scrolledUnderElevation: 0.5,
+        scrolledUnderElevation: 0,
         centerTitle: false,
         titleTextStyle: base.textTheme.titleLarge?.copyWith(
           fontWeight: FontWeight.w700,
-          fontSize: 22 * f,
+          fontSize: 26 * f,
+          fontFamily: 'Newsreader',
           color: colorScheme.onSurface,
         ),
         systemOverlayStyle: colorScheme.brightness == Brightness.dark
@@ -78,9 +130,7 @@ class AppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         color: colorScheme.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: colorScheme.surfaceContainerHighest,
@@ -90,6 +140,7 @@ class AppTheme {
         // selected chip arkaplanı ile yazı tonu çok yakınlaşıp okunaksız
         // kalıyordu.
         labelStyle: TextStyle(
+          fontFamily: 'Inter',
           fontSize: 13 * f,
           fontWeight: FontWeight.w600,
           color: WidgetStateColor.resolveWith((states) {
@@ -100,6 +151,7 @@ class AppTheme {
           }),
         ),
         secondaryLabelStyle: TextStyle(
+          fontFamily: 'Inter',
           fontSize: 13 * f,
           fontWeight: FontWeight.w600,
           color: colorScheme.onPrimary,
@@ -114,16 +166,14 @@ class AppTheme {
           }),
         ),
         side: BorderSide.none,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(40),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        height: 72,
+        height: 70,
         backgroundColor: colorScheme.surface,
         surfaceTintColor: Colors.transparent,
-        indicatorColor: colorScheme.primaryContainer.withValues(alpha: 0.7),
+        indicatorColor: colorScheme.primaryContainer,
         iconTheme: WidgetStatePropertyAll(
           IconThemeData(size: 26, color: colorScheme.onSurfaceVariant),
         ),
@@ -142,8 +192,10 @@ class AppTheme {
           color: colorScheme.onSurfaceVariant,
           fontSize: 15 * f,
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
@@ -162,6 +214,38 @@ class AppTheme {
         thickness: 0.6,
         space: 0,
       ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(48, 52),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          textStyle: const TextStyle(
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        showDragHandle: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+      ),
+      listTileTheme: const ListTileThemeData(
+        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      ),
       textTheme: _scaledTextTheme(base.textTheme, f, colorScheme),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
@@ -174,28 +258,41 @@ class AppTheme {
     );
   }
 
-  static TextTheme _scaledTextTheme(
-    TextTheme base,
-    double f,
-    ColorScheme cs,
-  ) {
+  static TextTheme _scaledTextTheme(TextTheme base, double f, ColorScheme cs) {
     return base.copyWith(
-      displayLarge: base.displayLarge?.copyWith(fontSize: 57 * f),
-      displayMedium: base.displayMedium?.copyWith(fontSize: 45 * f),
-      displaySmall: base.displaySmall?.copyWith(fontSize: 36 * f),
+      displayLarge: base.displayLarge?.copyWith(
+        fontFamily: 'Newsreader',
+        fontSize: 57 * f,
+      ),
+      displayMedium: base.displayMedium?.copyWith(
+        fontFamily: 'Newsreader',
+        fontSize: 45 * f,
+      ),
+      displaySmall: base.displaySmall?.copyWith(
+        fontFamily: 'Newsreader',
+        fontSize: 36 * f,
+      ),
       headlineLarge: base.headlineLarge?.copyWith(
+        fontFamily: 'Newsreader',
+        height: 1.15,
         fontSize: 32 * f,
         fontWeight: FontWeight.w700,
       ),
       headlineMedium: base.headlineMedium?.copyWith(
+        fontFamily: 'Newsreader',
+        height: 1.15,
         fontSize: 26 * f,
         fontWeight: FontWeight.w700,
       ),
       headlineSmall: base.headlineSmall?.copyWith(
-        fontSize: 22 * f,
+        fontFamily: 'Newsreader',
+        height: 1.15,
+        fontSize: 24 * f,
         fontWeight: FontWeight.w700,
       ),
       titleLarge: base.titleLarge?.copyWith(
+        fontFamily: 'Newsreader',
+        height: 1.15,
         fontSize: 20 * f,
         fontWeight: FontWeight.w700,
       ),

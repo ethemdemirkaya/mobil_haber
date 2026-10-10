@@ -1,3 +1,4 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_constants.dart';
@@ -18,17 +19,7 @@ class AboutScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  cs.primary,
-                  Color.alphaBlend(
-                    cs.primary.withValues(alpha: 0.7),
-                    cs.tertiary,
-                  ),
-                ],
-              ),
+              color: cs.primary,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Column(
@@ -38,20 +29,16 @@ class AboutScreen extends StatelessWidget {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: cs.onPrimary.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.newspaper_outlined,
-                    color: Colors.white,
-                    size: 32,
-                  ),
+                  child: Icon(AppIcons.news, color: cs.onPrimary, size: 32),
                 ),
                 const SizedBox(height: 14),
                 Text(
                   AppConstants.appName,
                   style: textTheme.headlineSmall?.copyWith(
-                    color: Colors.white,
+                    color: cs.onPrimary,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.6,
                   ),
@@ -60,21 +47,23 @@ class AboutScreen extends StatelessWidget {
                 Text(
                   AppConstants.appTagline,
                   style: textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: cs.onPrimary.withValues(alpha: 0.9),
                   ),
                 ),
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 6),
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: cs.onPrimary.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
                     'Sürüm ${AppConstants.appVersion}${AppConstants.appBuild}',
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: cs.onPrimary,
                       fontWeight: FontWeight.w700,
                       fontSize: 12,
                     ),
@@ -117,17 +106,17 @@ class AboutScreen extends StatelessWidget {
             child: Column(
               children: [
                 _LinkTile(
-                  icon: Icons.code,
+                  icon: AppIcons.code,
                   title: 'Kaynak kodu',
                   subtitle: 'github.com/ethemdemirkaya/mobil_haber',
                 ),
                 _LinkTile(
-                  icon: Icons.shield_outlined,
+                  icon: AppIcons.shield,
                   title: 'Gizlilik politikası',
                   subtitle: 'Cihaz dışında veri toplanmaz',
                 ),
                 _LinkTile(
-                  icon: Icons.gavel_outlined,
+                  icon: AppIcons.gavel,
                   title: 'Lisans',
                   subtitle: 'MIT (demo amaçlı)',
                 ),
@@ -135,12 +124,7 @@ class AboutScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Center(
-            child: Text(
-              '© 2026 Pusula',
-              style: textTheme.bodySmall,
-            ),
-          ),
+          Center(child: Text('© 2026 Pusula', style: textTheme.bodySmall)),
         ],
       ),
     );
@@ -204,7 +188,7 @@ class _Bullet extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.check_circle, size: 16, color: cs.primary),
+          Icon(AppIcons.circleCheck, size: 16, color: cs.primary),
           const SizedBox(width: 8),
           Expanded(child: Text(text)),
         ],
@@ -231,14 +215,16 @@ class _LinkTile extends StatelessWidget {
       leading: Icon(icon),
       title: Text(title),
       subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: const Icon(AppIcons.chevronRight),
       onTap: () {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(
-            content: Text('"$title" bağlantısı sonraki sürümde'),
-            behavior: SnackBarBehavior.floating,
-          ));
+          ..showSnackBar(
+            SnackBar(
+              content: Text('"$title" bağlantısı sonraki sürümde'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
       },
     );
   }

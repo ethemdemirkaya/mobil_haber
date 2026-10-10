@@ -37,6 +37,17 @@ class PreferencesProvider extends ChangeNotifier {
   /// karşıt olarak çevirebiliyoruz.
   static const _prefsDisabledSourcesLegacy = 'pref_disabled_sources';
 
+  final Set<String> _interests = {};
+  Set<String> get interests => Set.unmodifiable(_interests);
+  Future<void> setInterests(Set<String> ids) async {
+    _interests
+      ..clear()
+      ..addAll(ids);
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('pref_interests', ids.toList());
+  }
+
   bool get initialized => _initialized;
   bool get breakingNews => _breakingNews;
   bool get dailyDigest => _dailyDigest;
@@ -87,8 +98,7 @@ class PreferencesProvider extends ChangeNotifier {
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    _breakingNews =
-        prefs.getBool(AppConstants.prefsNotifBreaking) ?? true;
+    _breakingNews = prefs.getBool(AppConstants.prefsNotifBreaking) ?? true;
     _dailyDigest = prefs.getBool(AppConstants.prefsNotifDaily) ?? false;
     _dataSaverImages =
         prefs.getBool(AppConstants.prefsDataSaverImages) ?? false;
@@ -97,8 +107,8 @@ class PreferencesProvider extends ChangeNotifier {
     _categoryNotifs.clear();
     for (final c in NewsCategory.values) {
       if (c.id == NewsCategory.all.id) continue;
-      final active = prefs.getBool(
-              '${AppConstants.prefsNotifCategoryPrefix}${c.id}') ??
+      final active =
+          prefs.getBool('${AppConstants.prefsNotifCategoryPrefix}${c.id}') ??
           false;
       if (active) _categoryNotifs.add(c.id);
     }
@@ -112,14 +122,18 @@ class PreferencesProvider extends ChangeNotifier {
       _selectedSources.addAll(stored);
     } else {
       // Migrasyon: eski "disabled" listesi varsa onun tersini whitelist olarak yaz.
-      final legacyDisabled =
-          prefs.getStringList(_prefsDisabledSourcesLegacy);
+      final legacyDisabled = prefs.getStringList(_prefsDisabledSourcesLegacy);
       if (legacyDisabled != null) {
         for (final s in NewsSourceCatalog.all) {
           if (!legacyDisabled.contains(s.id)) _selectedSources.add(s.id);
         }
       }
     }
+    _interests.addAll(
+      (prefs.getStringList('pref_interests') ?? []).where(
+        (id) => NewsCategory.values.any((c) => c.id == id && id != 'all'),
+      ),
+    );
     _initialized = true;
     notifyListeners();
   }
@@ -132,10 +146,7 @@ class PreferencesProvider extends ChangeNotifier {
       ..addAll(ids);
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(
-      _prefsSelectedSources,
-      _selectedSources.toList(),
-    );
+    await prefs.setStringList(_prefsSelectedSources, _selectedSources.toList());
   }
 
   /// Tek bir kaynağı seç/seçimden çıkar. UI'da switch ya da chip toggle.
@@ -147,10 +158,7 @@ class PreferencesProvider extends ChangeNotifier {
     }
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(
-      _prefsSelectedSources,
-      _selectedSources.toList(),
-    );
+    await prefs.setStringList(_prefsSelectedSources, _selectedSources.toList());
   }
 
   /// Eski API uyumluluğu — `isSourceEnabled`/`toggleSource` çağrılarına
@@ -165,10 +173,7 @@ class PreferencesProvider extends ChangeNotifier {
       ..addAll(NewsSourceCatalog.recommendedIds);
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(
-      _prefsSelectedSources,
-      _selectedSources.toList(),
-    );
+    await prefs.setStringList(_prefsSelectedSources, _selectedSources.toList());
   }
 
   Future<void> setBreakingNews(bool value) async {
@@ -195,8 +200,7 @@ class PreferencesProvider extends ChangeNotifier {
     }
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(
-        '${AppConstants.prefsNotifCategoryPrefix}$id', value);
+    await prefs.setBool('${AppConstants.prefsNotifCategoryPrefix}$id', value);
   }
 
   Future<void> setDataSaverImages(bool value) async {

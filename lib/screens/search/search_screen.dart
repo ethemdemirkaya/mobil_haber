@@ -1,3 +1,4 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -64,13 +65,15 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   List<Article> _filtered(List<Article> source, String query) {
-    return source.where((a) {
-      final matchesQuery = a.matchesQuery(query);
-      final matchesCategory =
-          _filterCategoryId == NewsCategory.all.id ||
+    return source
+        .where((a) {
+          final matchesQuery = a.matchesQuery(query);
+          final matchesCategory =
+              _filterCategoryId == NewsCategory.all.id ||
               a.categoryId == _filterCategoryId;
-      return matchesQuery && matchesCategory;
-    }).toList(growable: false);
+          return matchesQuery && matchesCategory;
+        })
+        .toList(growable: false);
   }
 
   @override
@@ -89,8 +92,7 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           children: [
             Padding(
-              padding:
-                  const EdgeInsets.fromLTRB(20, 16, 20, 12),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
               child: Row(
                 children: [
                   Expanded(
@@ -103,13 +105,13 @@ class _SearchScreenState extends State<SearchScreen> {
                       onSubmitted: _commit,
                       decoration: InputDecoration(
                         prefixIcon: Icon(
-                          Icons.search,
+                          AppIcons.search,
                           color: cs.onSurfaceVariant,
                         ),
                         suffixIcon: query.isEmpty
                             ? null
                             : IconButton(
-                                icon: const Icon(Icons.close),
+                                icon: const Icon(AppIcons.x),
                                 onPressed: () {
                                   _controller.clear();
                                   _setQuery('');
@@ -126,11 +128,9 @@ class _SearchScreenState extends State<SearchScreen> {
               height: 44,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: NewsCategory.values.length,
-                separatorBuilder: (_, _) =>
-                    const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final c = NewsCategory.values[index];
                   final selected = _filterCategoryId == c.id;
@@ -138,17 +138,14 @@ class _SearchScreenState extends State<SearchScreen> {
                     label: Text(c.name),
                     avatar: Icon(c.icon, size: 16),
                     selected: selected,
-                    onSelected: (_) => setState(
-                      () => _filterCategoryId = c.id,
-                    ),
+                    onSelected: (_) => setState(() => _filterCategoryId = c.id),
                   );
                 },
               ),
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: query.isEmpty &&
-                      _filterCategoryId == NewsCategory.all.id
+              child: query.isEmpty && _filterCategoryId == NewsCategory.all.id
                   ? _SearchSuggestions(
                       history: search.history,
                       onHistoryTap: _useHistory,
@@ -158,51 +155,47 @@ class _SearchScreenState extends State<SearchScreen> {
                           context.read<SearchProvider>().removeFromHistory(q),
                     )
                   : results.isEmpty
-                      ? IllustratedEmptyState(
-                          icon: Icons.search_off_outlined,
-                          title: 'Eşleşen haber yok',
-                          subtitle:
-                              'Farklı kelimeler veya başka bir kategori dene.',
-                          actionLabel: 'Filtreyi temizle',
-                          onAction: () {
-                            _controller.clear();
-                            _setQuery('');
-                            setState(() =>
-                                _filterCategoryId = NewsCategory.all.id);
-                          },
-                        )
-                      : ListView.separated(
-                          padding: EdgeInsets.zero,
-                          itemCount: results.length + 1,
-                          separatorBuilder: (_, _) => Divider(
-                            height: 1,
-                            indent: 16,
-                            endIndent: 16,
-                            color: cs.outlineVariant
-                                .withValues(alpha: 0.4),
-                          ),
-                          itemBuilder: (context, index) {
-                            if (index == 0) {
-                              return Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                    20, 8, 20, 12),
-                                child: Text(
-                                  '${results.length} sonuç',
-                                  style:
-                                      textTheme.bodySmall?.copyWith(
-                                    color: cs.onSurfaceVariant,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              );
-                            }
-                            final a = results[index - 1];
-                            return ArticleCard(
-                              article: a,
-                              onTap: () => _openArticle(a),
-                            );
-                          },
-                        ),
+                  ? IllustratedEmptyState(
+                      icon: AppIcons.zoomCancel,
+                      title: 'Eşleşen haber yok',
+                      subtitle:
+                          'Farklı kelimeler veya başka bir kategori dene.',
+                      actionLabel: 'Filtreyi temizle',
+                      onAction: () {
+                        _controller.clear();
+                        _setQuery('');
+                        setState(() => _filterCategoryId = NewsCategory.all.id);
+                      },
+                    )
+                  : ListView.separated(
+                      padding: EdgeInsets.zero,
+                      itemCount: results.length + 1,
+                      separatorBuilder: (_, _) => Divider(
+                        height: 1,
+                        indent: 16,
+                        endIndent: 16,
+                        color: cs.outlineVariant.withValues(alpha: 0.4),
+                      ),
+                      itemBuilder: (context, index) {
+                        if (index == 0) {
+                          return Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                            child: Text(
+                              '${results.length} sonuç',
+                              style: textTheme.bodySmall?.copyWith(
+                                color: cs.onSurfaceVariant,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          );
+                        }
+                        final a = results[index - 1];
+                        return ArticleCard(
+                          article: a,
+                          onTap: () => _openArticle(a),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -231,7 +224,7 @@ class _SearchSuggestions extends StatelessWidget {
 
     if (history.isEmpty) {
       return IllustratedEmptyState(
-        icon: Icons.travel_explore_outlined,
+        icon: AppIcons.world,
         title: 'Ne aramak istersin?',
         subtitle:
             'Başlık, yazar veya kategori adı yaz — sonuçlar anında listelensin.',
@@ -242,8 +235,7 @@ class _SearchSuggestions extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       children: [
         Padding(
-          padding:
-              const EdgeInsets.fromLTRB(20, 8, 12, 4),
+          padding: const EdgeInsets.fromLTRB(20, 8, 12, 4),
           child: Row(
             children: [
               Expanded(
@@ -263,10 +255,10 @@ class _SearchSuggestions extends StatelessWidget {
         ),
         for (final q in history)
           ListTile(
-            leading: Icon(Icons.history, color: cs.onSurfaceVariant),
+            leading: Icon(AppIcons.history, color: cs.onSurfaceVariant),
             title: Text(q),
             trailing: IconButton(
-              icon: const Icon(Icons.close, size: 18),
+              icon: const Icon(AppIcons.x, size: 18),
               onPressed: () => onRemoveHistory(q),
             ),
             onTap: () => onHistoryTap(q),

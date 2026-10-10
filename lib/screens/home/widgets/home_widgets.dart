@@ -20,9 +20,7 @@ class _HeaderIconButton extends StatelessWidget {
     final fg = cs.onSurface;
     return Material(
       color: bg,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
@@ -50,53 +48,24 @@ class _SearchShortcutBar extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Material(
       color: cs.surfaceContainerHighest,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const SearchScreen(),
-            ),
-          );
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const SearchScreen()));
         },
         child: Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             children: [
-              Icon(Icons.search_rounded,
-                  size: 20, color: cs.onSurfaceVariant),
+              Icon(AppIcons.search, size: 20, color: cs.onSurfaceVariant),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'Haber, yazar veya kategori ara…',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: cs.surface,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: cs.outlineVariant.withValues(alpha: 0.6),
-                  ),
-                ),
-                child: Text(
-                  '⌘K',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: cs.onSurfaceVariant,
-                    letterSpacing: 0.4,
-                  ),
+                  style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
                 ),
               ),
             ],
@@ -106,7 +75,6 @@ class _SearchShortcutBar extends StatelessWidget {
     );
   }
 }
-
 
 /// Ana sayfa listesinin sonu: kalan haberler varsa kategori ekranına
 /// götüren buton, yoksa yenile.
@@ -132,19 +100,21 @@ class _SeeAllFooter extends StatelessWidget {
         child: shown < total
             ? FilledButton.tonalIcon(
                 onPressed: onSeeAll,
-                icon: const Icon(Icons.arrow_forward, size: 20),
+                icon: const Icon(AppIcons.arrowForward, size: 20),
                 label: Text(
                   'Tüm $total haberi gör',
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 14),
+                    horizontal: 20,
+                    vertical: 14,
+                  ),
                 ),
               )
             : TextButton.icon(
                 onPressed: onRefresh,
-                icon: Icon(Icons.refresh, size: 16, color: cs.primary),
+                icon: Icon(AppIcons.refresh, size: 16, color: cs.primary),
                 label: const Text('Yenile'),
               ),
       ),
@@ -185,7 +155,7 @@ class _AddSourcesChip extends StatelessWidget {
                     color: cs.primary.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(Icons.add, color: cs.primary, size: 18),
+                  child: Icon(AppIcons.plus, color: cs.primary, size: 18),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -208,84 +178,6 @@ class _AddSourcesChip extends StatelessWidget {
 /// İlk açılış sonrası, build-time gömülü API anahtarı varsa bir kez
 /// yeşil bir başarı banner'ı gösterir. Kullanıcı dismiss edince bir
 /// daha gözükmez.
-class _AiReadyBanner extends StatelessWidget {
-  const _AiReadyBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    final ai = context.watch<AiSettingsProvider>();
-    if (!ai.shouldShowFirstRunNotice) return const SizedBox.shrink();
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.green.withValues(alpha: 0.16),
-            Colors.green.withValues(alpha: 0.06),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Colors.green.withValues(alpha: 0.4),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.18),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.check_circle,
-                color: Colors.green.shade700, size: 22),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Yapay zeka hazır',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                    color: cs.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Brifing ve makale özetleri için ek kurulum gerekmiyor — '
-                  'uygulama içi anahtar etkin.',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: cs.onSurfaceVariant,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            tooltip: 'Anladım',
-            icon: const Icon(Icons.close, size: 18),
-            onPressed: () =>
-                context.read<AiSettingsProvider>().markFirstRunNoticeSeen(),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Çevrimdışı modda — son başarılı çekimden disk cache'inden yükledik.
-/// "Çevrimdışısınız" + son güncelleme zamanı + yenile.
 class _OfflineNotice extends StatelessWidget {
   const _OfflineNotice({required this.cachedAt, required this.onRetry});
 
@@ -309,14 +201,11 @@ class _OfflineNotice extends StatelessWidget {
       decoration: BoxDecoration(
         color: cs.tertiaryContainer.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: cs.tertiary.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: cs.tertiary.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          Icon(Icons.cloud_off_rounded,
-              size: 18, color: cs.onTertiaryContainer),
+          Icon(AppIcons.cloudOff, size: 18, color: cs.onTertiaryContainer),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -342,10 +231,7 @@ class _OfflineNotice extends StatelessWidget {
               ],
             ),
           ),
-          TextButton(
-            onPressed: onRetry,
-            child: const Text('Yenile'),
-          ),
+          TextButton(onPressed: onRetry, child: const Text('Yenile')),
         ],
       ),
     );

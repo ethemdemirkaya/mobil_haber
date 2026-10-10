@@ -1,3 +1,5 @@
+import '../../widgets/editorial_art.dart';
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -27,8 +29,9 @@ class _ClusterScreenState extends State<ClusterScreen> {
   @override
   Widget build(BuildContext context) {
     // Kümeler NewsProvider'da liste değiştiğinde bir kez hesaplanır.
-    final clusters =
-        context.select<NewsProvider, List<NewsCluster>>((n) => n.clusters);
+    final clusters = context.select<NewsProvider, List<NewsCluster>>(
+      (n) => n.clusters,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -36,7 +39,7 @@ class _ClusterScreenState extends State<ClusterScreen> {
         actions: [
           IconButton(
             tooltip: 'Bilgi',
-            icon: const Icon(Icons.info_outline),
+            icon: const Icon(AppIcons.infoCircle),
             onPressed: () => _showInfoSheet(context),
           ),
         ],
@@ -70,11 +73,9 @@ class _ClusterScreenState extends State<ClusterScreen> {
   }
 
   void _open(Article a) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ArticleDetailScreen(article: a),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => ArticleDetailScreen(article: a)));
   }
 
   void _showInfoSheet(BuildContext context) {
@@ -85,78 +86,42 @@ class _ClusterScreenState extends State<ClusterScreen> {
       builder: (ctx) {
         final cs = Theme.of(ctx).colorScheme;
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 4, 24, 32),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Icon(Icons.hub, color: cs.primary, size: 22),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Çapraz Kaynak Bakış',
-                      style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Aynı olayı haber yapan farklı kaynakları otomatik '
-                  'gruplandırır. Türkçe kök bulma, TF-IDF ağırlıklı kosinüs '
-                  'benzerliği ve 36 saatlik zaman penceresiyle tamamen '
-                  'cihaz üzerinde çalışır.',
-                  style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
-                        color: cs.onSurfaceVariant,
-                        height: 1.5,
-                      ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Neden önemli?',
-                  style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Bir olayın 5 farklı medyada nasıl çerçevelendiğini yan '
-                  'yana görerek **medya çoğulluğunu** ve **manşet seçim '
-                  'farklarını** keşfedebilirsiniz. Bu özellik, hem medya '
-                  'okuryazarlığını hem de bilinçli haber tüketimini '
-                  'destekler.',
-                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                        height: 1.5,
-                        color: cs.onSurfaceVariant,
-                      ),
-                ),
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: cs.primaryContainer.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(10),
+                const Center(
+                  child: EditorialArt(
+                    kind: EditorialArtKind.perspectives,
+                    size: 144,
                   ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.lightbulb_outline,
-                          size: 16, color: cs.onPrimaryContainer),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Tüm hesaplama cihazınızda yapılır — hiçbir '
-                          'veri sunucuya gitmez.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: cs.onPrimaryContainer,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Bir olay, farklı bakışlar',
+                  style: Theme.of(ctx).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Aynı olayı farklı kaynakların nasıl anlattığını bir arada gör. Manşetleri karşılaştır, ayrıntıları kendi gözünle keşfet.',
+                  style: Theme.of(ctx).textTheme.bodyLarge?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    height: 1.6,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Nasıl kullanılır?',
+                  style: Theme.of(ctx).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Bir haber grubunu aç, kaynakların manşetlerine göz at. İlgini çeken habere dokunarak okumaya devam et.',
+                  style: Theme.of(ctx).textTheme.bodyLarge?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    height: 1.6,
                   ),
                 ),
               ],
@@ -180,18 +145,9 @@ class _IntroBanner extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 6),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            cs.primaryContainer.withValues(alpha: 0.55),
-            cs.primaryContainer.withValues(alpha: 0.2),
-          ],
-        ),
+        color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: cs.primary.withValues(alpha: 0.25),
-        ),
+        border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
@@ -203,7 +159,7 @@ class _IntroBanner extends StatelessWidget {
               color: cs.primary.withValues(alpha: 0.18),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.hub, color: cs.primary, size: 22),
+            child: Icon(AppIcons.gitCompare, color: cs.primary, size: 22),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -237,10 +193,7 @@ class _IntroBanner extends StatelessWidget {
 }
 
 class _ClusterCard extends StatelessWidget {
-  const _ClusterCard({
-    required this.cluster,
-    required this.onArticleTap,
-  });
+  const _ClusterCard({required this.cluster, required this.onArticleTap});
 
   final NewsCluster cluster;
   final ValueChanged<Article> onArticleTap;
@@ -254,9 +207,7 @@ class _ClusterCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
-        ),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -267,22 +218,24 @@ class _ClusterCard extends StatelessWidget {
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: cat.color.withValues(alpha: 0.18),
+                    color: cs.primaryContainer,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(cat.icon, size: 13, color: cat.color),
+                      Icon(cat.icon, size: 13, color: cs.primary),
                       const SizedBox(width: 4),
                       Text(
                         cat.name.toUpperCase(),
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
-                          color: cat.color,
+                          color: cs.primary,
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -292,7 +245,9 @@ class _ClusterCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: cs.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
@@ -300,8 +255,7 @@ class _ClusterCard extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.account_tree_outlined,
-                          size: 12, color: cs.primary),
+                      Icon(AppIcons.sitemap, size: 12, color: cs.primary),
                       const SizedBox(width: 4),
                       Text(
                         '${cluster.sourceCount} kaynak',
@@ -342,10 +296,7 @@ class _ClusterCard extends StatelessWidget {
               ),
             ),
           ),
-          Divider(
-            height: 1,
-            color: cs.outlineVariant.withValues(alpha: 0.5),
-          ),
+          Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 8, 14, 6),
             child: Text(
@@ -379,10 +330,7 @@ class _ClusterCard extends StatelessWidget {
 }
 
 class _ClusterMemberTile extends StatelessWidget {
-  const _ClusterMemberTile({
-    required this.article,
-    required this.onTap,
-  });
+  const _ClusterMemberTile({required this.article, required this.onTap});
 
   final Article article;
   final VoidCallback onTap;
@@ -404,9 +352,7 @@ class _ClusterMemberTile extends StatelessWidget {
     );
     return Material(
       color: Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
@@ -448,7 +394,7 @@ class _ClusterMemberTile extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 6, left: 4),
                 child: Icon(
-                  Icons.chevron_right,
+                  AppIcons.chevronRight,
                   size: 18,
                   color: cs.onSurfaceVariant,
                 ),
@@ -471,9 +417,11 @@ class _EmptyClusterState extends StatelessWidget {
       children: const [
         SizedBox(height: 80),
         EmptyState(
-          icon: Icons.hub_outlined,
+          icon: AppIcons.gitCompare,
+          art: EditorialArtKind.perspectives,
           title: 'Henüz çapraz olay yok',
-          subtitle: 'Daha fazla kaynak aktifken aynı olayı haber yapan '
+          subtitle:
+              'Daha fazla kaynak aktifken aynı olayı haber yapan '
               'kaynaklar otomatik gruplanır. Yeniliyoruz...',
         ),
       ],

@@ -1,3 +1,4 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -18,9 +19,9 @@ extension on _CategorySort {
       case _CategorySort.oldest:
         return 'En eski';
       case _CategorySort.shortRead:
-        return 'En kısa özet';
+        return 'En kısa okuma';
       case _CategorySort.longRead:
-        return 'En uzun özet';
+        return 'En uzun okuma';
       case _CategorySort.title:
         return 'Başlık (A-Z)';
     }
@@ -29,15 +30,15 @@ extension on _CategorySort {
   IconData get icon {
     switch (this) {
       case _CategorySort.newest:
-        return Icons.schedule_outlined;
+        return AppIcons.clock;
       case _CategorySort.oldest:
-        return Icons.history;
+        return AppIcons.history;
       case _CategorySort.shortRead:
-        return Icons.timer_outlined;
+        return AppIcons.stopwatch;
       case _CategorySort.longRead:
-        return Icons.menu_book_outlined;
+        return AppIcons.book;
       case _CategorySort.title:
-        return Icons.sort_by_alpha;
+        return AppIcons.sortAscendingLetters;
     }
   }
 }
@@ -48,8 +49,7 @@ class CategoryArticlesScreen extends StatefulWidget {
   final NewsCategory category;
 
   @override
-  State<CategoryArticlesScreen> createState() =>
-      _CategoryArticlesScreenState();
+  State<CategoryArticlesScreen> createState() => _CategoryArticlesScreenState();
 }
 
 class _CategoryArticlesScreenState extends State<CategoryArticlesScreen> {
@@ -68,7 +68,8 @@ class _CategoryArticlesScreenState extends State<CategoryArticlesScreen> {
         list.sort((a, b) => b.readMinutes.compareTo(a.readMinutes));
       case _CategorySort.title:
         list.sort(
-            (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        );
     }
     return list;
   }
@@ -84,20 +85,16 @@ class _CategoryArticlesScreenState extends State<CategoryArticlesScreen> {
             ListTile(
               title: Text(
                 'Sırala',
-                style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                style: Theme.of(
+                  ctx,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
               ),
             ),
             for (final s in _CategorySort.values)
               ListTile(
                 leading: Icon(
-                  _sort == s
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked,
-                  color: _sort == s
-                      ? Theme.of(ctx).colorScheme.primary
-                      : null,
+                  _sort == s ? AppIcons.circleDot : AppIcons.circle,
+                  color: _sort == s ? Theme.of(ctx).colorScheme.primary : null,
                 ),
                 title: Row(
                   children: [
@@ -141,14 +138,14 @@ class _CategoryArticlesScreenState extends State<CategoryArticlesScreen> {
         actions: [
           IconButton(
             tooltip: 'Sırala',
-            icon: const Icon(Icons.sort),
+            icon: const Icon(AppIcons.sortDescending),
             onPressed: _showSortSheet,
           ),
         ],
       ),
       body: articles.isEmpty
           ? IllustratedEmptyState(
-              icon: Icons.inbox_outlined,
+              icon: AppIcons.inbox,
               title: 'Henüz haber yok',
               subtitle:
                   '${cat.name} kategorisinde gösterilecek haber bulunamadı.',
@@ -157,8 +154,7 @@ class _CategoryArticlesScreenState extends State<CategoryArticlesScreen> {
           : Column(
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
                   child: Row(
                     children: [
                       Text(
@@ -171,7 +167,9 @@ class _CategoryArticlesScreenState extends State<CategoryArticlesScreen> {
                       const Spacer(),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: cs.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(12),
@@ -179,9 +177,11 @@ class _CategoryArticlesScreenState extends State<CategoryArticlesScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(_sort.icon,
-                                size: 13,
-                                color: cs.onSurfaceVariant),
+                            Icon(
+                              _sort.icon,
+                              size: 13,
+                              color: cs.onSurfaceVariant,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               _sort.label,

@@ -1,0 +1,7 @@
+<resources>
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowSplashScreenBackground">@color/pusula_paper</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/pusula_launch_mascot</item>
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+</resources>

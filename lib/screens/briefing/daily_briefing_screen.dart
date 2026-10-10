@@ -1,3 +1,6 @@
+import '../../core/app_startup.dart';
+import '../../widgets/editorial_art.dart';
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
@@ -68,7 +71,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   /// Lock-screen kontrolü için audio_service handler'ı varsa onun
   /// player'ını kullanırız (notification'a state yansır); yoksa local
   /// player. Hem mobile hem desktop'ta çalışır.
-  AudioPlayer get _audioPlayer => BriefingAudioHandler.isBooted
+  late final AudioPlayer _audioPlayer = BriefingAudioHandler.isBooted
       ? BriefingAudioHandler.instance.player
       : _localAudioPlayer;
   final AudioPlayer _localAudioPlayer = AudioPlayer();
@@ -84,6 +87,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   bool _ttsSupported = true; // false → bu platformda hiç çalıştırılamaz
   bool _speaking = false;
   bool _paused = false;
+
   /// Hız çarpanı: 0.75 / 1.0 / 1.25 / 1.5 / 2.0 (1.0 = normal)
   double _speedMultiplier = 1.0;
   // Ton ayarı: 0.5 (kalın) — 2.0 (ince), 1.0 = nötr.
@@ -126,7 +130,6 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     super.initState();
     _topic = const BriefingTopic(); // Genel
     _bootstrap();
-    _wireLockScreenActions();
   }
 
   /// Lock screen / bildirim panel butonlarını dinle. Kullanıcı oradan
@@ -134,8 +137,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   /// tetikle.
   void _wireLockScreenActions() {
     if (!BriefingAudioHandler.isBooted) return;
-    _lockActionSub =
-        BriefingAudioHandler.instance.actions.listen((action) {
+    _lockActionSub = BriefingAudioHandler.instance.actions.listen((action) {
       if (!mounted) return;
       switch (action) {
         case BriefingLockAction.play:
@@ -164,12 +166,15 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   }
 
   Future<void> _bootstrap() async {
+    final audioReady = AppStartup.prepareAudio();
     // ÖNEMLİ: AiSettingsProvider async _load() ile başlatılıyor; biz
     // _generate'i ondan önce çağırırsak `_enabled = false` (default)
     // okur ve "yapılandırılmamış" hatası verir. Provider initialized
     // olana kadar bekle.
     await _waitForAiInit();
+    await audioReady;
     if (!mounted) return;
+    _wireLockScreenActions();
 
     // TTS init + AI generate + market widget paralel başlasın.
     final ttsFuture = _initTts();
@@ -177,7 +182,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     final marketFuture = _loadMarket();
     await Future.wait([ttsFuture, genFuture, marketFuture]);
     if (!mounted) return;
-    final canPlay = _ttsReady ||
+    final canPlay =
+        _ttsReady ||
         _activeEngine == TtsEngineKind.openai ||
         _activeEngine == TtsEngineKind.elevenlabs ||
         _activeEngine == TtsEngineKind.edge;
@@ -195,8 +201,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     final ai = context.read<AiSettingsProvider>();
     if (ai.initialized) return;
     try {
-      await ai.whenInitialized
-          .timeout(const Duration(milliseconds: 2000));
+      await ai.whenInitialized.timeout(const Duration(milliseconds: 2000));
     } on TimeoutException {
       debugPrint('[Pusula][Briefing] AI init timeout — devam ediliyor');
     }
@@ -256,8 +261,10 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
   Future<void> _initTts() async {
     // iOS shared instance + audio session (opsiyonel).
     if (defaultTargetPlatform == TargetPlatform.iOS) {
-      await _safeCall('setSharedInstance',
-          () async => _tts.setSharedInstance(true));
+      await _safeCall(
+        'setSharedInstance',
+        () async => _tts.setSharedInstance(true),
+      );
       await _safeCall(
         'setIosAudioCategory',
         () async => _tts.setIosAudioCategory(
@@ -287,17 +294,22 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     );
 
     if (langOk == false || (setLangOk == false && langOk == null)) {
-      _ttsWarning = 'Cihazınızda Türkçe TTS sesi yüklü olmayabilir. '
+      _ttsWarning =
+          'Cihazınızda Türkçe TTS sesi yüklü olmayabilir. '
           'Sistem ayarları > Erişilebilirlik > Konuşma Sentezi\'nden '
           'Türkçe ses paketini yüklemeyi deneyin.';
     }
 
     await _safeCall(
-        'setSpeechRate', () async => _tts.setSpeechRate(_speedMultiplier * 0.5));
+      'setSpeechRate',
+      () async => _tts.setSpeechRate(_speedMultiplier * 0.5),
+    );
     await _safeCall('setPitch', () async => _tts.setPitch(_pitch));
     await _safeCall('setVolume', () async => _tts.setVolume(1.0));
-    await _safeCall('awaitSpeakCompletion',
-        () async => _tts.awaitSpeakCompletion(false));
+    await _safeCall(
+      'awaitSpeakCompletion',
+      () async => _tts.awaitSpeakCompletion(false),
+    );
 
     // Handler kayıtları sync — try/catch'e gerek yok ama güvenlik için.
     try {
@@ -338,7 +350,9 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
       debugPrint('[Pusula][TTS] $name: MissingPluginException → $e');
       return false;
     } on PlatformException catch (e) {
-      debugPrint('[Pusula][TTS] $name: PlatformException → ${e.code} ${e.message}');
+      debugPrint(
+        '[Pusula][TTS] $name: PlatformException → ${e.code} ${e.message}',
+      );
       return false;
     } catch (e) {
       debugPrint('[Pusula][TTS] $name: $e');
@@ -475,9 +489,9 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
         _generating = false;
         _error = _topic.isGeneral
             ? 'Henüz haber yüklenmedi. Ana sayfada birkaç saniye '
-                'bekleyip tekrar deneyin.'
+                  'bekleyip tekrar deneyin.'
             : '${_topic.displayName} kapsamında henüz haber bulunamadı. '
-                'Bu kategoriden bir kaynak seçtiğinden emin ol.';
+                  'Bu kategoriden bir kaynak seçtiğinden emin ol.';
       });
       return;
     }
@@ -638,7 +652,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
       if (mounted) {
         setState(() {
           _ttsSupported = false;
-          _ttsWarning = 'Sesli okuma motoru bu cihazda kullanılamıyor. '
+          _ttsWarning =
+              'Sesli okuma motoru bu cihazda kullanılamıyor. '
               'Uygulamayı tamamen kapatıp yeniden açın (hot reload yetmez).';
         });
       }
@@ -953,7 +968,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     });
     await _generate();
     if (!mounted) return;
-    final canPlayAfterSelect = _ttsReady ||
+    final canPlayAfterSelect =
+        _ttsReady ||
         _activeEngine == TtsEngineKind.openai ||
         _activeEngine == TtsEngineKind.elevenlabs ||
         _activeEngine == TtsEngineKind.edge;
@@ -968,7 +984,8 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
     await _stop();
     await _generate(forceRefresh: true);
     if (!mounted) return;
-    final canPlayAfterRefresh = _ttsReady ||
+    final canPlayAfterRefresh =
+        _ttsReady ||
         _activeEngine == TtsEngineKind.openai ||
         _activeEngine == TtsEngineKind.elevenlabs ||
         _activeEngine == TtsEngineKind.edge;
@@ -1014,9 +1031,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
                 ? 'Uyku zamanlayıcısı'
                 : 'Uyku: ${_sleepDuration!.inMinutes} dk',
             icon: Icon(
-              _sleepDuration == null
-                  ? Icons.bedtime_outlined
-                  : Icons.bedtime,
+              _sleepDuration == null ? AppIcons.moon : AppIcons.moon,
               color: _sleepDuration == null
                   ? null
                   : Theme.of(context).colorScheme.primary,
@@ -1039,7 +1054,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
           IconButton(
             tooltip: 'Bu konu için yeniden oluştur',
             onPressed: _generating ? null : _refresh,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(AppIcons.refresh),
           ),
         ],
       ),
@@ -1072,13 +1087,12 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
               const SizedBox(height: 4),
             ],
             if (_ttsWarning != null) _TtsWarningBanner(message: _ttsWarning!),
-            Expanded(
-              child: _buildBody(context, cs, textTheme),
-            ),
+            Expanded(child: _buildBody(context, cs, textTheme)),
             _PlayerBar(
               speaking: _speaking,
               paused: _paused,
-              hasBriefing: _utterances.isNotEmpty &&
+              hasBriefing:
+                  _utterances.isNotEmpty &&
                   ((_activeEngine == TtsEngineKind.system &&
                           _ttsReady &&
                           _ttsSupported) ||
@@ -1102,7 +1116,9 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
               onSpeedChanged: (s) async {
                 setState(() => _speedMultiplier = s);
                 await _safeCall(
-                    'setSpeechRate', () async => _tts.setSpeechRate(s * 0.5));
+                  'setSpeechRate',
+                  () async => _tts.setSpeechRate(s * 0.5),
+                );
                 if (_speaking) {
                   final idx = _utteranceIndex;
                   _playGeneration++;
@@ -1140,10 +1156,12 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            const EditorialArt(kind: EditorialArtKind.briefing, size: 144),
+            const SizedBox(height: 20),
             const SizedBox(
-              width: 44,
-              height: 44,
-              child: CircularProgressIndicator(strokeWidth: 3),
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
             ),
             const SizedBox(height: 24),
             Text(
@@ -1166,13 +1184,9 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 48, color: cs.error),
+            Icon(AppIcons.alertCircle, size: 48, color: cs.error),
             const SizedBox(height: 16),
-            Text(
-              _error!,
-              textAlign: TextAlign.center,
-              style: tt.bodyMedium,
-            ),
+            Text(_error!, textAlign: TextAlign.center, style: tt.bodyMedium),
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1184,9 +1198,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
                 const SizedBox(width: 10),
                 OutlinedButton(
                   onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const AiSettingsScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const AiSettingsScreen()),
                   ),
                   child: const Text('AI ayarları'),
                 ),
@@ -1207,14 +1219,7 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
           Container(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  cs.primary.withValues(alpha: 0.14),
-                  cs.tertiary.withValues(alpha: 0.06),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: cs.surfaceContainerLow,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
@@ -1223,12 +1228,13 @@ class _DailyBriefingScreenState extends State<DailyBriefingScreen> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: (_topic.category?.color ?? cs.primary)
-                        .withValues(alpha: 0.18),
+                    color: (_topic.category?.color ?? cs.primary).withValues(
+                      alpha: 0.18,
+                    ),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    _topic.category?.icon ?? Icons.podcasts,
+                    _topic.category?.icon ?? AppIcons.broadcast,
                     color: _topic.category?.color ?? cs.primary,
                     size: 22,
                   ),

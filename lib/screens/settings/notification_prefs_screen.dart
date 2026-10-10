@@ -1,3 +1,4 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -21,19 +22,19 @@ class NotificationPrefsScreen extends StatelessWidget {
         children: [
           const _SectionTitle('Genel'),
           SwitchListTile(
-            secondary: const Icon(Icons.flash_on_outlined),
+            secondary: const Icon(AppIcons.bolt),
             title: const Text('Son dakika bildirimleri'),
-            subtitle: const Text(
-                'Önemli gelişmelerde anında haberdar olun'),
+            subtitle: const Text('Önemli gelişmelerde anında haberdar olun'),
             value: prefs.breakingNews,
             onChanged: (v) =>
                 context.read<PreferencesProvider>().setBreakingNews(v),
           ),
           SwitchListTile(
-            secondary: const Icon(Icons.wb_sunny_outlined),
+            secondary: const Icon(AppIcons.sun),
             title: const Text('Günlük özet (08:00)'),
             subtitle: const Text(
-                'Sabah saatinde günün öne çıkan haberlerinden bir derleme'),
+              'Sabah saatinde günün öne çıkan haberlerinden bir derleme',
+            ),
             value: prefs.dailyDigest,
             onChanged: (v) =>
                 context.read<PreferencesProvider>().setDailyDigest(v),
@@ -45,9 +46,8 @@ class NotificationPrefsScreen extends StatelessWidget {
               secondary: Icon(c.icon, color: c.color),
               title: Text(c.name),
               value: prefs.isCategorySubscribed(c.id),
-              onChanged: (v) => context
-                  .read<PreferencesProvider>()
-                  .toggleCategory(c.id, v),
+              onChanged: (v) =>
+                  context.read<PreferencesProvider>().toggleCategory(c.id, v),
             ),
           const SizedBox(height: 16),
           const _Note(
@@ -99,7 +99,7 @@ class _Note extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.info_outline, color: cs.onSurfaceVariant, size: 18),
+            Icon(AppIcons.infoCircle, color: cs.onSurfaceVariant, size: 18),
             const SizedBox(width: 10),
             Expanded(
               child: Text(

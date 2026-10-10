@@ -1,3 +1,4 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -36,13 +37,23 @@ class PersonalizedFeedScreen extends StatefulWidget {
   const PersonalizedFeedScreen({super.key});
 
   @override
-  State<PersonalizedFeedScreen> createState() =>
-      _PersonalizedFeedScreenState();
+  State<PersonalizedFeedScreen> createState() => _PersonalizedFeedScreenState();
 }
 
 class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
   final Set<String> _selectedCategoryIds = <String>{};
   final Set<String> _selectedSourceIds = <String>{};
+
+  bool _interestsLoaded = false;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_interestsLoaded) return;
+    final prefs = context.watch<PreferencesProvider>();
+    if (!prefs.initialized) return;
+    _selectedCategoryIds.addAll(prefs.interests);
+    _interestsLoaded = true;
+  }
 
   /// Anahtar kelime filtresi de uygulansın mı? Aksi halde sadece
   /// kategori + kaynak filtresi çalışır.
@@ -86,8 +97,9 @@ class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
       );
     } else {
       results = [
-        for (final a in List<Article>.of(filtered)
-          ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt)))
+        for (final a in List<Article>.of(
+          filtered,
+        )..sort((a, b) => b.publishedAt.compareTo(a.publishedAt)))
           RankedArticle(a, 0),
       ];
     }
@@ -98,12 +110,10 @@ class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
         actions: [
           IconButton(
             tooltip: 'Anahtar kelimeler',
-            icon: const Icon(Icons.tag),
+            icon: const Icon(AppIcons.hash),
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const KeywordFiltersScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const KeywordFiltersScreen()),
               );
             },
           ),
@@ -119,8 +129,7 @@ class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
               child: _FilterSummaryCard(
                 categoryCount: _selectedCategoryIds.length,
                 sourceCount: _selectedSourceIds.length,
-                keywordCount:
-                    _applyKeywords ? keywords.count : 0,
+                keywordCount: _applyKeywords ? keywords.count : 0,
                 resultCount: filtered.length,
                 onClear: () => setState(() {
                   _selectedCategoryIds.clear();
@@ -137,18 +146,17 @@ class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
                   segments: const [
                     ButtonSegment(
                       value: true,
-                      icon: Icon(Icons.auto_awesome_outlined, size: 18),
+                      icon: Icon(AppIcons.sparkles, size: 18),
                       label: Text('Sana göre'),
                     ),
                     ButtonSegment(
                       value: false,
-                      icon: Icon(Icons.schedule, size: 18),
+                      icon: Icon(AppIcons.clock, size: 18),
                       label: Text('En yeni'),
                     ),
                   ],
                   selected: {_ranked},
-                  onSelectionChanged: (v) =>
-                      setState(() => _ranked = v.first),
+                  onSelectionChanged: (v) => setState(() => _ranked = v.first),
                 ),
               ),
             ),
@@ -174,8 +182,11 @@ class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
                     final selected = _selectedCategoryIds.contains(c.id);
                     return FilterChip(
                       label: Text(c.name),
-                      avatar: Icon(c.icon, size: 16,
-                          color: selected ? cs.onPrimary : c.color),
+                      avatar: Icon(
+                        c.icon,
+                        size: 16,
+                        color: selected ? cs.onPrimary : cs.primary,
+                      ),
                       selected: selected,
                       onSelected: (v) => setState(() {
                         if (v) {
@@ -184,7 +195,7 @@ class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
                           _selectedCategoryIds.remove(c.id);
                         }
                       }),
-                      selectedColor: c.color,
+                      selectedColor: cs.primary,
                       labelStyle: TextStyle(
                         color: selected ? cs.onPrimary : cs.onSurface,
                         fontWeight: FontWeight.w700,
@@ -228,9 +239,9 @@ class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
                           _selectedSourceIds.remove(s.id);
                         }
                       }),
-                      selectedColor: s.brandColor,
+                      selectedColor: cs.primary,
                       labelStyle: TextStyle(
-                        color: selected ? Colors.white : cs.onSurface,
+                        color: selected ? cs.onPrimary : cs.onSurface,
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
                       ),
@@ -252,12 +263,14 @@ class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
                   contentPadding: EdgeInsets.zero,
                   title: Row(
                     children: [
-                      const Icon(Icons.tag, size: 16),
+                      const Icon(AppIcons.hash, size: 16),
                       const SizedBox(width: 6),
                       Text(
                         'Anahtar kelimeler (${keywords.count})',
                         style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 14),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
                       ),
                     ],
                   ),
@@ -268,9 +281,7 @@ class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
                         )
                       : Text(
                           keywords.keywords.take(3).join(', ') +
-                              (keywords.count > 3
-                                  ? ' …'
-                                  : ''),
+                              (keywords.count > 3 ? ' …' : ''),
                           style: const TextStyle(fontSize: 12),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -284,9 +295,7 @@ class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
             ),
 
             // ── Sonuç listesi ──
-            const SliverToBoxAdapter(
-              child: SectionHeader(title: 'Sonuçlar'),
-            ),
+            const SliverToBoxAdapter(child: SectionHeader(title: 'Sonuçlar')),
             if (news.loading && filtered.isEmpty)
               SliverList.builder(
                 itemCount: 4,
@@ -296,7 +305,7 @@ class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
               const SliverFillRemaining(
                 hasScrollBody: false,
                 child: EmptyState(
-                  icon: Icons.tune,
+                  icon: AppIcons.adjustmentsHorizontal,
                   title: 'Bu filtreyle eşleşen haber yok',
                   subtitle: 'Daha az filtre seç veya farklı kategoriler dene.',
                 ),
@@ -334,8 +343,11 @@ class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
                         padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
                         child: Row(
                           children: [
-                            Icon(Icons.auto_awesome_outlined,
-                                size: 13, color: cs.primary),
+                            Icon(
+                              AppIcons.sparkles,
+                              size: 13,
+                              color: cs.primary,
+                            ),
                             const SizedBox(width: 5),
                             Text(
                               r.reason!,
@@ -364,25 +376,27 @@ class _PersonalizedFeedScreenState extends State<PersonalizedFeedScreen> {
     List<Article> source, {
     required KeywordFilterProvider keywordProvider,
   }) {
-    return source.where((a) {
-      // Kategori filtresi (set boşsa atla = tümü dahil)
-      if (_selectedCategoryIds.isNotEmpty &&
-          !_selectedCategoryIds.contains(a.categoryId)) {
-        return false;
-      }
-      // Kaynak filtresi
-      if (_selectedSourceIds.isNotEmpty) {
-        final id = a.sourceId.isNotEmpty
-            ? a.sourceId
-            : (_sourceIdByName[a.sourceName] ?? '');
-        if (!_selectedSourceIds.contains(id)) return false;
-      }
-      // Keyword filtresi
-      if (_applyKeywords && keywordProvider.hasKeywords) {
-        if (!keywordProvider.matchesAny(a)) return false;
-      }
-      return true;
-    }).toList(growable: false);
+    return source
+        .where((a) {
+          // Kategori filtresi (set boşsa atla = tümü dahil)
+          if (_selectedCategoryIds.isNotEmpty &&
+              !_selectedCategoryIds.contains(a.categoryId)) {
+            return false;
+          }
+          // Kaynak filtresi
+          if (_selectedSourceIds.isNotEmpty) {
+            final id = a.sourceId.isNotEmpty
+                ? a.sourceId
+                : (_sourceIdByName[a.sourceName] ?? '');
+            if (!_selectedSourceIds.contains(id)) return false;
+          }
+          // Keyword filtresi
+          if (_applyKeywords && keywordProvider.hasKeywords) {
+            if (!keywordProvider.matchesAny(a)) return false;
+          }
+          return true;
+        })
+        .toList(growable: false);
   }
 }
 
@@ -404,25 +418,17 @@ class _FilterSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final hasFilters =
-        categoryCount > 0 || sourceCount > 0 || keywordCount > 0;
+    final hasFilters = categoryCount > 0 || sourceCount > 0 || keywordCount > 0;
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            cs.primary.withValues(alpha: 0.12),
-            cs.tertiary.withValues(alpha: 0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [
-          Icon(Icons.filter_list_rounded, color: cs.primary),
+          Icon(AppIcons.filter, color: cs.primary),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -454,10 +460,7 @@ class _FilterSummaryCard extends StatelessWidget {
             ),
           ),
           if (hasFilters)
-            TextButton(
-              onPressed: onClear,
-              child: const Text('Temizle'),
-            ),
+            TextButton(onPressed: onClear, child: const Text('Temizle')),
         ],
       ),
     );

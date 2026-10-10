@@ -1,3 +1,4 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -65,7 +66,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
         actions: [
           IconButton(
             tooltip: 'Yenile',
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(AppIcons.refresh),
             onPressed: _loading ? null : _loadHealth,
           ),
         ],
@@ -90,7 +91,10 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
             title: 'Yerel veriler',
             child: Column(
               children: [
-                _Row(label: 'Yüklü makale', value: '${newsProv.articles.length}'),
+                _Row(
+                  label: 'Yüklü makale',
+                  value: '${newsProv.articles.length}',
+                ),
                 _Row(label: 'Kayıtlı', value: '${bookmarks.count}'),
                 _Row(label: 'Okuma geçmişi', value: '${history.count}'),
                 _Row(label: 'Arama geçmişi', value: '${search.history.length}'),
@@ -206,10 +210,7 @@ class _Row extends StatelessWidget {
             child: Text(
               value,
               textAlign: TextAlign.end,
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
             ),
           ),
         ],
@@ -228,7 +229,7 @@ class _HealthTile extends StatelessWidget {
     final color = health.ok ? Colors.green : cs.error;
     return ListTile(
       leading: Icon(
-        health.ok ? Icons.check_circle : Icons.cancel,
+        health.ok ? AppIcons.circleCheck : AppIcons.x,
         color: color,
       ),
       title: Text(

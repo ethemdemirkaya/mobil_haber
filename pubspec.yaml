@@ -98,6 +98,7 @@ dependencies:
   # okuma geçmişi. SharedPreferences'ta tek JSON blob tutmanın yerine.
   sqflite: ^2.4.2+1
   path: ^1.9.1
+  flutter_tabler_icons: 1.43.0
 
 dev_dependencies:
   flutter_test:
@@ -123,6 +124,27 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+    - assets/brand/
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf
+          weight: 400
+        - asset: assets/fonts/Inter.ttf
+          weight: 500
+        - asset: assets/fonts/Inter.ttf
+          weight: 600
+        - asset: assets/fonts/Inter.ttf
+          weight: 700
+    - family: Newsreader
+      fonts:
+        - asset: assets/fonts/Newsreader.ttf
+          weight: 400
+        - asset: assets/fonts/Newsreader.ttf
+          weight: 600
+        - asset: assets/fonts/Newsreader.ttf
+          weight: 700
 
   # To add assets to your application, add an assets section, like this:
   # assets:

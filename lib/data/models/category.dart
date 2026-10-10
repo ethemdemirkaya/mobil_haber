@@ -1,3 +1,4 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
@@ -18,7 +19,7 @@ class NewsCategory {
   static const NewsCategory all = NewsCategory(
     id: 'all',
     name: 'Tümü',
-    icon: Icons.public_outlined,
+    icon: AppIcons.world,
     color: AppColors.brandSeed,
   );
 
@@ -27,81 +28,78 @@ class NewsCategory {
     NewsCategory(
       id: 'gundem',
       name: 'Gündem',
-      icon: Icons.newspaper_outlined,
+      icon: AppIcons.news,
       color: AppColors.categoryGundem,
     ),
     NewsCategory(
       id: 'spor',
       name: 'Spor',
-      icon: Icons.sports_soccer_outlined,
+      icon: AppIcons.ballFootball,
       color: AppColors.categorySpor,
     ),
     NewsCategory(
       id: 'ekonomi',
       name: 'Ekonomi',
-      icon: Icons.trending_up_outlined,
+      icon: AppIcons.trendingUp,
       color: AppColors.categoryEkonomi,
     ),
     NewsCategory(
       id: 'teknoloji',
       name: 'Teknoloji',
-      icon: Icons.memory_outlined,
+      icon: AppIcons.cpu,
       color: AppColors.categoryTeknoloji,
     ),
     NewsCategory(
       id: 'dunya',
       name: 'Dünya',
-      icon: Icons.travel_explore_outlined,
+      icon: AppIcons.world,
       color: AppColors.categoryDunya,
     ),
     NewsCategory(
       id: 'kultur',
       name: 'Kültür',
-      icon: Icons.theater_comedy_outlined,
+      icon: AppIcons.masksTheater,
       color: AppColors.categoryKultur,
     ),
     NewsCategory(
       id: 'saglik',
       name: 'Sağlık',
-      icon: Icons.favorite_outline,
+      icon: AppIcons.heart,
       color: AppColors.categorySaglik,
     ),
     NewsCategory(
       id: 'bilim',
       name: 'Bilim',
-      icon: Icons.science_outlined,
+      icon: AppIcons.flask,
       color: AppColors.categoryBilim,
     ),
     NewsCategory(
       id: 'egitim',
       name: 'Eğitim',
-      icon: Icons.school_outlined,
+      icon: AppIcons.school,
       color: AppColors.categoryEgitim,
     ),
     NewsCategory(
       id: 'yasam',
       name: 'Yaşam',
-      icon: Icons.local_cafe_outlined,
+      icon: AppIcons.coffee,
       color: AppColors.categoryYasam,
     ),
     NewsCategory(
       id: 'sanat',
       name: 'Sanat',
-      icon: Icons.palette_outlined,
+      icon: AppIcons.palette,
       color: AppColors.categorySanat,
     ),
     NewsCategory(
       id: 'seyahat',
       name: 'Seyahat',
-      icon: Icons.flight_takeoff_outlined,
+      icon: AppIcons.planeDeparture,
       color: AppColors.categorySeyahat,
     ),
   ];
 
   static NewsCategory byId(String id) {
-    return values.firstWhere(
-      (c) => c.id == id,
-      orElse: () => all,
-    );
+    return values.firstWhere((c) => c.id == id, orElse: () => all);
   }
 }

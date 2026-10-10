@@ -17,11 +17,9 @@ class CategoryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final accent = category.color;
+    final accent = cs.primary;
 
-    final bg = selected
-        ? accent.withValues(alpha: 0.15)
-        : cs.surfaceContainerHighest;
+    final bg = selected ? accent.withValues(alpha: 0.15) : cs.surface;
     final fg = selected ? accent : cs.onSurfaceVariant;
     final border = selected
         ? Border.all(color: accent.withValues(alpha: 0.6), width: 1.2)
@@ -32,17 +30,16 @@ class CategoryChip extends StatelessWidget {
       curve: Curves.easeOut,
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(40),
+        borderRadius: BorderRadius.circular(8),
         border: border,
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(40),
+          borderRadius: BorderRadius.circular(8),
           onTap: onTap,
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

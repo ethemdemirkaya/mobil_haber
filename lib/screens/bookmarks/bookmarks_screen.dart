@@ -1,3 +1,5 @@
+import '../../widgets/editorial_art.dart';
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -46,7 +48,8 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
         list.sort((a, b) => a.publishedAt.compareTo(b.publishedAt));
       case _BookmarkSort.title:
         list.sort(
-            (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        );
     }
     return list;
   }
@@ -54,10 +57,8 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
   void _openDetail(Article a) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ArticleDetailScreen(
-          article: a,
-          heroTag: 'card-img-${a.id}',
-        ),
+        builder: (_) =>
+            ArticleDetailScreen(article: a, heroTag: 'card-img-${a.id}'),
       ),
     );
   }
@@ -73,20 +74,16 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
             ListTile(
               title: Text(
                 'Sırala',
-                style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                style: Theme.of(
+                  ctx,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
               ),
             ),
             for (final s in _BookmarkSort.values)
               ListTile(
                 leading: Icon(
-                  _sort == s
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked,
-                  color: _sort == s
-                      ? Theme.of(ctx).colorScheme.primary
-                      : null,
+                  _sort == s ? AppIcons.circleDot : AppIcons.circle,
+                  color: _sort == s ? Theme.of(ctx).colorScheme.primary : null,
                 ),
                 title: Text(s.label),
                 onTap: () => Navigator.of(ctx).pop(s),
@@ -111,10 +108,12 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
     // çıkmış olsa bile gözüksün); feed'de canlı varsa onun fresh kopyası
     // tercih edilir (image url, summary güncel).
     final snapshots = bookmarks.savedArticles;
-    final saved = snapshots.map((s) {
-      final live = news.byId(s.id);
-      return live ?? s;
-    }).toList(growable: false);
+    final saved = snapshots
+        .map((s) {
+          final live = news.byId(s.id);
+          return live ?? s;
+        })
+        .toList(growable: false);
 
     // V1 orphan'ları (sadece id, snapshot yok) feed'den eşleştirmeye çalış —
     // eşleşen varsa BookmarkProvider'a snapshot'ı upgrade et.
@@ -132,15 +131,20 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       }
     }
 
-    final usedCategoryIds = <String>{NewsCategory.all.id, ...saved.map((a) => a.categoryId)};
+    final usedCategoryIds = <String>{
+      NewsCategory.all.id,
+      ...saved.map((a) => a.categoryId),
+    };
     final filterCategories = NewsCategory.values
         .where((c) => usedCategoryIds.contains(c.id))
         .toList(growable: false);
 
-    final filtered = saved.where((a) {
-      return _filterCategoryId == NewsCategory.all.id ||
-          a.categoryId == _filterCategoryId;
-    }).toList(growable: false);
+    final filtered = saved
+        .where((a) {
+          return _filterCategoryId == NewsCategory.all.id ||
+              a.categoryId == _filterCategoryId;
+        })
+        .toList(growable: false);
 
     final sorted = _sorted(filtered);
 
@@ -152,28 +156,27 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
             tooltip: _groupByCategory
                 ? 'Düz listeye geç'
                 : 'Kategoriye göre grupla',
-            icon: Icon(_groupByCategory
-                ? Icons.view_list_outlined
-                : Icons.dashboard_outlined),
+            icon: Icon(_groupByCategory ? AppIcons.list : AppIcons.layoutGrid),
             onPressed: () =>
                 setState(() => _groupByCategory = !_groupByCategory),
           ),
           IconButton(
             tooltip: 'Sırala',
-            icon: const Icon(Icons.sort),
+            icon: const Icon(AppIcons.sortDescending),
             onPressed: _showSortSheet,
           ),
           if (saved.isNotEmpty)
             IconButton(
               tooltip: 'Tümünü sil',
-              icon: const Icon(Icons.delete_sweep_outlined),
+              icon: const Icon(AppIcons.trash),
               onPressed: () => _confirmClearAll(context),
             ),
         ],
       ),
       body: saved.isEmpty
           ? IllustratedEmptyState(
-              icon: Icons.bookmark_outline,
+              icon: AppIcons.bookmark,
+              art: EditorialArtKind.saved,
               title: 'Kayıtlı haber yok',
               subtitle:
                   'Daha sonra okumak istediğin haberlerdeki yer-imi ikonuna dokun — burada toplanırlar.',
@@ -195,8 +198,8 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                           selected: selected,
                           label: Text(c.name),
                           avatar: Icon(c.icon, size: 16),
-                          onSelected: (_) => setState(
-                              () => _filterCategoryId = c.id),
+                          onSelected: (_) =>
+                              setState(() => _filterCategoryId = c.id),
                         );
                       },
                     ),
@@ -204,25 +207,24 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                 Expanded(
                   child: sorted.isEmpty
                       ? IllustratedEmptyState(
-                          icon: Icons.filter_list_off_outlined,
+                          icon: AppIcons.filterOff,
                           title: 'Bu filtreyle eşleşme yok',
                           subtitle:
                               'Farklı bir kategori seçin ya da filtreyi kaldırın.',
                           actionLabel: 'Filtreyi temizle',
-                          onAction: () => setState(() =>
-                              _filterCategoryId = NewsCategory.all.id),
+                          onAction: () => setState(
+                            () => _filterCategoryId = NewsCategory.all.id,
+                          ),
                         )
                       : _groupByCategory
-                          ? _GroupedList(
-                              articles: sorted,
-                              onOpen: _openDetail,
-                            )
-                          : _FlatList(
-                              articles: sorted,
-                              onOpen: _openDetail,
-                              dividerColor:
-                                  cs.outlineVariant.withValues(alpha: 0.4),
-                            ),
+                      ? _GroupedList(articles: sorted, onOpen: _openDetail)
+                      : _FlatList(
+                          articles: sorted,
+                          onOpen: _openDetail,
+                          dividerColor: cs.outlineVariant.withValues(
+                            alpha: 0.4,
+                          ),
+                        ),
                 ),
               ],
             ),
@@ -235,7 +237,8 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Tümünü silmek istediğinize emin misiniz?'),
         content: const Text(
-            'Kaydettiğiniz tüm haberler kaldırılacak. Bu işlem geri alınamaz.'),
+          'Kaydettiğiniz tüm haberler kaldırılacak. Bu işlem geri alınamaz.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -270,18 +273,11 @@ class _FlatList extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: articles.length,
-      separatorBuilder: (_, _) => Divider(
-        height: 1,
-        indent: 16,
-        endIndent: 16,
-        color: dividerColor,
-      ),
+      separatorBuilder: (_, _) =>
+          Divider(height: 1, indent: 16, endIndent: 16, color: dividerColor),
       itemBuilder: (context, index) {
         final a = articles[index];
-        return _DismissibleBookmark(
-          article: a,
-          onTap: () => onOpen(a),
-        );
+        return _DismissibleBookmark(article: a, onTap: () => onOpen(a));
       },
     );
   }
@@ -335,7 +331,9 @@ class _GroupedList extends StatelessWidget {
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: cs.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(10),
@@ -352,10 +350,7 @@ class _GroupedList extends StatelessWidget {
               ),
             ),
             for (final a in items)
-              _DismissibleBookmark(
-                article: a,
-                onTap: () => onOpen(a),
-              ),
+              _DismissibleBookmark(article: a, onTap: () => onOpen(a)),
           ],
         );
       },
@@ -364,10 +359,7 @@ class _GroupedList extends StatelessWidget {
 }
 
 class _DismissibleBookmark extends StatelessWidget {
-  const _DismissibleBookmark({
-    required this.article,
-    required this.onTap,
-  });
+  const _DismissibleBookmark({required this.article, required this.onTap});
 
   final Article article;
   final VoidCallback onTap;
@@ -385,7 +377,7 @@ class _DismissibleBookmark extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Icon(Icons.delete_outline, color: cs.onErrorContainer),
+            Icon(AppIcons.trash, color: cs.onErrorContainer),
             const SizedBox(width: 6),
             Text(
               'Sil',
@@ -403,15 +395,17 @@ class _DismissibleBookmark extends StatelessWidget {
         context.read<BookmarkProvider>().remove(removed.id);
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(
-            content: Text('"${removed.title}" listenizden çıkarıldı'),
-            behavior: SnackBarBehavior.floating,
-            action: SnackBarAction(
-              label: 'Geri al',
-              onPressed: () =>
-                  context.read<BookmarkProvider>().toggleArticle(removed),
+          ..showSnackBar(
+            SnackBar(
+              content: Text('"${removed.title}" listenizden çıkarıldı'),
+              behavior: SnackBarBehavior.floating,
+              action: SnackBarAction(
+                label: 'Geri al',
+                onPressed: () =>
+                    context.read<BookmarkProvider>().toggleArticle(removed),
+              ),
             ),
-          ));
+          );
       },
       child: ArticleCard(article: article, onTap: onTap),
     );

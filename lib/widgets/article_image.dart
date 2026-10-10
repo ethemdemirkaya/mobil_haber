@@ -1,3 +1,4 @@
+import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -91,12 +92,10 @@ class _ArticleImageState extends State<ArticleImage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final dataSaver =
-        context.watch<PreferencesProvider>().dataSaverImages;
+    final dataSaver = context.watch<PreferencesProvider>().dataSaverImages;
     final useFallback =
         widget.url.isEmpty || (_primaryFailed && _resolvedFallback != null);
-    final rawUrl =
-        useFallback ? (_resolvedFallback ?? '') : widget.url;
+    final rawUrl = useFallback ? (_resolvedFallback ?? '') : widget.url;
     final activeUrl = dataSaver ? _downscale(rawUrl) : rawUrl;
 
     // Data saver açıkken cached_network_image'in kendi memCacheWidth/Height
@@ -137,8 +136,7 @@ class _ArticleImageState extends State<ArticleImage> {
   String _downscale(String url) {
     if (url.isEmpty) return url;
     var u = url;
-    if (u.contains('cdnuploads.aa.com.tr') &&
-        !u.contains('thumbs_b_c_')) {
+    if (u.contains('cdnuploads.aa.com.tr') && !u.contains('thumbs_b_c_')) {
       // hash → thumbs_b_c_hash
       u = u.replaceFirstMapped(
         RegExp(r'(/Contents/\d{4}/\d{2}/\d{2}/)'),
@@ -153,14 +151,12 @@ class _ArticleImageState extends State<ArticleImage> {
       return u.replaceFirst(RegExp(r'/\d{2,4}x\d{2,4}/'), '/640x360/');
     }
     if (u.contains('ichef.bbci.co.uk')) {
-      return u.replaceFirst(
-          RegExp(r'/\d+/cps'), '/480/cps');
+      return u.replaceFirst(RegExp(r'/\d+/cps'), '/480/cps');
     }
     if (u.contains('images.ntv.com.tr')) {
       return u.replaceFirst(RegExp(r'width=\d+'), 'width=640');
     }
-    if (u.contains('i.gazeteduvar.com.tr') ||
-        u.contains('i.artigercek.com')) {
+    if (u.contains('i.gazeteduvar.com.tr') || u.contains('i.artigercek.com')) {
       return u.replaceFirst(RegExp(r'/2/\d+/\d+/'), '/2/640/360/');
     }
     return u;
@@ -181,11 +177,7 @@ class _ArticleImageState extends State<ArticleImage> {
                 valueColor: AlwaysStoppedAnimation(cs.onSurfaceVariant),
               ),
             )
-          : Icon(
-              Icons.image_outlined,
-              color: cs.onSurfaceVariant,
-              size: 32,
-            ),
+          : Icon(AppIcons.photo, color: cs.onSurfaceVariant, size: 32),
     );
   }
 }

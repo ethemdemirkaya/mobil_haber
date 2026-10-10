@@ -57,11 +57,7 @@ class _ApiKeyModeStatus extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: TextStyle(
-                fontSize: 12,
-                color: cs.onSurface,
-                height: 1.4,
-              ),
+              style: TextStyle(fontSize: 12, color: cs.onSurface, height: 1.4),
             ),
           ),
         ],
@@ -74,7 +70,7 @@ class _ApiKeyModeStatus extends StatelessWidget {
       case ApiKeyMode.builtIn:
         if (hasBuiltIn) {
           return (
-            Icons.verified_outlined,
+            AppIcons.shieldCheck,
             Colors.green.shade700,
             'Varsayılan anahtar aktif — uygulama içi gömülü OpenRouter '
                 'anahtarını kullanıyor. Senin için kullanım limiti '
@@ -82,7 +78,7 @@ class _ApiKeyModeStatus extends StatelessWidget {
           );
         }
         return (
-          Icons.warning_amber_rounded,
+          AppIcons.alertTriangle,
           Colors.red.shade700,
           'Bu sürümde varsayılan anahtar yok. "Kendi anahtarım" moduna '
               'geçip OpenRouter anahtarını gir.',
@@ -90,14 +86,14 @@ class _ApiKeyModeStatus extends StatelessWidget {
       case ApiKeyMode.userProvided:
         if (hasUserKey) {
           return (
-            Icons.person_outline,
+            AppIcons.user,
             cs.primary,
             'Kişisel API anahtarın aktif — kendi rate-limit ve '
                 'faturalandırman kullanılıyor.',
           );
         }
         return (
-          Icons.error_outline,
+          AppIcons.alertCircle,
           Colors.orange.shade700,
           'Anahtarın boş. Aşağıdaki kutuya OpenRouter anahtarını yapıştır '
               've "Kaydet"e bas.',
@@ -150,10 +146,10 @@ class _AudioCacheTileState extends State<_AudioCacheTile> {
     final subtitle = s == null
         ? 'Yükleniyor…'
         : (s.count == 0
-            ? 'Boş — henüz cache\'lenmiş ses yok.'
-            : '${s.count} dosya · ${s.humanSize}');
+              ? 'Boş — henüz cache\'lenmiş ses yok.'
+              : '${s.count} dosya · ${s.humanSize}');
     return ListTile(
-      leading: const Icon(Icons.audiotrack_outlined),
+      leading: const Icon(AppIcons.music),
       title: const Text('OpenAI TTS ses önbelleği'),
       subtitle: Text(subtitle),
       trailing: _busy
@@ -163,11 +159,8 @@ class _AudioCacheTileState extends State<_AudioCacheTile> {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : (s == null || s.count == 0
-              ? null
-              : TextButton(
-                  onPressed: _clear,
-                  child: const Text('Temizle'),
-                )),
+                ? null
+                : TextButton(onPressed: _clear, child: const Text('Temizle'))),
     );
   }
 }
@@ -208,13 +201,14 @@ class _SimpleRadioTile extends StatelessWidget {
           color: selected ? cs.primary : Colors.transparent,
         ),
         child: selected
-            ? Icon(Icons.check, size: 14, color: cs.onPrimary)
+            ? Icon(AppIcons.check, size: 14, color: cs.onPrimary)
             : null,
       ),
-      title: Text(title,
-          style: const TextStyle(fontWeight: FontWeight.w700)),
-      subtitle: Text(subtitle,
-          style: const TextStyle(fontSize: 12, height: 1.35)),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+      subtitle: Text(
+        subtitle,
+        style: const TextStyle(fontSize: 12, height: 1.35),
+      ),
     );
   }
 }
@@ -253,17 +247,17 @@ class _TtsEngineTile extends StatelessWidget {
           color: selected ? cs.primary : Colors.transparent,
         ),
         child: selected
-            ? Icon(Icons.check, size: 14, color: cs.onPrimary)
+            ? Icon(AppIcons.check, size: 14, color: cs.onPrimary)
             : null,
       ),
       title: Row(
         children: [
           Icon(
             switch (kind) {
-              TtsEngineKind.system => Icons.smartphone_outlined,
-              TtsEngineKind.openai => Icons.cloud_outlined,
-              TtsEngineKind.elevenlabs => Icons.graphic_eq,
-              TtsEngineKind.edge => Icons.language_outlined,
+              TtsEngineKind.system => AppIcons.deviceMobile,
+              TtsEngineKind.openai => AppIcons.cloud,
+              TtsEngineKind.elevenlabs => AppIcons.waveSine,
+              TtsEngineKind.edge => AppIcons.world,
             },
             size: 16,
             color: cs.onSurfaceVariant,

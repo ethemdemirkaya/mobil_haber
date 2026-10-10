@@ -1,0 +1,49 @@
+[
+  {
+    "url": "https://www.diken.com.tr/wp-json/wp/v2/posts?per_page=1&_fields=id,link,date,content",
+    "status": 200,
+    "final_url": "https://www.diken.com.tr/wp-json/wp/v2/posts?per_page=1&_fields=id,link,date,content",
+    "content_type": "application/json; charset=UTF-8",
+    "etag": false,
+    "last_modified": false,
+    "bytes": 4280,
+    "seconds": 1.13,
+    "posts": 1,
+    "content_chars": 1679
+  },
+  {
+    "url": "https://medyascope.tv/wp-json/wp/v2/posts?per_page=1&_fields=id,link,date,content",
+    "status": 200,
+    "final_url": "https://medyascope.tv/wp-json/wp/v2/posts?per_page=1&_fields=id,link,date,content",
+    "content_type": "application/json; charset=UTF-8",
+    "etag": false,
+    "last_modified": false,
+    "bytes": 13907,
+    "seconds": 1.27,
+    "posts": 1,
+    "content_chars": 7780
+  },
+  {
+    "url": "https://www.veryansintv.com/wp-json/wp/v2/posts?per_page=1&_fields=id,link,date,content",
+    "status": 403,
+    "final_url": "https://www.veryansintv.com/wp-json/wp/v2/posts?per_page=1&_fields=id,link,date,content",
+    "content_type": "text/html; charset=UTF-8",
+    "etag": false,
+    "last_modified": false,
+    "bytes": 5487,
+    "seconds": 0.56,
+    "posts": 0
+  },
+  {
+    "url": "https://shiftdelete.net/wp-json/wp/v2/posts?per_page=1&_fields=id,link,date,content",
+    "status": 200,
+    "final_url": "https://shiftdelete.net/wp-json/wp/v2/posts?per_page=1&_fields=id,link,date,content",
+    "content_type": "application/json; charset=UTF-8",
+    "etag": false,
+    "last_modified": false,
+    "bytes": 5289,
+    "seconds": 0.91,
+    "posts": 1,
+    "content_chars": 3187
+  }
+]

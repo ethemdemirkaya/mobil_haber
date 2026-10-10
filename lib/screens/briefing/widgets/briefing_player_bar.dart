@@ -131,23 +131,23 @@ class _PlayerBarState extends State<_PlayerBar> {
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 3,
-                    thumbShape:
-                        const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    overlayShape:
-                        const RoundSliderOverlayShape(overlayRadius: 14),
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 6,
+                    ),
+                    overlayShape: const RoundSliderOverlayShape(
+                      overlayRadius: 14,
+                    ),
                   ),
                   child: Slider(
-                    value: count > 1
-                        ? sliderVal.clamp(0, count - 1.0)
-                        : 0,
+                    value: count > 1 ? sliderVal.clamp(0, count - 1.0) : 0,
                     min: 0,
                     max: count > 1 ? count - 1.0 : 1,
                     divisions: count > 1 ? count - 1 : null,
                     onChanged: widget.hasBriefing && count > 1
                         ? (v) => setState(() {
-                              _dragging = true;
-                              _dragValue = v;
-                            })
+                            _dragging = true;
+                            _dragValue = v;
+                          })
                         : null,
                     onChangeEnd: widget.hasBriefing && count > 1
                         ? (v) {
@@ -181,7 +181,7 @@ class _PlayerBarState extends State<_PlayerBar> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.bedtime, size: 13, color: cs.primary),
+                Icon(AppIcons.moon, size: 13, color: cs.primary),
                 const SizedBox(width: 4),
                 Text(
                   'Uyku: $sleepText',
@@ -213,20 +213,25 @@ class _PlayerBarState extends State<_PlayerBar> {
                         ? (_) => widget.onSpeedChanged(_speeds[i])
                         : null,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 4, vertical: 2),
+                      horizontal: 4,
+                      vertical: 2,
+                    ),
                     visualDensity: VisualDensity.compact,
                     showCheckmark: false,
                   ),
                 ),
               const SizedBox(width: 4),
               IconButton(
-                tooltip: _showAdvanced ? 'Gelişmiş ayarları gizle' : 'Ton ayarı',
+                tooltip: _showAdvanced
+                    ? 'Gelişmiş ayarları gizle'
+                    : 'Ton ayarı',
                 iconSize: 18,
                 visualDensity: VisualDensity.compact,
-                onPressed: () =>
-                    setState(() => _showAdvanced = !_showAdvanced),
+                onPressed: () => setState(() => _showAdvanced = !_showAdvanced),
                 icon: Icon(
-                  _showAdvanced ? Icons.tune : Icons.tune_outlined,
+                  _showAdvanced
+                      ? AppIcons.adjustmentsHorizontal
+                      : AppIcons.adjustmentsHorizontal,
                   color: _showAdvanced ? cs.primary : cs.onSurfaceVariant,
                 ),
               ),
@@ -239,8 +244,11 @@ class _PlayerBarState extends State<_PlayerBar> {
             child: _showAdvanced
                 ? Row(
                     children: [
-                      Icon(Icons.graphic_eq,
-                          size: 16, color: cs.onSurfaceVariant),
+                      Icon(
+                        AppIcons.waveSine,
+                        size: 16,
+                        color: cs.onSurfaceVariant,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         'Ton: ${_pitchLabel(widget.pitch)}',
@@ -274,16 +282,17 @@ class _PlayerBarState extends State<_PlayerBar> {
               IconButton.filledTonal(
                 tooltip: 'Durdur',
                 onPressed: widget.hasBriefing ? widget.onStop : null,
-                icon: const Icon(Icons.stop_rounded),
+                icon: const Icon(AppIcons.playerStop),
               ),
               const SizedBox(width: 4),
               // Skip prev
               IconButton(
                 tooltip: 'Önceki cümle',
                 iconSize: 28,
-                onPressed:
-                    widget.hasBriefing && idx > 0 ? widget.onSkipPrev : null,
-                icon: const Icon(Icons.skip_previous_rounded),
+                onPressed: widget.hasBriefing && idx > 0
+                    ? widget.onSkipPrev
+                    : null,
+                icon: const Icon(AppIcons.playerSkipBack),
               ),
               const SizedBox(width: 4),
               // Play / Pause
@@ -300,8 +309,8 @@ class _PlayerBarState extends State<_PlayerBar> {
                       : (widget.speaking ? widget.onPause : widget.onPlay),
                   child: Icon(
                     widget.speaking
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
+                        ? AppIcons.playerPause
+                        : AppIcons.playerPlay,
                     size: 32,
                   ),
                 ),
@@ -314,14 +323,14 @@ class _PlayerBarState extends State<_PlayerBar> {
                 onPressed: widget.hasBriefing && idx < count - 1
                     ? widget.onSkipNext
                     : null,
-                icon: const Icon(Icons.skip_next_rounded),
+                icon: const Icon(AppIcons.playerSkipForward),
               ),
               const SizedBox(width: 4),
               // Restart
               IconButton.filledTonal(
                 tooltip: 'Yeniden başlat',
                 onPressed: widget.hasBriefing ? widget.onRestart : null,
-                icon: const Icon(Icons.replay_rounded),
+                icon: const Icon(AppIcons.refresh),
               ),
             ],
           ),
