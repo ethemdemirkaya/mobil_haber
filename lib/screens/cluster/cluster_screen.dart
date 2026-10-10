@@ -1,3 +1,4 @@
+import '../../widgets/editorial_art.dart';
 import 'package:pusula_news/core/theme/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -85,81 +86,42 @@ class _ClusterScreenState extends State<ClusterScreen> {
       builder: (ctx) {
         final cs = Theme.of(ctx).colorScheme;
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 4, 24, 32),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Icon(AppIcons.gitCompare, color: cs.primary, size: 22),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Çapraz Kaynak Bakış',
-                      style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
+                const Center(
+                  child: EditorialArt(
+                    kind: EditorialArtKind.perspectives,
+                    size: 144,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Bir olay, farklı bakışlar',
+                  style: Theme.of(ctx).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Aynı olayı haber yapan farklı kaynakları otomatik '
-                  'gruplandırır. Türkçe kök bulma, TF-IDF ağırlıklı kosinüs '
-                  'benzerliği ve 36 saatlik zaman penceresiyle tamamen '
-                  'cihaz üzerinde çalışır.',
-                  style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
+                  'Aynı olayı farklı kaynakların nasıl anlattığını bir arada gör. Manşetleri karşılaştır, ayrıntıları kendi gözünle keşfet.',
+                  style: Theme.of(ctx).textTheme.bodyLarge?.copyWith(
                     color: cs.onSurfaceVariant,
-                    height: 1.5,
+                    height: 1.6,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 20),
                 Text(
-                  'Neden önemli?',
-                  style: Theme.of(
-                    ctx,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                  'Nasıl kullanılır?',
+                  style: Theme.of(ctx).textTheme.titleMedium,
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text(
-                  'Bir olayın 5 farklı medyada nasıl çerçevelendiğini yan '
-                  'yana görerek **medya çoğulluğunu** ve **manşet seçim '
-                  'farklarını** keşfedebilirsiniz. Bu özellik, hem medya '
-                  'okuryazarlığını hem de bilinçli haber tüketimini '
-                  'destekler.',
-                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                    height: 1.5,
+                  'Bir haber grubunu aç, kaynakların manşetlerine göz at. İlgini çeken habere dokunarak okumaya devam et.',
+                  style: Theme.of(ctx).textTheme.bodyLarge?.copyWith(
                     color: cs.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: cs.primaryContainer.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        AppIcons.bulb,
-                        size: 16,
-                        color: cs.onPrimaryContainer,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Tüm hesaplama cihazınızda yapılır — hiçbir '
-                          'veri sunucuya gitmez.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: cs.onPrimaryContainer,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
+                    height: 1.6,
                   ),
                 ),
               ],
@@ -456,6 +418,7 @@ class _EmptyClusterState extends StatelessWidget {
         SizedBox(height: 80),
         EmptyState(
           icon: AppIcons.gitCompare,
+          art: EditorialArtKind.perspectives,
           title: 'Henüz çapraz olay yok',
           subtitle:
               'Daha fazla kaynak aktifken aynı olayı haber yapan '
