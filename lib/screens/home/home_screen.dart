@@ -44,42 +44,24 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _autoScrollTimer;
   bool _userPaused = false;
 
-  /// İlk açılışta liste içinde görünen makale sayısı. Kullanıcı sona
-  /// yaklaştığında `_loadMoreStep` kadar artar — pseudo-pagination.
-  int _visibleCount = _initialVisible;
-  static const int _initialVisible = 15;
-  static const int _loadMoreStep = 15;
+  /// Ana sayfadaki "Son haberler" listesinde gösterilen haber sayısı.
+  /// Eskiden sona yaklaşınca 15'er otomatik artıyordu; 10 kaynakta ~80
+  /// kartlık, sonu gelmeyen bir sayfa oluşuyordu. Ana sayfa bir özet;
+  /// tamamı "Tümünü gör" ile kategori ekranında.
+  static const int _homeListLimit = 15;
 
   @override
   void initState() {
     super.initState();
     _startAutoScroll();
-    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
     _autoScrollTimer?.cancel();
     _featuredCtrl.dispose();
-    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
-  }
-
-  /// Sona ~600px kala bir sonraki batch'i göster. Yeni HTTP yok —
-  /// NewsProvider zaten tüm makaleleri çekti, biz görünür kısmı artırıyoruz.
-  void _onScroll() {
-    if (!_scrollController.hasClients) return;
-    final pos = _scrollController.position;
-    if (pos.pixels >= pos.maxScrollExtent - 600) {
-      final news = context.read<NewsProvider>();
-      final total = news.articles.length;
-      if (_visibleCount < total) {
-        setState(() {
-          _visibleCount = (_visibleCount + _loadMoreStep).clamp(0, total);
-        });
-      }
-    }
   }
 
   void _startAutoScroll() {
@@ -481,18 +463,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   title: news.selectedCategoryId == NewsCategory.all.id
                       ? 'Son haberler'
                       : news.selectedCategory.name,
-                  subtitle: news.selectedCategoryId ==
-                          NewsCategory.all.id
-                      ? 'Tüm kategorilerden seçtiklerimiz'
-                      : '${news.articles.length} haber',
-                  actionLabel:
-                      news.selectedCategoryId == NewsCategory.all.id
-                          ? null
-                          : 'Tümünü gör',
-                  onAction:
-                      news.selectedCategoryId == NewsCategory.all.id
-                          ? null
-                          : () => _openCategory(news.selectedCategory),
+                  subtitle: '${news.articles.length} haber',
+                  actionLabel: 'Tümünü gör',
+                  onAction: () => _openCategory(news.selectedCategory),
                 ),
               ),
               if (news.loading && news.articles.isEmpty)
@@ -526,7 +499,7 @@ class _HomeScreenState extends State<HomeScreen> {
               else ...[
                 SliverList.separated(
                   itemCount:
-                      news.articles.length.clamp(0, _visibleCount),
+                      news.articles.length.clamp(0, _homeListLimit),
                   separatorBuilder: (_, _) => Divider(
                     height: 1,
                     indent: 16,
@@ -544,17 +517,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   },
                 ),
-                // "Daha fazla yükle" footer — scroll auto-load çalışıyor
-                // ama görsel olarak da gösterip butonla manuel tetiklemeye
-                // izin verelim. Liste sonuna gelindiyse "Hepsi bu kadar".
                 SliverToBoxAdapter(
-                  child: _LoadMoreFooter(
-                    visible: _visibleCount,
+                  child: _SeeAllFooter(
+                    shown: news.articles.length.clamp(0, _homeListLimit),
                     total: news.articles.length,
-                    onLoadMore: () => setState(() {
-                      _visibleCount = (_visibleCount + _loadMoreStep)
-                          .clamp(0, news.articles.length);
-                    }),
+                    onSeeAll: () => _openCategory(news.selectedCategory),
                     onRefresh: _refresh,
                   ),
                 ),
