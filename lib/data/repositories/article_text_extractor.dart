@@ -164,8 +164,80 @@ class ArticleTextExtractor {
     return text;
   }
 
+  static final RegExp _nextData = RegExp(
+    r'<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)</script\s*>',
+  );
+
+  /// BBC Türkçe (Simorgh/Next.js): `pageData.content.model.blocks`
+  /// içindeki `text` bloklarının `paragraph` metinleri, sırasıyla. Başlık,
+  /// görsel altyazısı, "devamını okuyun" gibi bloklar alınmaz.
+  static String? _bodyFromNextData(String html) {
+    final m = _nextData.firstMatch(html);
+    if (m == null) return null;
+    try {
+      final data = jsonDecode(m.group(1)!);
+      final blocks = (((((data as Map)['props'] as Map)['pageProps']
+              as Map)['pageData'] as Map)['content'] as Map)['model']
+          as Map;
+      final paragraphs = <String>[];
+      void walk(Object? n) {
+        if (n is Map) {
+          final model = n['model'];
+          if (n['type'] == 'paragraph' && model is Map && model['text'] is String) {
+            paragraphs.add((model['text'] as String).trim());
+            return;
+          }
+          n.values.forEach(walk);
+        } else if (n is List) {
+          n.forEach(walk);
+        }
+      }
+
+      for (final b in (blocks['blocks'] as List? ?? const [])) {
+        if (b is Map && b['type'] == 'text') walk(b);
+      }
+      final text = paragraphs.where((p) => p.isNotEmpty).join('\n\n');
+      return text.isEmpty ? null : text;
+    } catch (_) {
+      return null; // şema değişti: diğer okuyuculara düş
+    }
+  }
+
+  static final RegExp _euronewsPlain =
+      RegExp(r'"plainText"\s*:\s*"((?:[^"\\]|\\.)*)"');
+
+  /// Euronews: sunucu verisindeki `entities.article.plainText`. Script'in
+  /// tamamı JSON değil; yalnızca bu dize alanı çözülür (eval yok).
+  static String? _bodyFromEuronews(String html) {
+    if (!html.contains('euronews-initial-server-data')) return null;
+    String? best;
+    for (final m in _euronewsPlain.allMatches(html)) {
+      try {
+        final v = jsonDecode('"${m.group(1)}"') as String;
+        if (v.length > (best?.length ?? 0)) best = v;
+      } on FormatException {
+        // bozuk kaçış: atla
+      }
+    }
+    final text = best;
+    if (text == null) return null;
+    return text
+        .split(RegExp(r'\s*\n\s*'))
+        .where((l) => l.trim().isNotEmpty)
+        .join('\n\n');
+  }
+
   /// HTML'den gövde metnini çıkarır. Test edilebilsin diye ağdan bağımsız.
+  ///
+  /// Sıra: kaynağa özel gömülü veri (BBC, Euronews) → JSON-LD
+  /// `articleBody` → paragraf taraması.
   static String? extractFromHtml(String html) {
+    for (final reader in [_bodyFromNextData, _bodyFromEuronews]) {
+      final text = reader(html);
+      if (text != null && text.length >= minStructuredChars) {
+        return text.length > maxChars ? text.substring(0, maxChars) : text;
+      }
+    }
     final structured = _articleBodyFromJsonLd(html);
     if (structured != null && structured.length >= minStructuredChars) {
       return structured.length > maxChars

@@ -8,6 +8,7 @@ import '../../core/net/shared_http_client.dart';
 import '../../core/utils/html_text.dart';
 import '../models/article.dart';
 import '../models/news_source.dart';
+import '../sources/fetch_utils.dart';
 import 'category_classifier.dart';
 
 /// Doğrudan istemci tarafında çalışan RSS aggregator.
@@ -97,17 +98,27 @@ class RssNewsService {
     }
   }
 
+  /// [fetchOne] gibi ama hatayı yutmaz — çekim planı (bkz.
+  /// `NewsAggregator`) başarısız yöntemden sıradakine geçebilsin.
+  Future<List<Article>> fetchOneOrThrow(
+    NewsSource source, {
+    String? category,
+    required int limit,
+  }) async {
+    final url = _resolveFeedUrl(source, category);
+    final body = await _fetch(url);
+    final articles = _parseRss(body, source: source, fallback: category);
+    if (articles.length <= limit) return articles;
+    return articles.sublist(0, limit);
+  }
+
   Future<List<Article>> _fetchSourceSafe(
     NewsSource source, {
     String? category,
     required int limit,
   }) async {
     try {
-      final url = _resolveFeedUrl(source, category);
-      final body = await _fetch(url);
-      final articles = _parseRss(body, source: source, fallback: category);
-      if (articles.length <= limit) return articles;
-      return articles.sublist(0, limit);
+      return await fetchOneOrThrow(source, category: category, limit: limit);
     } catch (_) {
       // Bir kaynak başarısız olduğunda akışı bozma; sessizce atla.
       return const [];
@@ -481,16 +492,8 @@ class RssNewsService {
     return (words / 200).ceil().clamp(1, 30);
   }
 
-  String _stableId(String url) {
-    // sha1 yerine deterministik küçük hash — id eşleşsin diye yeterli.
-    final bytes = utf8.encode(url);
-    var h = 0x811c9dc5;
-    for (final b in bytes) {
-      h = (h ^ b) & 0xffffffff;
-      h = (h * 0x01000193) & 0xffffffff;
-    }
-    return 'rss_${h.toRadixString(16).padLeft(8, '0')}';
-  }
+  /// RSS, WordPress ve yayıncı API'leri aynı kimliği üretsin diye ortak.
+  String _stableId(String url) => articleIdForUrl(url);
 
   DateTime? _parseDate(String s) {
     if (s.isEmpty) return null;
